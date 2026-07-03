@@ -1,0 +1,105 @@
+@{
+    var current = ViewContext.RouteData.Values["controller"]?.ToString();
+    bool IsActive(string c) =>
+        string.Equals(current, c, StringComparison.OrdinalIgnoreCase);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - DTI Laguna OneLink</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+    <link rel="stylesheet" href="~/css/adminlayout.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+
+    <!-- ══════════════ TOPBAR ══════════════ -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <h1 class="topbar-title">DTI Laguna OneLink</h1>
+            <div class="topbar-search">
+                <span class="material-symbols-outlined search-icon">search</span>
+                <input type="text" placeholder="Search tasks or records..." />
+            </div>
+        </div>
+
+        <div class="topbar-right">
+            <!-- Notification bell -->
+            <button class="notif-btn" aria-label="Notifications">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="notif-dot"></span>
+            </button>
+
+            <!-- User info + avatar -->
+            <div class="topbar-divider"></div>
+            <div class="topbar-user">
+                <div class="user-info">
+                    <span class="user-name">ADMIN</span>
+                    <span class="user-role">Super User</span>
+                </div>
+                <!-- Replace src with your employee image path, e.g. ~/images/employee.jpg -->
+                <div class="user-avatar">
+                    <img src="~/images/employee.jpg"
+                         alt="Employee photo"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                    <span class="avatar-fallback material-symbols-outlined">person</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ══════════════ SIDEBAR ══════════════ -->
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+
+            <a asp-controller="Dashboard" asp-action="AdminDashboard"
+               class="nav-item @(IsActive("Dashboard") ? "active" : "")">
+                <span class="material-symbols-outlined"
+                      style="@(IsActive("Dashboard") ? "font-variation-settings:'FILL' 1;" : "")">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+
+            <a asp-controller="Tasks" asp-action="Index"
+               class="nav-item @(IsActive("Tasks") ? "active" : "")">
+                <span class="material-symbols-outlined">assignment</span>
+                <span>Task Management</span>
+            </a>
+
+            <a asp-controller="Records" asp-action="Index"
+               class="nav-item @(IsActive("Records") ? "active" : "")">
+                <span class="material-symbols-outlined">folder_open</span>
+                <span>Records Management</span>
+            </a>
+
+            <a asp-controller="Reports" asp-action="Index"
+               class="nav-item @(IsActive("Reports") ? "active" : "")">
+                <span class="material-symbols-outlined">assessment</span>
+                <span>Reports</span>
+            </a>
+
+            <a asp-controller="UserManagement" asp-action="Index"
+               class="nav-item @(IsActive("UserManagement") ? "active" : "")">
+                <span class="material-symbols-outlined">group</span>
+                <span>User Management</span>
+            </a>
+
+        </nav>
+    </aside>
+
+    <!-- ══════════════ MAIN CONTENT ══════════════ -->
+    <main class="main-content">
+        @RenderBody()
+    </main>
+
+    <script src="~/js/adminlayout.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

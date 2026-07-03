@@ -1,0 +1,382 @@
+/* =========================================================
+   DTI Laguna Provincial Office — Login Page
+   Fonts:  Anton (Login heading) / Open Sauce Sans (everything else)
+   ========================================================= */
+
+:root {
+    --navy: #1c3f94;
+    --navy-dark: #16306f;
+    --red: #e3231f;
+    --yellow: #ffd400;
+    --white: #ffffff;
+    --field-border: #9fb8e8;
+    --field-border-focus: #16306f;
+    --text-muted: #5a6b8c;
+
+    --font-display: 'Anton', sans-serif;
+    --font-body: 'Open Sauce Sans', 'Segoe UI', Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--white);
+    font-family: var(--font-body);
+    overflow-x: hidden;
+}
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--white);
+    padding: 24px 16px;
+}
+
+/* =========================================================
+   Canvas — keeps every element's position proportional to
+   the original 1057 x 614 reference composition
+   ========================================================= */
+.canvas {
+    position: relative;
+    width: min(96vw, 1100px);
+    aspect-ratio: 1057 / 614;
+    margin: 0 auto;
+    overflow: visible;
+}
+
+/* Full-width decorative navy rules — span the actual browser
+   viewport (100vw), not just the canvas, while staying
+   vertically aligned to the canvas content via top:% */
+.bar {
+    position: absolute;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
+    height: 2%;
+    background: var(--navy);
+    z-index: 1;
+}
+
+.bar-top {
+    top: 23.6%;
+}
+
+.bar-bottom {
+    top: 75%;
+}
+
+/* =========================================================
+   Logo (left) — pinned to the band between the two bars.
+   The image scales to FIT that band via object-fit: contain,
+   so it can never overflow regardless of the source file's
+   native pixel dimensions.
+   ========================================================= */
+.logo {
+    position: absolute;
+    left: 2%;
+    top: 23.6%;
+    width: 40%;
+    height: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5% 2%;
+}
+
+.logo img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+/* =========================================================
+   Login card (right)
+   ========================================================= */
+.login-card {
+    position: absolute;
+    left: 70%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 35.5%;
+    min-width: 300px;
+    background: var(--white);
+    border-radius: 24px;
+    z-index: 3;
+
+    /* outer edge: shadow only, no border line here */
+    box-shadow:
+        0 18px 36px rgba(28, 63, 148, 0.18),
+        0 4px 10px rgba(28, 63, 148, 0.08);
+
+    padding: 6.5% 5%;
+
+    display: flex;
+    flex-direction: column;
+}
+
+/* The actual INNER border outline — inset from the card's
+   edges, sitting inside the white area, separate from the
+   outer edge (which has no border, just the drop shadow). */
+.login-card::before {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border: 1.5px solid var(--navy);
+    border-radius: 16px;
+    pointer-events: none;
+}
+
+.login-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(42px, 5.2vw, 56px);
+    text-align: center;
+    margin: 0 0 0px;
+    line-height: 0;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+}
+
+.login-title .navy {
+    color: var(--navy);
+}
+
+.login-title .accent {
+    color: var(--red);
+}
+
+#loginForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    color: #5a6b8c;
+}
+
+.input-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.text-input.has-icon-left {
+    padding-left: 42px;
+}
+
+.text-input.has-icon-right {
+    padding-right: 42px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #5a6b8c;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.toggle-password:hover {
+    color: var(--navy);
+    background: rgba(28, 63, 148, 0.08);
+}
+
+.toggle-password svg {
+    width: 18px;
+    height: 18px;
+}
+
+.toggle-password .icon-eye-off {
+    display: none;
+}
+
+.toggle-password.is-visible .icon-eye {
+    display: none;
+}
+
+.toggle-password.is-visible .icon-eye-off {
+    display: block;
+}
+
+.field-group {
+    margin-bottom: 12px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.field-group:first-of-type {
+    margin-top: 48px;   /* add this — extra space above Username only */
+}
+
+.field-group label {
+    display: block;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: clamp(13px, 1.35vw, 15px);
+    color: #1d2733;
+    margin-bottom: 7px;
+}
+
+.text-input {
+    display: block;
+    width: 100%;
+    border: 1.5px solid var(--field-border);
+    border-radius: 18px;
+    padding: 9px 16px;
+    font-family: var(--font-body);
+    font-size: clamp(13px, 1.2vw, 14px);
+    color: #1d2733;
+    outline: none;
+    background: var(--white);
+    box-shadow: none;
+    transition: box-shadow 0.15s ease, border-color 0.2s ease;
+}
+
+.text-input:focus {
+    border-color: var(--field-border-focus);
+    box-shadow: none;
+}
+
+.text-input.input-error {
+    border-color: var(--red);
+}
+
+.field-error {
+    display: block;
+    color: var(--red);
+    font-size: 11px;
+    margin-top: 4px;
+    min-height: 13px;
+}
+
+.forgot-link {
+    display: block;
+    text-align: center;
+    margin-top: 8px;
+    font-size: clamp(10px, 1.1vw, 12px);
+    color: #2a2a2a;
+    text-decoration: none;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+    color: var(--navy);
+}
+
+.form-summary-error {
+    background: rgba(227, 35, 31, 0.08);
+    border: 1px solid rgba(227, 35, 31, 0.3);
+    color: var(--red);
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-bottom: 4%;
+}
+
+.form-summary-error ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.btn-login {
+    margin-top: 20px;
+    align-self: center;
+    width: 58%;
+    min-width: 150px;
+    padding: 11px 0;
+    border: none;
+    border-radius: 30px;
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: clamp(18px, 2.2vw, 24px);
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(28, 63, 148, 0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    flex-shrink: 0;
+}
+
+.btn-login:hover {
+  cursor: pointer;
+  background: var(--navy-dark);
+  /* transform: translateY(-2px); /* Slight lift */
+  /* box-shadow: 0 14px 24px rgba(28, 63, 148, 0.4); */
+}
+
+
+.btn-login:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 14px rgba(28, 63, 148, 0.3);
+}
+
+.btn-login.shake {
+    animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+/* =========================================================
+   Responsive: stack vertically on narrow screens
+   ========================================================= */
+@media (max-width: 760px) {
+    .canvas {
+        aspect-ratio: auto;
+        height: auto;
+    }
+
+    .bar-top, .bar-bottom {
+        display: none;
+    }
+
+    .logo {
+        position: static;
+        width: 70%;
+        max-width: 220px;
+        height: auto;
+        margin: 0 auto 28px;
+        padding: 0;
+    }
+
+    .login-card {
+        position: static;
+        transform: none;
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        padding: 20px 5% 40px;
+    }
+}
