@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DTIOneLink")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6ade5d6067b81b9d143814754397dbc30b07bba4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9c462d90f3861f0761637149903a80119396e668")]
 [assembly: System.Reflection.AssemblyProductAttribute("DTIOneLink")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DTIOneLink")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

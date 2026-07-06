@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "b3bo4rYxU2s=",
+  "dgSpecHash": "D9uRha6BhF0=",
   "success": true,
-  "projectFilePath": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
+  "projectFilePath": "c:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\chandrei\\.nuget\\packages\\azure.core\\1.47.1\\azure.core.1.47.1.nupkg.sha512",
     "C:\\Users\\chandrei\\.nuget\\packages\\azure.identity\\1.14.2\\azure.identity.1.14.2.nupkg.sha512",
