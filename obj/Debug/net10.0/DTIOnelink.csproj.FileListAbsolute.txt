@@ -160,3 +160,4 @@ C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\DTIOnelink.genruntimecon
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\ref\DTIOneLink.dll
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\m8fq0y11k6-{0}-l2til1oqyx-l2til1oqyx.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\1bf0f4dgbh-{0}-d53r8r42l0-d53r8r42l0.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\DTIOnelink.sourcelink.json
