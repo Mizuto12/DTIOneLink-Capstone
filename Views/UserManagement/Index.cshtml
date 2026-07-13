@@ -1,0 +1,176 @@
+@model IEnumerable<DTIOneLink.Models.UserItem>
+@{
+    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    ViewData["Title"] = "User Management";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/user-management.css" asp-append-version="true" />
+}
+
+<!-- ── Page Header ─────────────────────────────────────── -->
+<div class="um-page-header">
+    <div>
+        <h2 class="um-page-title">User Management</h2>
+        <p class="um-page-sub">Configure access roles and manage administrative accounts</p>
+    </div>
+</div>
+
+<!-- ── Two-pane layout ────────────────────────────────── -->
+<div class="um-layout">
+
+    <!-- Left: Add Microsoft Account form -->
+    <section class="um-card um-form-pane">
+        <div class="um-section-head">
+            <div class="um-section-icon">
+                <span class="material-symbols-outlined">person_add</span>
+            </div>
+            <h3 class="um-section-title">Add Microsoft Account</h3>
+        </div>
+
+        <form id="addUserForm" asp-controller="UserManagement" asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+
+            <!-- Official Outlook -->
+            <div class="um-field-group">
+                <label class="um-label">Official Outlook</label>
+                <div class="um-input-wrap">
+                    <span class="material-symbols-outlined um-input-icon">mail</span>
+                    <input class="um-input" name="Email" type="email"
+                           placeholder="official.user@outlook.com" required />
+                </div>
+            </div>
+
+            <!-- Full Name -->
+            <div class="um-field-group">
+                <label class="um-label">Full Name</label>
+                <div class="um-input-wrap">
+                    <span class="material-symbols-outlined um-input-icon">badge</span>
+                    <input class="um-input" name="FullName" type="text"
+                           placeholder="Juan Dela Cruz" required />
+                </div>
+            </div>
+
+            <!-- Department -->
+            <div class="um-field-group">
+                <label class="um-label">Division</label>
+                <select class="um-select" name="Department">
+                    <option value="">Select Division</option>
+                    <option value="Business Development Division">Business Development Division</option>
+                    <option value="Consumer Protection Division">Consumer Protection Division</option>
+                    <option value="Financial and Administrative Unit">Financial and Administrative Unit</option>
+                </select>
+            </div>
+
+            <!-- Role -->
+            <div class="um-field-group">
+                <label class="um-label">Role</label>
+                <select class="um-select" name="Role">
+                    <option value="">Select Role</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Employee">Employee</option>
+                </select>
+            </div>
+
+            <button class="um-btn-save" type="submit" id="saveBtn">
+                SAVE ACCOUNT
+                <span class="material-symbols-outlined">check_circle</span>
+            </button>
+        </form>
+    </section>
+
+    <!-- Right: Administrative Directory table -->
+    <section class="um-card um-table-pane">
+        <div class="um-table-header">
+            <div class="um-table-title-row">
+                <span class="material-symbols-outlined">groups</span>
+                <h3 class="um-section-title">Administrative Directory</h3>
+            </div>
+            <div class="um-total-badge">
+                <span class="um-total-label">Total:</span>
+                <span class="um-total-count" id="totalUsersCount">@(Model?.Count() ?? 0) Users</span>
+            </div>
+        </div>
+
+        <!-- Search bar -->
+        <div class="um-search-bar">
+            <span class="material-symbols-outlined um-search-icon">search</span>
+            <input type="text" class="um-search-input" id="userSearchInput"
+                   placeholder="Search by name or email..." />
+        </div>
+
+        <div class="um-table-scroll">
+            <table class="um-table" id="userTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Division</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var user in Model)
+                        {
+                            var initials = !string.IsNullOrWhiteSpace(user.FullName)
+                                ? string.Concat(user.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])))
+                                : "??";
+                            var isActive = string.Equals(user.Status, "active", StringComparison.OrdinalIgnoreCase);
+                            <tr class="um-row@(isActive ? "" : " um-row-disabled")">
+                                <td>
+                                    <div class="um-name-cell">
+                                        <div class="um-avatar um-av-blue">@initials</div>
+                                        <span>@user.FullName</span>
+                                    </div>
+                                </td>
+                                <td class="um-td-muted">@user.Email</td>
+                                <td><span class="um-division-badge">@user.Department</span></td>
+                                <td class="um-td-role">@user.Role</td>
+                                <td>
+                                    <div class="um-status-badge @(isActive ? "um-status-active" : "um-status-disabled")">
+                                        <span class="um-status-dot@(isActive ? " um-dot-pulse" : "")"></span>
+                                        <span>@(isActive ? "Active" : "Disabled")</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="5" class="um-empty-row">
+                                <div class="um-empty-state">
+                                    <span class="material-symbols-outlined um-empty-icon">person_off</span>
+                                    <p class="um-empty-text">No users found</p>
+                                    <p class="um-empty-sub">Add a Microsoft account to get started.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="um-pagination-bar">
+            <span class="um-pagination-info" id="paginationInfo">Showing @(Math.Min(Model?.Count() ?? 0, 5)) of @(Model?.Count() ?? 0) entries</span>
+            <div class="um-pagination-btns" id="paginationBtns">
+                <button class="um-page-nav" disabled>
+                    <span class="material-symbols-outlined">chevron_left</span>
+                </button>
+                <button class="um-page-btn um-page-active">1</button>
+                <button class="um-page-nav">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+@section Scripts {
+    <script src="~/js/user-management.js" asp-append-version="true"></script>
+}

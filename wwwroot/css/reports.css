@@ -1,0 +1,347 @@
+/* ==========================================================
+   DTI Laguna OneLink — Reports page
+   Tailwind converted to plain CSS.
+   ========================================================== */
+
+:root {
+    --primary:              #001e65;
+    --on-primary:           #ffffff;
+    --primary-fixed:        #dce1ff;
+    --primary-container:    #1d357e;
+    --on-primary-container: #8ca1f1;
+    --secondary:            #5c5f61;
+    --secondary-fixed:      #e0e3e6;
+    --surface-lowest:       #ffffff;
+    --surface-low:          #eff4ff;
+    --surface-container:    #e5eeff;
+    --surface-container-high: #dce9ff;
+    --surface-container-low: #eff4ff;
+    --surface-tint:         #445aa4;
+    --on-surface:           #0b1c30;
+    --on-surface-variant:   #444651;
+    --outline:              #757682;
+    --outline-variant:      #c5c5d2;
+    --tertiary-fixed:       #6bfe9c;
+    --tertiary:             #002c12;
+    --background:           #f8f9ff;
+    --font-display:         'Hanken Grotesk', sans-serif;
+    --font-ui:              'Inter', sans-serif;
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    line-height: 1;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.rp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.rp-page-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    line-height: 40px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.02em;
+    margin: 0 0 4px;
+}
+
+.rp-page-sub {
+    font-family: var(--font-display);
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--secondary);
+    margin: 0;
+}
+
+.rp-btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--primary);
+    color: var(--on-primary);
+    padding: 10px 24px;
+    border: none;
+    border-radius: 9999px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.rp-btn-export:hover { opacity: 0.9; }
+.rp-btn-export:active { transform: scale(0.95); }
+
+.rp-btn-export .material-symbols-outlined { font-size: 20px; }
+
+/* ── Card ────────────────────────────────────────────────── */
+.rp-card {
+    background: var(--surface-lowest);
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(68, 90, 164, 0.08);
+    overflow: hidden;
+    border: 1px solid rgba(220, 233, 255, 0.5);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────── */
+.rp-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px;
+    background: var(--surface-container-low);
+    border-bottom: 1px solid rgba(220, 233, 255, 0.5);
+}
+
+.rp-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+    min-width: 0;
+    max-width: 672px;
+}
+
+/* Search */
+.rp-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.rp-search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(0, 30, 101, 0.6);
+    font-size: 20px;
+    pointer-events: none;
+}
+
+.rp-search-input {
+    width: 100%;
+    background: var(--surface-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: 9999px;
+    padding: 12px 16px 12px 48px;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-style: italic;
+    color: var(--on-surface);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.rp-search-input::placeholder { color: var(--outline); }
+
+.rp-search-input:focus {
+    border-color: rgba(0, 30, 101, 0.4);
+    box-shadow: 0 0 0 3px rgba(0, 30, 101, 0.1);
+}
+
+/* Dropdown filter */
+.rp-dropdown-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.rp-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface-lowest);
+    border: 1px solid var(--outline-variant);
+    padding: 12px 20px;
+    border-radius: 9999px;
+    min-width: 180px;
+    justify-content: space-between;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--primary);
+    transition: border-color 0.2s;
+}
+
+.rp-dropdown-btn:hover { border-color: rgba(0, 30, 101, 0.4); }
+
+.rp-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 220px;
+    background: var(--surface-lowest);
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+    border: 1px solid var(--outline-variant);
+    overflow: hidden;
+    z-index: 50;
+}
+
+.rp-dropdown-menu.hidden { display: none; }
+
+.rp-dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px 20px;
+    border: none;
+    background: none;
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--on-surface);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.rp-dropdown-item:hover { background: var(--surface-container); }
+
+.rp-dropdown-active {
+    background: rgba(0, 30, 101, 0.05);
+    font-weight: 700;
+    color: var(--primary);
+    border-left: 4px solid var(--primary);
+}
+
+/* Toolbar action buttons */
+.rp-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rp-icon-btn {
+    padding: 12px;
+    background: var(--surface-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: 9999px;
+    color: var(--primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.rp-icon-btn:hover { background: var(--primary-fixed); }
+
+.rp-icon-btn .material-symbols-outlined { font-size: 20px; }
+
+/* ── Report List ─────────────────────────────────────────── */
+.rp-list {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 200px;
+}
+
+/* ── Empty State ─────────────────────────────────────────── */
+.rp-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.rp-empty-icon {
+    font-size: 48px;
+    color: var(--outline);
+}
+
+.rp-empty-text {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    margin: 0;
+}
+
+.rp-empty-sub {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--secondary);
+    margin: 0;
+}
+
+/* ── Pagination ──────────────────────────────────────────── */
+.rp-pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    background: var(--surface-lowest);
+    border-top: 1px solid rgba(220, 233, 255, 0.5);
+}
+
+.rp-pagination-info {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--secondary);
+}
+
+.rp-pagination-btns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rp-page-nav {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--outline-variant);
+    background: none;
+    color: var(--secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.rp-page-nav:hover:not(:disabled) { background: var(--surface-container); }
+.rp-page-nav:disabled { opacity: 0.3; cursor: default; }
+
+.rp-page-nav .material-symbols-outlined { font-size: 18px; }
+
+.rp-page-btn {
+    padding: 6px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--outline-variant);
+    background: none;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--secondary);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.rp-page-btn:hover { background: var(--surface-container); }
+
+.rp-page-active {
+    background: var(--primary);
+    color: var(--on-primary);
+    border-color: var(--primary);
+}
+
+.rp-page-active:hover { background: var(--primary); }

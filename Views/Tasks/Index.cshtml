@@ -1,0 +1,179 @@
+@model IEnumerable<DTIOneLink.Models.TaskItem>
+@{
+    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    ViewData["Title"] = "Task Management";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
+}
+
+<!-- ── Success Banner ─────────────────────────────────── -->
+@if (TempData["SuccessMessage"] is string successMsg)
+{
+    <div class="success-banner" id="successBanner">
+        <span class="material-symbols-outlined">check_circle</span>
+        <span>@successMsg</span>
+        <button class="success-close" onclick="this.parentElement.remove()" type="button" aria-label="Dismiss">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+}
+
+<!-- ── Page Header ─────────────────────────────────────── -->
+<div class="page-header">
+    <div class="page-header-text">
+        <h2 class="page-title">Task Management</h2>
+        <p class="page-sub">Assign, track, and manage departmental workflows.</p>
+    </div>
+    <div class="page-actions">
+        <a asp-controller="Tasks" asp-action="Create" class="btn-primary-pill">
+            <span class="material-symbols-outlined">add</span>
+            CREATE TASK
+        </a>
+        <button class="btn-outline-pill">
+            <span class="material-symbols-outlined">filter_list</span>
+            FILTER
+        </button>
+    </div>
+</div>
+
+<!-- ── Task List Card ──────────────────────────────────── -->
+<div class="glass-card">
+
+    <!-- Toolbar -->
+    <div class="card-toolbar">
+        <div class="search-wrap">
+            <span class="material-symbols-outlined search-icon">search</span>
+            <input type="text" class="search-input"
+                   placeholder="Search tasks, assignees, or employee names..." />
+        </div>
+        <div class="toolbar-filters">
+            <div class="filter-chip">
+                <span>Status: All</span>
+                <span class="material-symbols-outlined chip-icon">expand_more</span>
+            </div>
+            <div class="filter-chip">
+                <span>Sort: Newest</span>
+                <span class="material-symbols-outlined chip-icon">sort</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-scroll">
+        <table class="task-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Task Assignee</th>
+                    <th>Due Date</th>
+                    <th>Task Progress</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    var index = 0;
+                    foreach (var task in Model)
+                    {
+                        index++;
+                        var initials = task.Assignee.Length > 0
+                            ? string.Concat(task.Assignee.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
+                            : "?";
+                        var progressWidth = task.Progress;
+                        var priorityBadgeClass = task.Priority?.ToLower() switch
+                        {
+                            "high" => "badge-high",
+                            "medium" => "badge-medium",
+                            "low" => "badge-low",
+                            _ => "badge-medium"
+                        };
+                        var statusBadgeClass = task.Status?.ToLower() switch
+                        {
+                            "in progress" or "progress" => "status-progress",
+                            "completed" or "complete" => "status-complete",
+                            _ => "status-pending"
+                        };
+                        var progressBarClass = progressWidth >= 80 ? "progress-green" : "";
+                        <tr class="task-row">
+                            <td class="td-first">
+                                <div class="employee-cell">
+                                    <div class="emp-avatar">@initials</div>
+                                    <div>
+                                        <div class="emp-name">@task.Assignee</div>
+                                        <div class="emp-role">Assignee</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="td-muted">@task.TaskName</span></td>
+                            <td><span class="td-date">@task.DueDate.ToString("MMM dd, yyyy")</span></td>
+                            <td>
+                                <div class="progress-cell">
+                                    <div class="progress-track">
+                                        <div class="progress-fill @progressBarClass" style="width: @progressWidth%;"></div>
+                                    </div>
+                                    <span class="progress-pct">@progressWidth%</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge @priorityBadgeClass">@task.Priority</span>
+                            </td>
+                            <td>
+                                <span class="status-badge @statusBadgeClass">@task.Status</span>
+                            </td>
+                            <td class="td-last">
+                                <button class="more-btn" aria-label="More options"
+                                        onclick="event.stopPropagation(); alert('Task details: @task.TaskName')">
+                                    <span class="material-symbols-outlined">more_horiz</span>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-content">
+                                <span class="material-symbols-outlined empty-icon">assignment</span>
+                                <p class="empty-text">No tasks yet</p>
+                                <p class="empty-sub">Create a task to get started.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar">
+        <span class="pagination-info">
+            @if (Model != null && Model.Any())
+            {
+                @:Showing @Model.Count() task@(Model.Count() != 1 ? "s" : "")
+            }
+            else
+            {
+                @:No tasks to display
+            }
+        </span>
+        <div class="pagination-btns">
+            <button class="page-btn page-nav">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button class="page-btn page-active">1</button>
+            <button class="page-btn page-nav">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/tasks-index.js" asp-append-version="true"></script>
+}

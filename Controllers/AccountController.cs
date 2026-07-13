@@ -51,6 +51,14 @@ namespace DTIOneLink.Controllers
               return RedirectToAction("AdminDashboard", "Dashboard");
         }
 
+        // GET: /Account/Logout
+        [HttpGet]
+        public IActionResult Logout()
+        {
+            // TODO: Clear auth cookie/session here when real auth is wired
+            return RedirectToAction("Login", "Account");
+        }
+
         private bool ValidateCredentials(string username, string password)
         {
             // Placeholder logic only — swap for a stored-procedure / EF Core

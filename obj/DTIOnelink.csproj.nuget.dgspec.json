@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj": {}
+    "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj": {}
   },
   "projects": {
-    "c:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj": {
+    "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
+        "projectUniqueName": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
         "projectName": "DTIOneLink",
-        "projectPath": "c:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
+        "projectPath": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
         "packagesPath": "C:\\Users\\chandrei\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\chandrei\\Desktop\\DTI OneLink\\obj\\",
+        "outputPath": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\chandrei\\AppData\\Roaming\\NuGet\\NuGet.Config"
