@@ -32,7 +32,9 @@
     gap: 16px;
     margin-bottom: 24px;
 }
-
+.page-header-text {
+     min-height: 64px; 
+    }
 @media (min-width: 768px) {
     .page-header {
         flex-direction: row;

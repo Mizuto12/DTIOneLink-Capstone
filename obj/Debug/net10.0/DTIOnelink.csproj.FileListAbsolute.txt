@@ -144,7 +144,6 @@ C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\rjimswa.dswa.cache.json
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\scopedcss\bundle\DTIOneLink.styles.css
-C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\5hx2uxh8i8-{0}-lsrjsbjh3l-lsrjsbjh3l.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\staticwebassets.build.json
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\staticwebassets.build.json.cache
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\staticwebassets.development.json
@@ -160,12 +159,14 @@ C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\DTIOnelink.sourcelink.js
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\wnyw21tvsv-{0}-4uvq440zm0-4uvq440zm0.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\tiqmbblrn5-{0}-vcqjezvr6b-vcqjezvr6b.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\ooqu0kcb2r-{0}-95syo96fcl-95syo96fcl.gz
-C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\yd1wwm6i5s-{0}-hbcp6hv2si-hbcp6hv2si.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\hy1vxcbhhn-{0}-2r21s0hlfr-2r21s0hlfr.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\sul4l8aebd-{0}-xrpy3t1vy5-xrpy3t1vy5.gz
-C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\mcgwxffq0o-{0}-3eplbg3mgz-3eplbg3mgz.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\jzfrc8y9uw-{0}-p1qkodr6hs-p1qkodr6hs.gz
-C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\cj4k5usjuy-{0}-7tinbt08l2-7tinbt08l2.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\muowhjlqzy-{0}-j5jxfqjqh4-j5jxfqjqh4.gz
 C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\1bf0f4dgbh-{0}-fp27tgonoh-fp27tgonoh.gz
-C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\m8fq0y11k6-{0}-qmfm57wtpc-qmfm57wtpc.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\m8fq0y11k6-{0}-gdu0ts9ojn-gdu0ts9ojn.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\5hx2uxh8i8-{0}-gw353fz2cp-gw353fz2cp.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\t3fno1exvp-{0}-grzog6po5p-grzog6po5p.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\cj4k5usjuy-{0}-npe848lk4r-npe848lk4r.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\yd1wwm6i5s-{0}-kmnm976gmg-kmnm976gmg.gz
+C:\Users\chandrei\Desktop\DTI OneLink\obj\Debug\net10.0\compressed\mcgwxffq0o-{0}-jo7vxdex8s-jo7vxdex8s.gz

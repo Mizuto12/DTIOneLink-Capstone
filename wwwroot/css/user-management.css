@@ -132,6 +132,7 @@
     color: var(--primary);
     letter-spacing: -0.02em;
     margin: 0 0 4px;
+    min-height: 64px;
 }
 
 /* text-secondary font-body-md */
