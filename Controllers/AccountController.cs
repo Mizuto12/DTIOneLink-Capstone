@@ -48,7 +48,13 @@ namespace DTIOneLink.Controllers
                 return Redirect(model.ReturnUrl);
             }
 
-              return RedirectToAction("AdminDashboard", "Dashboard");
+            // Role by username convention: "admin" -> admin dashboard, everyone else -> employee.
+            if (string.Equals(model.Username, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("AdminDashboard", "Dashboard");
+            }
+
+            return RedirectToAction("Index", "Employee");
         }
 
         // GET: /Account/Logout
