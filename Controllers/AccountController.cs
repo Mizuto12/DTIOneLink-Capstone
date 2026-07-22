@@ -57,8 +57,9 @@ namespace DTIOneLink.Controllers
             return RedirectToAction("Index", "Employee");
         }
 
-        // GET: /Account/Logout
-        [HttpGet]
+        // POST: /Account/Logout
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Logout()
         {
             // TODO: Clear auth cookie/session here when real auth is wired
