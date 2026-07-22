@@ -1,0 +1,127 @@
+<div class="dashboard">
+
+    <!-- Center Content Column -->
+    <div class="dashboard__center custom-scrollbar">
+
+        <!-- Banner -->
+        <div class="banner">
+            <div class="banner__hero">
+                <div class="banner__copy"></div>
+                <div class="banner__qr-wrap">
+                    <div class="banner__qr-card">
+                        <div class="banner__qr-box">
+                            <span class="material-symbols-outlined">qr_code_2</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="banner__footer">
+                <span>DTI Laguna Operational Control</span>
+                <span class="banner__footer-note">Admin Portal v2.4</span>
+            </div>
+        </div>
+
+        <!-- Global Task Ledger -->
+        <section class="ledger">
+            <div class="ledger__header">
+                <div class="ledger__title-group">
+                    <span class="material-symbols-outlined">task_alt</span>
+                    <h3 class="ledger__title">Global Task Ledger</h3>
+                </div>
+                <div class="ledger__actions">
+                    <button class="btn-pill" type="button">
+                        <span class="material-symbols-outlined">filter_list</span> Filter
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Task Assignee</th>
+                            <th>Due Date</th>
+                            <th>Progress</th>
+                            <th>Priority</th>
+                            <th class="text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- TODO: render task rows here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state">No tasks recorded yet.</div>
+        </section>
+
+        <!-- Top Performers -->
+        <section class="performers">
+            <div class="performers__header">
+                <h4 class="performers__title">Top Performers</h4>
+                <span class="material-symbols-outlined">military_tech</span>
+            </div>
+            <div class="performers__grid">
+                <!-- TODO: render performer cards here -->
+            </div>
+            <div class="empty-state">No performance data yet.</div>
+        </section>
+
+    </div>
+
+    <!-- Right Sidebar -->
+    <aside class="dashboard__rightbar custom-scrollbar">
+
+        <!-- Calendar Widget -->
+        <div class="widget">
+            <div class="widget__header">
+                <div class="widget__title-group">
+                    <span class="material-symbols-outlined">calendar_today</span>
+                    <h4 class="widget__title">Calendar</h4>
+                </div>
+            </div>
+            <div class="calendar-nav">
+                <button id="calendarPrevBtn" class="calendar-nav__btn material-symbols-outlined" type="button" aria-label="Previous month">chevron_left</button>
+                <span id="calendarLabel" class="calendar-nav__label"></span>
+                <button id="calendarNextBtn" class="calendar-nav__btn material-symbols-outlined" type="button" aria-label="Next month">chevron_right</button>
+            </div>
+            <div class="calendar-weekdays">
+                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            </div>
+            <div id="calendarDays" class="calendar-days">
+                <!-- Rendered by dashboard.js -->
+            </div>
+            <button class="widget__link-btn" type="button">Full Calendar</button>
+        </div>
+
+        <!-- To-do List -->
+        <div class="widget">
+            <div class="widget__header">
+                <div class="widget__title-group">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <h4 class="widget__title">To-do</h4>
+                </div>
+                <button class="widget__add-btn material-symbols-outlined" type="button" aria-label="Add to-do">add</button>
+            </div>
+            <div class="todo-list">
+                <div class="todo-item">
+                    <span class="material-symbols-outlined">description</span>
+                    <span>Set profile description</span>
+                </div>
+                <div class="todo-item">
+                    <span class="material-symbols-outlined">update</span>
+                    <span>Update quarterly logs</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Announcements -->
+        <div class="widget">
+            <div class="widget__title-group" style="margin-bottom: 16px;">
+                <span class="material-symbols-outlined">campaign</span>
+                <h4 class="widget__title">Announcements</h4>
+            </div>
+            <div class="empty-state">No new announcements at this time.</div>
+        </div>
+
+    </aside>
+</div>
