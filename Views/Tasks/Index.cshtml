@@ -1,11 +1,13 @@
-@model IEnumerable<DTIOneLink.Models.TaskItem>
+@model DTIOneLink.ViewModels.TaskManagementViewModel
 @{
     Layout = "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Task Management";
+    var tasks = Model.Tasks;
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
 }
 
 <!-- ── Success Banner ─────────────────────────────────── -->
@@ -25,10 +27,10 @@
     <div class="page-header-text">
     </div>
     <div class="page-actions">
-        <a asp-controller="Tasks" asp-action="Create" class="btn-primary-pill">
+        <button type="button" id="openCreateTask" class="btn-primary-pill">
             <span class="material-symbols-outlined">add</span>
             CREATE TASK
-        </a>
+        </button>
         <button class="btn-outline-pill">
             <span class="material-symbols-outlined">filter_list</span>
             FILTER
@@ -73,12 +75,10 @@
                 </tr>
             </thead>
             <tbody>
-                @if (Model != null && Model.Any())
+                @if (tasks != null && tasks.Any())
                 {
-                    var index = 0;
-                    foreach (var task in Model)
+                    foreach (var task in tasks)
                     {
-                        index++;
                         var initials = task.Assignee.Length > 0
                             ? string.Concat(task.Assignee.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
                             : "?";
@@ -151,9 +151,9 @@
     <!-- Pagination -->
     <div class="pagination-bar">
         <span class="pagination-info">
-            @if (Model != null && Model.Any())
+            @if (tasks != null && tasks.Any())
             {
-                @:Showing @Model.Count() task@(Model.Count() != 1 ? "s" : "")
+                @:Showing @tasks.Count() task@(tasks.Count() != 1 ? "s" : "")
             }
             else
             {
@@ -172,6 +172,126 @@
     </div>
 </div>
 
+<!-- ── Create Task Modal (overlay, in-place) ───────────── -->
+<div class="modal-overlay @(Model.OpenModal ? "" : "is-hidden")" id="createTaskModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+        <!-- Header -->
+        <div class="modal-header">
+            <div>
+                <h2 class="modal-title" id="modalTitle">Create New Task</h2>
+                <p class="modal-sub">Assign a new operational task to a team member.</p>
+            </div>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="validation-summary">
+                    <span class="material-symbols-outlined">error</span>
+                    <div asp-validation-summary="All" class="validation-errors"></div>
+                </div>
+            }
+
+            <form id="taskForm" asp-controller="Tasks" asp-action="Create" method="post" novalidate>
+                @Html.AntiForgeryToken()
+
+                <!-- Task Name -->
+                <div class="field-group">
+                    <label class="field-label" for="taskName">TASK NAME <span class="required-star">*</span></label>
+                    <input class="pill-input" id="taskName" asp-for="NewTask.TaskName" type="text"
+                           placeholder="e.g. MSME Development Seminar Coordination" />
+                    <span asp-validation-for="NewTask.TaskName" class="field-error"></span>
+                </div>
+
+                <!-- Assignee + Due Date -->
+                <div class="field-row">
+                    <div class="field-group">
+                        <label class="field-label" for="assignee">ASSIGNEE <span class="required-star">*</span></label>
+                        <div class="select-wrap">
+                            <select class="pill-input" id="assignee" asp-for="NewTask.Assignee">
+                                <option value="">Select assignee</option>
+                                @foreach (var u in Model.Users)
+                                {
+                                    <option value="@u.FullName">@u.FullName</option>
+                                }
+                            </select>
+                            <span class="material-symbols-outlined select-icon">person</span>
+                        </div>
+                        @if (!Model.Users.Any())
+                        {
+                            <span class="field-hint">No users yet — add accounts in User Management first.</span>
+                        }
+                        <span asp-validation-for="NewTask.Assignee" class="field-error"></span>
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label" for="dueDate">DUE DATE <span class="required-star">*</span></label>
+                        <div class="select-wrap">
+                            <input class="pill-input" id="dueDate" asp-for="NewTask.DueDate" type="date" />
+                            <span class="material-symbols-outlined select-icon">calendar_today</span>
+                        </div>
+                        <span asp-validation-for="NewTask.DueDate" class="field-error"></span>
+                    </div>
+                </div>
+
+                <!-- Priority -->
+                <div class="field-group">
+                    <span class="field-label">PRIORITY LEVEL <span class="required-star">*</span></span>
+                    <div class="priority-row">
+                        <label class="priority-option">
+                            <input type="radio" asp-for="NewTask.Priority" value="low" />
+                            <div class="priority-pill">
+                                <span class="priority-dot dot-low"></span>
+                                <span>Low</span>
+                            </div>
+                        </label>
+                        <label class="priority-option">
+                            <input type="radio" asp-for="NewTask.Priority" value="medium" checked />
+                            <div class="priority-pill">
+                                <span class="priority-dot dot-medium"></span>
+                                <span>Medium</span>
+                            </div>
+                        </label>
+                        <label class="priority-option">
+                            <input type="radio" asp-for="NewTask.Priority" value="high" />
+                            <div class="priority-pill">
+                                <span class="priority-dot dot-high"></span>
+                                <span>High</span>
+                            </div>
+                        </label>
+                    </div>
+                    <span asp-validation-for="NewTask.Priority" class="field-error"></span>
+                </div>
+
+                <!-- Description -->
+                <div class="field-group">
+                    <label class="field-label" for="description">TASK DESCRIPTION <span class="required-star">*</span></label>
+                    <textarea class="pill-input" id="description" asp-for="NewTask.Description" rows="4"
+                              placeholder="Describe the task scope, objectives, and any specific requirements..."></textarea>
+                    <span asp-validation-for="NewTask.Description" class="field-error"></span>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+            <button type="button" class="btn-cancel" data-close-modal>Cancel</button>
+            <button class="btn-create" id="createBtn" type="submit" form="taskForm">
+                <span class="material-symbols-outlined"
+                      style="font-variation-settings:'FILL' 1; font-size:20px;">add</span>
+                Create Task
+            </button>
+        </div>
+
+    </div>
+</div>
+
 @section Scripts {
     <script src="~/js/tasks-index.js" asp-append-version="true"></script>
+    <script src="~/js/tasks-create.js" asp-append-version="true"></script>
 }

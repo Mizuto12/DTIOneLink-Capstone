@@ -1,23 +1,52 @@
 // ==========================================================
-// DTI Laguna OneLink — Create Task JS
+// DTI Laguna OneLink — Create Task modal (in-place overlay)
 // ==========================================================
 (function () {
     "use strict";
 
     var modal    = document.getElementById("createTaskModal");
     var taskForm = document.getElementById("taskForm");
+    var openBtn  = document.getElementById("openCreateTask");
+
+    if (!modal) return;
+
+    var box = modal.querySelector(".modal");
+
+    // ── Open modal ────────────────────────────────────────
+    function openModal() {
+        if (box) box.classList.remove("closing");
+        modal.classList.remove("is-hidden");
+    }
 
     // ── Close modal (animate out) ─────────────────────────
     function closeModal() {
-        if (!modal) return;
-        var box = modal.querySelector(".modal");
         if (box) box.classList.add("closing");
         setTimeout(function () {
-            modal.style.display = "none";
+            modal.classList.add("is-hidden");
+            if (box) box.classList.remove("closing");
         }, 200);
     }
 
-    // ── Submit handler — intercept for loading state ──────
+    // ── Triggers ──────────────────────────────────────────
+    if (openBtn) {
+        openBtn.addEventListener("click", openModal);
+    }
+
+    modal.querySelectorAll("[data-close-modal]").forEach(function (el) {
+        el.addEventListener("click", closeModal);
+    });
+
+    // Close on overlay click (but not clicks inside the box)
+    modal.addEventListener("click", function (e) {
+        if (e.target === modal) closeModal();
+    });
+
+    // Close on Escape
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !modal.classList.contains("is-hidden")) closeModal();
+    });
+
+    // ── Submit handler — loading state ────────────────────
     if (taskForm) {
         taskForm.addEventListener("submit", function () {
             var btn = document.getElementById("createBtn");
@@ -32,17 +61,5 @@
             btn.disabled = true;
         });
     }
-
-    // ── Close on overlay click ────────────────────────────
-    if (modal) {
-        modal.addEventListener("click", function (e) {
-            if (e.target === modal) closeModal();
-        });
-    }
-
-    // ── Close on Escape ───────────────────────────────────
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") closeModal();
-    });
 
 })();
