@@ -10,5 +10,19 @@ namespace DTIOneLink.Controllers
         {
             return View();
         }
+
+        // GET: /Employee/TaskManagement
+        [HttpGet]
+        public IActionResult TaskManagement()
+        {
+            return View();
+        }
+
+        // GET: /Employee/Reports
+        [HttpGet]
+        public IActionResult Reports()
+        {
+            return View();
+        }
     }
 }
