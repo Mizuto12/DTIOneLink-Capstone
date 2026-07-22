@@ -120,6 +120,12 @@
                 <span>Task Management</span>
             </a>
 
+            <a asp-controller="Employee" asp-action="Records"
+               class="nav-item @(IsActive("Records") ? "active" : "")">
+                <span class="material-symbols-outlined">folder_open</span>
+                <span>Records Management</span>
+            </a>
+
             <a asp-controller="Employee" asp-action="Reports"
                class="nav-item @(IsActive("Reports") ? "active" : "")">
                 <span class="material-symbols-outlined">assessment</span>

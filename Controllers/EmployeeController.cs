@@ -18,6 +18,13 @@ namespace DTIOneLink.Controllers
             return View();
         }
 
+        // GET: /Employee/Records
+        [HttpGet]
+        public IActionResult Records()
+        {
+            return View();
+        }
+
         // GET: /Employee/Reports
         [HttpGet]
         public IActionResult Reports()
