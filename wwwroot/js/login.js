@@ -11,6 +11,10 @@
         var forgotLink = document.getElementById("forgotPasswordLink");
         var togglePasswordBtn = document.getElementById("togglePassword");
 
+        if (form && passwordInput && form.dataset.password) {
+            passwordInput.value = form.dataset.password;
+        }
+
         if (form) {
             form.addEventListener("submit", function (e) {
                 var hasError = false;

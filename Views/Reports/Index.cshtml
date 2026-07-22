@@ -1,6 +1,10 @@
 @{
-    Layout = "~/Views/Admin/AdminLayout.cshtml";
-    ViewData["Title"] = "Reports";
+    var role = Context.Session.GetString("Role");
+    Layout = role == "Admin"
+        ? "~/Views/Admin/AdminLayout.cshtml"
+        : "~/Views/Employee/employeelayout.cshtml";
+
+        ViewData["Title"] = "Reports";
 }
 
 @section Styles {

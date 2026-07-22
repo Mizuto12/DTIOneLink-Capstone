@@ -1,69 +1,124 @@
 using DTIOneLink.Models;
+using DTIOneLink.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace DTIOneLink.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly ILogger<AccountController> _logger;
+        // ── DatabaseHelper is injected by ASP.NET Core automatically.
+        // The connection string lives only in appsettings.json.
+        private readonly DatabaseHelper _db;
 
-        public AccountController(ILogger<AccountController> logger)
+        public AccountController(DatabaseHelper db)
         {
-            _logger = logger;
+            _db = db;
         }
 
-        // GET: /Account/Login
+        // ── GET /Account/Login ─────────────────────────────
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
-            var model = new LoginViewModel { ReturnUrl = returnUrl };
-            return View(model);
-        }
-
-        // POST: /Account/Login
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Login(LoginViewModel model)
-        {
-            if (!ModelState.IsValid)
+            // If already logged in, skip the login page
+            if (HttpContext.Session.GetString("Username") != null)
             {
-                return View(model);
+                return RedirectToDashboard(HttpContext.Session.GetString("Role"));
             }
 
-            // TODO: Replace with real authentication against SQL Server
-            // (e.g. validate credentials via a UsersRepository / EF Core DbContext
-            // backed by Microsoft SQL Server, managed through SSMS).
-            bool isValidUser = ValidateCredentials(model.Username, model.Password);
+            return View(new LoginViewModel { ReturnUrl = returnUrl });
+        }
 
-            if (!isValidUser)
+        // ── POST /Account/Login ────────────────────────────
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(LoginViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            // 1. Look up the user by username
+            string? storedHash = null;
+            string? role       = null;
+            string? fullName   = null;
+            bool    isActive   = false;
+
+            using (var conn = _db.GetConnection())     // ← no connection string here
+            {
+                await conn.OpenAsync();
+
+                const string sql = @"
+                    SELECT PasswordHash, Role, FullName, IsActive
+                    FROM   Users
+                    WHERE  Username = @Username";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@Username", model.Username);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    storedHash = reader["PasswordHash"].ToString();
+                    role       = reader["Role"].ToString();
+                    fullName   = reader["FullName"].ToString();
+                    isActive   = Convert.ToBoolean(reader["IsActive"]);
+                }
+            }
+
+            // 2. User not found or account disabled
+            if (storedHash == null || !isActive)
             {
                 ModelState.AddModelError(string.Empty, "Invalid username or password.");
                 return View(model);
             }
 
-            // TODO: Sign the user in (cookie auth / session) here.
+            // 3. Verify the password against the stored hash
+            var hasher = new PasswordHasher<object>();
+            var result = hasher.VerifyHashedPassword(null!, storedHash, model.Password);
 
-            if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+            if (result == PasswordVerificationResult.Failed)
             {
-                return Redirect(model.ReturnUrl);
+                ModelState.AddModelError(string.Empty, "Invalid username or password.");
+                return View(model);
             }
 
-              return RedirectToAction("AdminDashboard", "Dashboard");
+            // 4. Store user info in session
+            HttpContext.Session.SetString("Username", model.Username);
+            HttpContext.Session.SetString("Role",     role     ?? "Employee");
+            HttpContext.Session.SetString("FullName", fullName ?? model.Username);
+
+            // 5. Redirect to the correct dashboard based on role
+            if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+                return Redirect(model.ReturnUrl);
+
+            return RedirectToDashboard(role);
         }
 
-        // GET: /Account/Logout
-        [HttpGet]
+        // ── GET /Account/Logout ────────────────────────────
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Logout()
         {
-            // TODO: Clear auth cookie/session here when real auth is wired
-            return RedirectToAction("Login", "Account");
+            HttpContext.Session.Clear();
+            return RedirectToAction("Login");
         }
 
-        private bool ValidateCredentials(string username, string password)
+            [HttpGet]
+            public IActionResult Hash(string p)
+            {
+                var hasher = new PasswordHasher<object>();
+                return Content(hasher.HashPassword(null!, p));
+            }
+        // ── Helper: route by role ──────────────────────────
+        private IActionResult RedirectToDashboard(string? role)
         {
-            // Placeholder logic only — swap for a stored-procedure / EF Core
-            // lookup against the Microsoft SQL Server database.
-            return !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password);
+                    return role switch
+            {
+                "Admin"    => RedirectToAction("Index", "Dashboard"),
+                "Employee" => RedirectToAction("Index", "Dashboard"),
+                _          => RedirectToAction("Login")
+            };
         }
     }
 }

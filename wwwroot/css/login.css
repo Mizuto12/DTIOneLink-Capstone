@@ -380,3 +380,30 @@ html, body {
         padding: 20px 5% 40px;
     }
 }
+
+/* Keep the title, server validation message, and first field in normal flow. */
+.login-title {
+    margin-bottom: 16px;
+    line-height: 0.95;
+}
+
+.form-summary-error {
+    padding: 10px 14px;
+    line-height: 1.35;
+    margin-bottom: 0;
+}
+
+.form-summary-error ul {
+    padding: 0;
+    list-style: none;
+}
+
+.field-group:first-of-type {
+    margin-top: 20px;
+}
+
+/* Highlight both credentials when the server rejects the login attempt. */
+#loginForm:has(.form-summary-error) .text-input {
+    border-color: var(--red);
+    background: rgba(227, 35, 31, 0.03);
+}

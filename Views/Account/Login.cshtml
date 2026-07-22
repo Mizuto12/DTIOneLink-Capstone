@@ -35,7 +35,7 @@
             <section class="login-card" aria-label="Login form">
                 <h1 class="login-title"><span class="navy">Log</span><span class="accent">in</span></h1>
 
-                <form asp-controller="Account" asp-action="Login" method="post" novalidate id="loginForm">
+                <form asp-controller="Account" asp-action="Login" method="post" novalidate id="loginForm" data-password="@Model.Password">
                     @Html.AntiForgeryToken()
                     <input type="hidden" asp-for="ReturnUrl" />
 
