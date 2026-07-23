@@ -2,16 +2,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DTIOneLink.Data;
 using DTIOneLink.Models;
+using DTIOneLink.Security;
 
 namespace DTIOneLink.Controllers
 {
     public class UserManagementController : Controller
     {
         private readonly AppDbContext _db;
+        private readonly string _defaultPassword;
 
-        public UserManagementController(AppDbContext db)
+        public UserManagementController(AppDbContext db, IConfiguration config)
         {
             _db = db;
+            _defaultPassword = config.GetValue("Auth:DefaultPassword", "ChangeMe123!")!;
         }
 
         // GET: /UserManagement/Index
@@ -26,7 +29,8 @@ namespace DTIOneLink.Controllers
         // POST: /UserManagement/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(UserItem user)
+        public async Task<IActionResult> Create(
+            [Bind("FullName,Email,Role,Department,Status")] UserItem user)
         {
             if (!ModelState.IsValid)
             {
@@ -37,6 +41,9 @@ namespace DTIOneLink.Controllers
             }
 
             user.CreatedAt = DateTime.UtcNow;
+            // New accounts start with the shared default password and must change it on first login.
+            user.PasswordHash = PasswordHasher.Hash(_defaultPassword);
+            user.MustChangePassword = true;
             _db.UserItems.Add(user);
             await _db.SaveChangesAsync();
 
