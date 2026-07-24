@@ -24,6 +24,12 @@ namespace DTIOneLink.Models
         [Required(ErrorMessage = "Status is required.")]
         public string Status { get; set; } = "active";
 
+        // Set server-side (not bound from the create form).
+        public string PasswordHash { get; set; } = string.Empty;
+
+        // True while the account still uses the default password and must change it on next login.
+        public bool MustChangePassword { get; set; } = true;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

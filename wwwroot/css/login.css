@@ -380,3 +380,17 @@ html, body {
         padding: 20px 5% 40px;
     }
 }
+
+/* OTP / change-password helper text and resend action */
+.login-subtitle {
+    font-family: var(--font-body);
+    font-size: clamp(12px, 1.2vw, 14px);
+    color: #52616b;
+    line-height: 1.5;
+    margin: 8px 0 4px;
+}
+
+.resend-form {
+    margin-top: 8px;
+    text-align: center;
+}

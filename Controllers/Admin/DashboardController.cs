@@ -9,7 +9,7 @@ namespace DTIOneLink.Controllers
         [HttpGet]
         public IActionResult AdminDashboard()
         {
-            var model = new LoginViewModel{ ReturnUrl = Url.Action("AdminDashboard", "AdminDashboard") };
+            var model = new LoginViewModel{ ReturnUrl = Url.Action("AdminDashboard", "Dashboard") };
             return View(model);
         }
 

@@ -1,37 +1,55 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using DTIOneLink.Data;
 using DTIOneLink.Models;
-using DTIOneLink.Services;
+using DTIOneLink.ViewModels;
 
 namespace DTIOneLink.Controllers
 {
     public class TasksController : Controller
     {
-        // GET: /Tasks/Index
-        public IActionResult Index()
+        private readonly AppDbContext _db;
+
+        public TasksController(AppDbContext db)
         {
-            var tasks = InMemoryStore.GetAllTasks();
-            return View(tasks);
+            _db = db;
         }
 
-        // GET: /Tasks/Create
-        public IActionResult Create()
+        // GET: /Tasks/Index
+        public async Task<IActionResult> Index()
         {
-            return View();
+            var vm = await BuildViewModelAsync();
+            return View(vm);
         }
 
         // POST: /Tasks/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(TaskItem task)
+        public async Task<IActionResult> Create([Bind(Prefix = "NewTask")] TaskItem task)
         {
             if (!ModelState.IsValid)
             {
-                return View(task);
+                var vm = await BuildViewModelAsync();
+                vm.NewTask = task;
+                vm.OpenModal = true;
+                return View("Index", vm);
             }
 
-            InMemoryStore.AddTask(task);
+            task.CreatedAt = DateTime.UtcNow;
+            _db.TaskItems.Add(task);
+            await _db.SaveChangesAsync();
+
             TempData["SuccessMessage"] = "Task created successfully!";
             return RedirectToAction(nameof(Index));
+        }
+
+        private async Task<TaskManagementViewModel> BuildViewModelAsync()
+        {
+            return new TaskManagementViewModel
+            {
+                Tasks = await _db.TaskItems.OrderByDescending(t => t.CreatedAt).ToListAsync(),
+                Users = await _db.UserItems.OrderBy(u => u.FullName).ToListAsync()
+            };
         }
     }
 }

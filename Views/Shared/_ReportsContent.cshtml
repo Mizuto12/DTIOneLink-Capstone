@@ -1,0 +1,67 @@
+<!-- ── Header Section ─────────────────────────────────── -->
+<div class="rp-header">
+    <button class="rp-btn-export">
+        <span class="material-symbols-outlined">download</span>
+        Export Data
+    </button>
+</div>
+
+<!-- ── Main Card ──────────────────────────────────────── -->
+<div class="rp-card">
+
+    <!-- Filter & Search Toolbar -->
+    <div class="rp-toolbar">
+        <div class="rp-toolbar-left">
+            <div class="rp-search-wrap">
+                <span class="material-symbols-outlined rp-search-icon">search</span>
+                <input type="text" class="rp-search-input" placeholder="Search report items..." id="reportSearch" />
+            </div>
+            <div class="rp-dropdown-wrap">
+                <button class="rp-dropdown-btn" id="filterBtn" onclick="toggleDropdown()">
+                    <span class="rp-dropdown-label" id="currentFilter">Archived</span>
+                    <span class="material-symbols-outlined">expand_more</span>
+                </button>
+                <div class="rp-dropdown-menu hidden" id="filterDropdown">
+                    <button class="rp-dropdown-item">Audit Logs</button>
+                    <button class="rp-dropdown-item rp-dropdown-active">Archived</button>
+                    <button class="rp-dropdown-item">Disposed</button>
+                    <button class="rp-dropdown-item">Retained</button>
+                    <button class="rp-dropdown-item">Active Tasks</button>
+                    <button class="rp-dropdown-item">Completed Tasks</button>
+                </div>
+            </div>
+        </div>
+        <div class="rp-toolbar-actions">
+            <button class="rp-icon-btn">
+                <span class="material-symbols-outlined">calendar_today</span>
+            </button>
+            <button class="rp-icon-btn">
+                <span class="material-symbols-outlined">tune</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Report List -->
+    <div class="rp-list">
+        <div class="rp-empty-state">
+            <span class="material-symbols-outlined rp-empty-icon">assessment</span>
+            <p class="rp-empty-text">No reports yet</p>
+            <p class="rp-empty-sub">Reports will appear here once generated.</p>
+        </div>
+    </div>
+
+    <!-- Footer Pagination -->
+    <div class="rp-pagination-bar">
+        <span class="rp-pagination-info">Showing 0 of 0 reports</span>
+        <div class="rp-pagination-btns">
+            <button class="rp-page-nav" disabled>
+                <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button class="rp-page-btn rp-page-active">1</button>
+            <button class="rp-page-nav" disabled>
+                <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+        </div>
+    </div>
+
+</div>
