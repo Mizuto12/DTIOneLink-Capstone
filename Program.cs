@@ -1,6 +1,4 @@
 using DTIOneLink.Data;
-using DTIOneLink.Models;
-using DTIOneLink.Security;
 using DTIOneLink.Services.Email;
 using DTIOneLink.Services.Outlook;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +25,7 @@ builder.Services.AddScoped<IOutlookProfileService, DevOutlookProfileService>();
 
 var app = builder.Build();
 
-// Apply any pending EF Core migrations so the Task/User tables exist, then seed a default admin.
+// Apply any pending EF Core migrations so the Task/User tables exist.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -35,7 +33,6 @@ using (var scope = app.Services.CreateScope())
     try
     {
         db.Database.Migrate();
-        SeedDefaultAdmin(db, app.Configuration, logger);
     }
     catch (Exception ex)
     {
@@ -59,33 +56,3 @@ app.MapControllerRoute(
     pattern: "{controller=Account}/{action=Login}/{id?}");
 
 app.Run();
-
-// Creates a default administrator with the default password when no users exist yet,
-// so the very first login is possible. The account is flagged to change its password.
-static void SeedDefaultAdmin(AppDbContext db, IConfiguration config, ILogger logger)
-{
-    if (db.UserItems.Any())
-    {
-        return;
-    }
-
-    var email = config.GetValue("Auth:SeedAdminEmail", "admin@dti.gov.ph")!;
-    var defaultPassword = config.GetValue("Auth:DefaultPassword", "dtionelink2026")!;
-
-    db.UserItems.Add(new UserItem
-    {
-        FullName = "System Administrator",
-        Email = email,
-        Role = "Admin",
-        Department = "Financial and Administrative Unit",
-        Status = "active",
-        PasswordHash = PasswordHasher.Hash(defaultPassword),
-        MustChangePassword = true,
-        CreatedAt = DateTime.UtcNow
-    });
-
-    db.SaveChanges();
-    logger.LogWarning(
-        "Seeded default admin account: {Email} (default password from Auth:DefaultPassword; change on first login).",
-        email);
-}
