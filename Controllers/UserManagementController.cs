@@ -14,7 +14,7 @@ namespace DTIOneLink.Controllers
         public UserManagementController(AppDbContext db, IConfiguration config)
         {
             _db = db;
-            _defaultPassword = config.GetValue("Auth:DefaultPassword", "ChangeMe123!")!;
+            _defaultPassword = config.GetValue("Auth:DefaultPassword", "dtionelink2026")!;
         }
 
         // GET: /UserManagement/Index
@@ -41,7 +41,7 @@ namespace DTIOneLink.Controllers
             }
 
             user.CreatedAt = DateTime.UtcNow;
-            // New accounts start with the shared default password and must change it on first login.
+            // New accounts start with the shared default password from Auth:DefaultPassword.
             user.PasswordHash = PasswordHasher.Hash(_defaultPassword);
             user.MustChangePassword = true;
             _db.UserItems.Add(user);

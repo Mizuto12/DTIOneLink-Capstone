@@ -70,7 +70,7 @@ static void SeedDefaultAdmin(AppDbContext db, IConfiguration config, ILogger log
     }
 
     var email = config.GetValue("Auth:SeedAdminEmail", "admin@dti.gov.ph")!;
-    var defaultPassword = config.GetValue("Auth:DefaultPassword", "ChangeMe123!")!;
+    var defaultPassword = config.GetValue("Auth:DefaultPassword", "dtionelink2026")!;
 
     db.UserItems.Add(new UserItem
     {
