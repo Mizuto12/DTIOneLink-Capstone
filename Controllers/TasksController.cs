@@ -48,7 +48,7 @@ namespace DTIOneLink.Controllers
             return new TaskManagementViewModel
             {
                 Tasks = await _db.TaskItems.OrderByDescending(t => t.CreatedAt).ToListAsync(),
-                Users = await _db.UserItems.OrderBy(u => u.FullName).ToListAsync()
+                Users = await _db.Users.OrderBy(u => u.FullName).ToListAsync()
             };
         }
     }

@@ -20,7 +20,7 @@ namespace DTIOneLink.Controllers
         // GET: /UserManagement/Index
         public async Task<IActionResult> Index()
         {
-            var users = await _db.UserItems
+            var users = await _db.Users
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
             return View(users);
@@ -34,7 +34,7 @@ namespace DTIOneLink.Controllers
         {
             if (!ModelState.IsValid)
             {
-                var users = await _db.UserItems
+                var users = await _db.Users
                     .OrderByDescending(u => u.CreatedAt)
                     .ToListAsync();
                 return View(nameof(Index), users);
@@ -44,7 +44,7 @@ namespace DTIOneLink.Controllers
             // New accounts start with the shared default password from Auth:DefaultPassword.
             user.PasswordHash = PasswordHasher.Hash(_defaultPassword);
             user.MustChangePassword = true;
-            _db.UserItems.Add(user);
+            _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "User created successfully!";

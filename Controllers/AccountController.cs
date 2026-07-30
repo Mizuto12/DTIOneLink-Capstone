@@ -40,7 +40,7 @@ namespace DTIOneLink.Controllers
             }
 
             var email = model.Username.Trim();
-            var user = await _db.UserItems
+            var user = await _db.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
 
             if (user is null || !PasswordHasher.Verify(model.Password, user.PasswordHash))
