@@ -25,18 +25,18 @@ builder.Services.AddScoped<IOutlookProfileService, DevOutlookProfileService>();
 
 var app = builder.Build();
 
-// Apply any pending EF Core migrations so the Task/User tables exist.
+// Create the database and its tables from the model if they don't exist yet.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
-        db.Database.Migrate();
+        db.Database.EnsureCreated();
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to apply database migrations at startup. Check the DtiLagunaDb connection string.");
+        logger.LogError(ex, "Failed to create the database at startup. Check the DtiLagunaDb connection string.");
     }
 }
 
