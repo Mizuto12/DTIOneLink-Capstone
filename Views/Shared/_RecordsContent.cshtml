@@ -111,7 +111,7 @@
                 </div>
                 <h3 class="rec-card-title">Recent Submissions</h3>
             </div>
-            <span class="rec-count">Showing 8 of 1,240 entries</span>
+            <span class="rec-count" id="recordCount">No entries yet</span>
         </div>
 
         <div class="rec-table-scroll">
@@ -128,26 +128,9 @@
                         <th>Retention Period</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr class="rec-row">
-                        <td>DTI-REC-001</td>
-                        <td class="rec-cell-strong">Business Registration Logs</td>
-                        <td>Digital</td>
-                        <td>Cloud Server</td>
-                        <td>2024</td>
-                        <td>Numerical</td>
-                        <td>Restricted</td>
-                        <td>Permanent</td>
-                    </tr>
-                    <tr class="rec-row">
-                        <td>DTI-REC-002</td>
-                        <td class="rec-cell-strong">Personnel Attendance Sheets</td>
-                        <td>Physical</td>
-                        <td>Cabinet 4-B</td>
-                        <td>2023 Q4</td>
-                        <td>Chronological</td>
-                        <td>Confidential</td>
-                        <td>5 Years</td>
+                <tbody id="recordRows">
+                    <tr id="recordEmptyRow">
+                        <td class="rec-empty" colspan="8">No records committed yet. Fill in the form above to add your first entry.</td>
                     </tr>
                 </tbody>
             </table>
@@ -160,14 +143,11 @@
                     <span class="material-symbols-outlined">chevron_left</span>
                 </button>
                 <button type="button" class="rec-page rec-page-current">1</button>
-                <button type="button" class="rec-page">2</button>
-                <button type="button" class="rec-page rec-page-ellipsis" disabled>...</button>
-                <button type="button" class="rec-page">42</button>
                 <button type="button" class="rec-page rec-page-arrow" aria-label="Next page">
                     <span class="material-symbols-outlined">chevron_right</span>
                 </button>
             </div>
-            <div class="rec-page-info">Page 1 of 42</div>
+            <div class="rec-page-info">Page 1 of 1</div>
         </div>
     </section>
 </div>

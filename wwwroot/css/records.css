@@ -399,10 +399,14 @@
     background-color: var(--rec-surface-lowest);
 }
 
-.rec-empty {
+/* Empty state renders as a single full-width pill */
+.rec-table td.rec-empty {
     padding: 32px 16px;
     text-align: center;
+    font-family: var(--rec-font-display);
+    font-weight: 400;
     color: var(--rec-on-surface-variant);
+    border-radius: 9999px;
 }
 
 /* ── Pagination ──────────────────────────────────────────── */
