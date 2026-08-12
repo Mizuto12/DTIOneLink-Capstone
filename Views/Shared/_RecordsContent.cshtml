@@ -1,5 +1,173 @@
-<div style="padding:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#334155;">
-    <span class="material-symbols-outlined" style="font-size:56px; color:#94a3b8;">folder_open</span>
-    <h2 style="margin:16px 0 4px; font-weight:700;">Records Management</h2>
-    <p style="color:#64748b;">This page is a placeholder and will be built out soon.</p>
+<div class="records-page">
+
+    <!-- ── Page Header ─────────────────────────────────────── -->
+    <div class="rec-header">
+        <div>
+            <h2 class="rec-title">Masterlist of Records</h2>
+            <p class="rec-subtitle">Maintain institutional integrity by recording and archiving vital agency documents.</p>
+        </div>
+        <div class="rec-header-actions">
+            <button type="button" class="rec-btn rec-btn-outline">
+                <span class="material-symbols-outlined">file_download</span>
+                Export List
+            </button>
+            <button type="button" class="rec-btn rec-btn-filled">
+                <span class="material-symbols-outlined">print</span>
+                Print Log
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Add New Entry ───────────────────────────────────── -->
+    <section class="rec-card">
+        <div class="rec-card-head">
+            <div class="rec-card-head-left">
+                <div class="rec-card-icon">
+                    <span class="material-symbols-outlined">post_add</span>
+                </div>
+                <div>
+                    <h3 class="rec-card-title">Add New Entry</h3>
+                    <p class="rec-card-sub">Fill in the details to archive a new document</p>
+                </div>
+            </div>
+            <span class="rec-badge">New Record</span>
+        </div>
+
+        <form class="rec-form" id="recordForm">
+            <div class="rec-field rec-col-2">
+                <label class="rec-label" for="recCode">Code</label>
+                <div class="rec-input-wrap">
+                    <span class="material-symbols-outlined rec-input-icon">tag</span>
+                    <input class="rec-input" id="recCode" name="code" type="text" placeholder="e.g. DTI-REC-001" />
+                </div>
+            </div>
+
+            <div class="rec-field rec-col-4">
+                <label class="rec-label" for="recTitle">Title of Record</label>
+                <div class="rec-input-wrap">
+                    <span class="material-symbols-outlined rec-input-icon">description</span>
+                    <input class="rec-input" id="recTitle" name="title" type="text" placeholder="e.g. Business Registration Logs" />
+                </div>
+            </div>
+
+            <div class="rec-field rec-col-3">
+                <label class="rec-label" for="recMedium">Medium</label>
+                <select class="rec-select" id="recMedium" name="medium">
+                    <option>Physical/Paper</option>
+                    <option>Digital/Electronic</option>
+                    <option>Microfilm</option>
+                </select>
+            </div>
+
+            <div class="rec-field rec-col-3">
+                <label class="rec-label" for="recLocation">Location</label>
+                <input class="rec-input" id="recLocation" name="location" type="text" placeholder="e.g. Archive Room A" />
+            </div>
+
+            <div class="rec-field rec-col-3">
+                <label class="rec-label" for="recPeriod">Period Covered</label>
+                <input class="rec-input" id="recPeriod" name="periodCovered" type="text" placeholder="e.g. 2023-2024" />
+            </div>
+
+            <div class="rec-field rec-col-3">
+                <label class="rec-label" for="recFiling">Filing System</label>
+                <select class="rec-select" id="recFiling" name="filingSystem">
+                    <option>Alphabetical</option>
+                    <option>Chronological</option>
+                    <option>Numerical</option>
+                    <option>Subject-based</option>
+                </select>
+            </div>
+
+            <div class="rec-field rec-col-2">
+                <label class="rec-label" for="recAccess">Access Control</label>
+                <select class="rec-select" id="recAccess" name="accessControl">
+                    <option>Public</option>
+                    <option>Restricted</option>
+                    <option>Confidential</option>
+                </select>
+            </div>
+
+            <div class="rec-field rec-col-2">
+                <label class="rec-label" for="recRetention">Retention Period</label>
+                <input class="rec-input" id="recRetention" name="retentionPeriod" type="text" placeholder="e.g. 5 Years" />
+            </div>
+
+            <div class="rec-col-2">
+                <button class="rec-submit" type="submit">
+                    <span class="material-symbols-outlined">save</span>
+                    Commit
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- ── Recent Submissions ──────────────────────────────── -->
+    <section class="rec-card">
+        <div class="rec-card-head">
+            <div class="rec-card-head-left">
+                <div class="rec-card-icon rec-card-icon-alt">
+                    <span class="material-symbols-outlined">table_chart</span>
+                </div>
+                <h3 class="rec-card-title">Recent Submissions</h3>
+            </div>
+            <span class="rec-count">Showing 8 of 1,240 entries</span>
+        </div>
+
+        <div class="rec-table-scroll">
+            <table class="rec-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Title of Record</th>
+                        <th>Medium</th>
+                        <th>Location</th>
+                        <th>Period Covered</th>
+                        <th>Filing System</th>
+                        <th>Access Control</th>
+                        <th>Retention Period</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="rec-row">
+                        <td>DTI-REC-001</td>
+                        <td class="rec-cell-strong">Business Registration Logs</td>
+                        <td>Digital</td>
+                        <td>Cloud Server</td>
+                        <td>2024</td>
+                        <td>Numerical</td>
+                        <td>Restricted</td>
+                        <td>Permanent</td>
+                    </tr>
+                    <tr class="rec-row">
+                        <td>DTI-REC-002</td>
+                        <td class="rec-cell-strong">Personnel Attendance Sheets</td>
+                        <td>Physical</td>
+                        <td>Cabinet 4-B</td>
+                        <td>2023 Q4</td>
+                        <td>Chronological</td>
+                        <td>Confidential</td>
+                        <td>5 Years</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── Pagination ──────────────────────────────────── -->
+        <div class="rec-pagination">
+            <div class="rec-pages">
+                <button type="button" class="rec-page rec-page-arrow" aria-label="Previous page">
+                    <span class="material-symbols-outlined">chevron_left</span>
+                </button>
+                <button type="button" class="rec-page rec-page-current">1</button>
+                <button type="button" class="rec-page">2</button>
+                <button type="button" class="rec-page rec-page-ellipsis" disabled>...</button>
+                <button type="button" class="rec-page">42</button>
+                <button type="button" class="rec-page rec-page-arrow" aria-label="Next page">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </button>
+            </div>
+            <div class="rec-page-info">Page 1 of 42</div>
+        </div>
+    </section>
 </div>
