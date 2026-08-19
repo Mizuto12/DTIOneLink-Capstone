@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DTIOneLink.Models
 {
@@ -12,7 +13,10 @@ namespace DTIOneLink.Models
 
         [Required(ErrorMessage = "Assignee is required.")]
         [Display(Name = "Assignee")]
-        public string Assignee { get; set; } = string.Empty;
+        [ForeignKey(nameof(Assignee))]
+        public int AssigneeId { get; set; }
+
+        public User? Assignee { get; set; }
 
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]

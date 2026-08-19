@@ -32,6 +32,7 @@ namespace DTIOneLink.Controllers
             InMemoryStore.AddTask(task);
             TempData["SuccessMessage"] = "Task created successfully!";
             return RedirectToAction(nameof(Index));
+
         }
     }
 }

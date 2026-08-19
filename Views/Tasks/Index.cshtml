@@ -79,9 +79,10 @@
                     foreach (var task in Model)
                     {
                         index++;
-                        var initials = task.Assignee.Length > 0
-                            ? string.Concat(task.Assignee.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
-                            : "?";
+                        var assigneeName = task.Assignee?.FullName ?? "Unassigned";
+                        var initials = !string.IsNullOrWhiteSpace(assigneeName) && assigneeName != "Unassigned"
+                        ? string.Concat(assigneeName.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
+                        : "?";
                         var progressWidth = task.Progress;
                         var priorityBadgeClass = task.Priority?.ToLower() switch
                         {
@@ -102,7 +103,7 @@
                                 <div class="employee-cell">
                                     <div class="emp-avatar">@initials</div>
                                     <div>
-                                        <div class="emp-name">@task.Assignee</div>
+                                       <div class="emp-name">@assigneeName</div>
                                         <div class="emp-role">Assignee</div>
                                     </div>
                                 </div>

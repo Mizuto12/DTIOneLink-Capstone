@@ -7,6 +7,7 @@
     var modal    = document.getElementById("createTaskModal");
     var taskForm = document.getElementById("taskForm");
 
+
     // ── Close modal (animate out) ─────────────────────────
     function closeModal() {
         if (!modal) return;
