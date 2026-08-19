@@ -1,15 +1,21 @@
+using DTIOneLink.Data;
 using DTIOneLink.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DTIOneLink.Controllers
 {
     public class AccountController : Controller
     {
         private readonly ILogger<AccountController> _logger;
+        private readonly AppDbContext _db;
+        private readonly PasswordHasher<User> _passwordHasher = new();
 
-        public AccountController(ILogger<AccountController> logger)
+        public AccountController(ILogger<AccountController> logger, AppDbContext db)
         {
             _logger = logger;
+            _db = db;
         }
 
         // GET: /Account/Login
@@ -23,38 +29,53 @@ namespace DTIOneLink.Controllers
         // POST: /Account/Login
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Login(LoginViewModel model)
+        public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
             {
                 return View(model);
             }
 
-            // TODO: Replace with real authentication against SQL Server
-            // (e.g. validate credentials via a UsersRepository / EF Core DbContext
-            // backed by Microsoft SQL Server, managed through SSMS).
-            bool isValidUser = ValidateCredentials(model.Username, model.Password);
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == model.Username.ToLower());
 
-            if (!isValidUser)
+            const string genericError = "Invalid username or password.";
+
+            if (user == null)
             {
-                ModelState.AddModelError(string.Empty, "Invalid username or password.");
+                ModelState.AddModelError(string.Empty, genericError);
                 return View(model);
             }
 
-            // TODO: Sign the user in (cookie auth / session) here.
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError(string.Empty, genericError);
+                return View(model);
+            }
+
+            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password);
+
+            if (result != PasswordVerificationResult.Success
+                && result != PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                ModelState.AddModelError(string.Empty, genericError);
+                return View(model);
+            }
+
+            // Sign the user in via session — RecordsController, ReportsController, and
+            // their shared views all read this same key to decide access and layout.
+            HttpContext.Session.SetString("UserRole", user.Role);
+            HttpContext.Session.SetString("Username", user.FullName);
+            HttpContext.Session.SetString("UserEmail", user.Email);
 
             if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
             {
                 return Redirect(model.ReturnUrl);
             }
 
-            // Role by username convention: "admin" -> admin dashboard, everyone else -> employee.
-            if (string.Equals(model.Username, "admin", StringComparison.OrdinalIgnoreCase))
-            {
-                return RedirectToAction("AdminDashboard", "Dashboard");
-            }
-
-            return RedirectToAction("Index", "Employee");
+            return string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase)
+                ? RedirectToAction("AdminDashboard", "Dashboard")
+                : RedirectToAction("Index", "Employee");
         }
 
         // POST: /Account/Logout
@@ -62,15 +83,8 @@ namespace DTIOneLink.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult Logout()
         {
-            // TODO: Clear auth cookie/session here when real auth is wired
+            HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
-        }
-
-        private bool ValidateCredentials(string username, string password)
-        {
-            // Placeholder logic only — swap for a stored-procedure / EF Core
-            // lookup against the Microsoft SQL Server database.
-            return !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password);
         }
     }
 }
