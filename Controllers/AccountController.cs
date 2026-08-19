@@ -62,8 +62,6 @@ namespace DTIOneLink.Controllers
                 return View(model);
             }
 
-            // Sign the user in via session — RecordsController, ReportsController, and
-            // their shared views all read this same key to decide access and layout.
             HttpContext.Session.SetString("UserRole", user.Role);
             HttpContext.Session.SetString("Username", user.FullName);
             HttpContext.Session.SetString("UserEmail", user.Email);

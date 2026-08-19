@@ -27,6 +27,15 @@
         <form id="addUserForm" asp-controller="UserManagement" asp-action="Create" method="post">
             @Html.AntiForgeryToken()
 
+            @if (TempData["SuccessMessage"] is string successMessage)
+            {
+                <p class="um-form-success">@successMessage</p>
+            }
+            @if (TempData["ErrorMessage"] is string errorMessage)
+            {
+                <p class="um-form-error">@errorMessage</p>
+            }
+
             <!-- Official Outlook -->
             <div class="um-field-group">
                 <label class="um-label">Official Outlook</label>
@@ -72,6 +81,10 @@
                 SAVE ACCOUNT
                 <span class="material-symbols-outlined">check_circle</span>
             </button>
+
+            <p class="um-default-password-note">
+                New accounts use the default password: <strong>dtionelink2026</strong>
+            </p>
         </form>
     </section>
 

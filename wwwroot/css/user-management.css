@@ -622,3 +622,34 @@
 }
 
 .um-page-active:hover { background: var(--primary); }
+
+.um-form-success,
+.um-form-error {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.um-form-success {
+    background: rgba(107, 254, 156, 0.2);
+    color: var(--on-tertiary-container);
+}
+
+.um-form-error {
+    background: var(--error-container);
+    color: var(--on-error-container);
+}
+
+.um-default-password-note {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--surface-container);
+    color: var(--on-primary-fixed-var);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    line-height: 1.4;
+}
