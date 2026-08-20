@@ -1,5 +1,6 @@
+@model IEnumerable<DTIOneLink.Models.TaskItem>
 @{
-    Layout = "~/Views/Employee/EmployeeLayout.cshtml";
+    Layout = "~/Views/Employee/employeelayout.cshtml";
     ViewData["Title"] = "Dashboard";
 }
 
@@ -7,7 +8,7 @@
     <link rel="stylesheet" href="~/css/admindashboard.css" asp-append-version="true" />
 }
 
-<partial name="_DashboardContent" />
+<partial name="_DashboardContent" model="Model" />
 
 @section Scripts {
     <script src="~/js/dashboard.js" asp-append-version="true"></script>

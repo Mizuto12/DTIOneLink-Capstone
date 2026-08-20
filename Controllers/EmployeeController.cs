@@ -1,14 +1,31 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using DTIOneLink.Data;
 
 namespace DTIOneLink.Controllers
 {
     public class EmployeeController : Controller
     {
+        private readonly AppDbContext _context;
+
+        public EmployeeController(AppDbContext context)
+        {
+            _context = context;
+        }
+
         // GET: /Employee or /Employee/Index
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View();
+            var userId = HttpContext.Session.GetInt32("UserId");
+
+            var tasks = await _context.TaskItems
+                .Include(t => t.Assignee)
+                .Where(t => t.AssigneeId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+
+            return View(tasks);
         }
 
         // GET: /Employee/TaskManagement
@@ -17,9 +34,5 @@ namespace DTIOneLink.Controllers
         {
             return View();
         }
-        // Records() and Reports() actions removed — those pages now live at
-        // RecordsController.Index() and ReportsController.Index(), shared with Admin.
-        // The old Views/Employee/Records.cshtml and Views/Employee/Reports.cshtml
-        // files are no longer referenced by anything and should be deleted.
     }
 }

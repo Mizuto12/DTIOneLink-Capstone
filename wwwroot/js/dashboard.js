@@ -9,8 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initLedgerFilter();
   initCalendar();
   initTodoAdd();
+  initTodoSummaryToggle();
 
-  // TODO: fetch and render ledger rows into `.ledger-table tbody`
   // TODO: fetch and render performer cards into `.performers__grid`
   // TODO: fetch and render announcements into the announcements widget
 });
@@ -128,4 +128,24 @@ function initTodoAdd() {
     // TODO: open "add to-do" input / modal and append to `.todo-list`
     console.log("Add to-do clicked.");
   });
+}
+
+/**
+ * Toggles the collapsible "N tasks due" summary in the To-do widget.
+ */
+function initTodoSummaryToggle() {
+  const toggle = document.getElementById("todoSummaryToggle");
+  const chevronBtn = document.getElementById("todoSummaryChevron");
+  const list = document.getElementById("todoList");
+
+  if (!list || (!toggle && !chevronBtn)) return;
+
+  function toggleList() {
+    const isOpen = list.style.display !== "none";
+    list.style.display = isOpen ? "none" : "block";
+    if (chevronBtn) chevronBtn.classList.toggle("open", !isOpen);
+  }
+
+  if (toggle) toggle.addEventListener("click", toggleList);
+  if (chevronBtn) chevronBtn.addEventListener("click", toggleList);
 }

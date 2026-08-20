@@ -1,15 +1,18 @@
+@model IEnumerable<DTIOneLink.Models.TaskItem>
 @{
-    var role = Context.Session.GetString("Role");
-    Layout = role == "Admin"
+    var userRole = Context.Session.GetString("UserRole");
+    Layout = userRole == "Admin"
         ? "~/Views/Admin/AdminLayout.cshtml"
         : "~/Views/Employee/employeelayout.cshtml";
+    ViewData["Title"] = "Dashboard";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/admindashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
 }
 
-<partial name="_DashboardContent" />
+<partial name="_DashboardContent" model="Model" />
 
 @section Scripts {
     <script src="~/js/dashboard.js" asp-append-version="true"></script>

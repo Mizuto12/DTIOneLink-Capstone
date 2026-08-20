@@ -1,3 +1,4 @@
+@model IEnumerable<DTIOneLink.Models.TaskItem>
 <div class="dashboard">
 
     <!-- Center Content Column -->
@@ -47,11 +48,51 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- TODO: render task rows here -->
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var task in Model)
+                            {
+                                var assigneeName = task.Assignee?.FullName ?? "Unassigned";
+                                var initials = !string.IsNullOrWhiteSpace(assigneeName) && assigneeName != "Unassigned"
+                                    ? string.Concat(assigneeName.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
+                                    : "?";
+                                var priorityClass = task.Priority?.ToLower() switch
+                                {
+                                    "high" => "badge--high",
+                                    "medium" => "badge--medium",
+                                    _ => "badge--ongoing"
+                                };
+                                var statusClass = task.Status?.ToLower() switch
+                                {
+                                    "completed" or "complete" => "badge--complete",
+                                    _ => "badge--ongoing"
+                                };
+                                <tr>
+                                    <td>
+                                        <div class="employee-cell">
+                                            <div class="avatar-badge">@initials</div>
+                                            <span class="employee-name">@assigneeName</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="cell-secondary">@task.TaskName</span></td>
+                                    <td><span class="cell-mono">@task.DueDate.ToString("MMM dd, yyyy")</span></td>
+                                    <td>
+                                        <div class="progress-track">
+                                            <div class="progress-fill" style="width: @(task.Progress)%;"></div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge @priorityClass">@task.Priority</span></td>
+                                    <td class="text-right"><span class="badge @statusClass">@task.Status</span></td>
+                                </tr>
+                            }
+                        }
                     </tbody>
                 </table>
             </div>
-            <div class="empty-state">No tasks recorded yet.</div>
+            @if (Model == null || !Model.Any())
+            {
+                <div class="empty-state">No tasks recorded yet.</div>
+            }
         </section>
 
         <!-- Top Performers -->
@@ -93,27 +134,56 @@
             <button class="widget__link-btn" type="button">Full Calendar</button>
         </div>
 
-        <!-- To-do List -->
-        <div class="widget">
-            <div class="widget__header">
-                <div class="widget__title-group">
-                    <span class="material-symbols-outlined">check_circle</span>
-                    <h4 class="widget__title">To-do</h4>
-                </div>
-                <button class="widget__add-btn material-symbols-outlined" type="button" aria-label="Add to-do">add</button>
-            </div>
-            <div class="todo-list">
-                <div class="todo-item">
-                    <span class="material-symbols-outlined">description</span>
-                    <span>Set profile description</span>
-                </div>
-                <div class="todo-item">
-                    <span class="material-symbols-outlined">update</span>
-                    <span>Update quarterly logs</span>
-                </div>
-            </div>
+      <!-- To-do List -->
+@{
+    var pendingTasks = Model?.Where(t => t.Status != "completed").ToList()
+                       ?? new List<DTIOneLink.Models.TaskItem>();
+}
+<div class="widget">
+    <div class="widget__header">
+        <div class="widget__title-group">
+            <span class="material-symbols-outlined">check_circle</span>
+            <h4 class="widget__title">To-do</h4>
+        </div>
+        <button class="widget__add-btn material-symbols-outlined" type="button" aria-label="Add to-do">add</button>
+    </div>
+    <div class="todo-list">
+        <div class="todo-item">
+            <span class="material-symbols-outlined">description</span>
+            <span>Set profile description</span>
         </div>
 
+        <button type="button" class="todo-item todo-summary-toggle" id="todoSummaryToggle">
+            <span class="material-symbols-outlined">assignment</span>
+            <span class="todo-summary-text">@pendingTasks.Count task@(pendingTasks.Count != 1 ? "s" : "") due</span>
+        </button>
+
+        <div class="todo-sublist" id="todoList" style="display:none;">
+            @if (pendingTasks.Any())
+            {
+                foreach (var task in pendingTasks)
+                {
+                    var daysLeft = (task.DueDate.Date - DateTime.Today).Days;
+                    <div class="todo-subitem">
+                        <span class="todo-item-bullet">&bull;</span>
+                        <span class="todo-item-name" title="@task.TaskName">@task.TaskName</span>
+                        <span class="todo-item-badge">@(daysLeft >= 0 ? daysLeft.ToString() : "!")</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="todo-subitem">
+                    <span>No pending tasks</span>
+                </div>
+            }
+        </div>
+
+        <button type="button" class="todo-chevron-btn" id="todoSummaryChevron" aria-label="Toggle task list">
+            <span class="material-symbols-outlined">expand_more</span>
+        </button>
+    </div>
+</div>
         <!-- Announcements -->
         <div class="widget">
             <div class="widget__title-group" style="margin-bottom: 16px;">

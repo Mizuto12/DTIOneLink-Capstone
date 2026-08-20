@@ -634,3 +634,90 @@
   font-size: 12px;
   color: var(--dash-secondary);
 }
+
+/* ---- To-do: dynamic task summary --------------------------------- */
+.todo-summary-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 12px;
+  border-radius: var(--dash-radius-xl);
+}
+
+.todo-summary-toggle:hover {
+  background-color: rgba(239, 244, 255, 0.5);
+}
+
+.todo-summary-toggle .material-symbols-outlined {
+  color: var(--dash-primary);
+  font-size: 1.125rem;
+}
+
+.todo-summary-toggle .todo-summary-text {
+  font-family: var(--dash-font-display);
+  font-size: 12px;
+  color: #2f6fed;
+  font-weight: 500;
+}
+
+.todo-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 12px 4px 44px;
+}
+.todo-subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--dash-font-display);
+  font-size: 13px;
+  color: var(--dash-on-surface);
+}
+
+.todo-item-bullet {
+  color: var(--dash-secondary);
+}
+
+.todo-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-item-badge {
+  background: var(--dash-surface-container);
+  color: var(--dash-primary);
+  font-family: var(--dash-font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--dash-radius-full);
+  flex-shrink: 0;
+}
+
+.todo-chevron-btn {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--dash-secondary);
+  cursor: pointer;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.todo-chevron-btn .material-symbols-outlined {
+  transition: transform 0.2s ease;
+  font-size: 20px;
+}
+
+.todo-chevron-btn.open .material-symbols-outlined {
+  transform: rotate(180deg);
+}
