@@ -1,10 +1,216 @@
+@model IEnumerable<DTIOneLink.Models.TaskItem>
 @{
-    Layout = "~/Views/Employee/EmployeeLayout.cshtml";
     ViewData["Title"] = "Task Management";
+    Layout = "~/Views/Employee/EmployeeLayout.cshtml";
+
+    var tasks = Model ?? Enumerable.Empty<DTIOneLink.Models.TaskItem>();
+
+    var todoTasks = tasks.Where(t => t.Status == "pending").ToList();
+    var inProgressTasks = tasks.Where(t => t.Status == "in-progress").ToList();
+    var completedTasks = tasks.Where(t => t.Status == "completed").ToList();
+
+    string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
+    {
+        "high" => "high",
+        "low" => "low",
+        _ => "medium"
+    };
+
+    string PriorityLabel(string? priority)
+    {
+        var p = (priority ?? "medium").Trim().ToLowerInvariant();
+        var label = char.ToUpperInvariant(p[0]) + p.Substring(1);
+        return $"{label} Priority";
+    }
+
+    string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            return "NA";
+        }
+
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+        }
+
+        return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
+    }
+
+    string FormatDueDate(DateTime dueDate)
+    {
+        var today = DateTime.UtcNow.Date;
+        if (dueDate.Date == today) return "Today";
+        if (dueDate.Date == today.AddDays(1)) return "Tomorrow";
+        return dueDate.ToString("MMM d");
+    }
 }
 
-<div style="padding:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#334155;">
-    <span class="material-symbols-outlined" style="font-size:56px; color:#94a3b8;">assignment</span>
-    <h2 style="margin:16px 0 4px; font-weight:700;">Employee Task Management</h2>
-    <p style="color:#64748b;">This page is a placeholder and will be built out soon.</p>
+@* This view renders ONLY the page content — employeelayout.cshtml already
+   provides <html>/<head>/<body>, the sidebar, and the top nav. *@
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/employeetask.css" asp-append-version="true" />
+}
+
+<div class="task-management">
+    <div class="workspace-header">
+        <div class="header-actions">
+            <button type="button" class="btn btn-secondary" data-action="filter">
+                <span class="material-symbols-outlined">filter_list</span>
+                Filter
+            </button>
+            <button type="button" class="btn btn-primary" data-action="new-task"
+                    data-url="@Url.Action("Create", "Tasks")">
+                <span class="material-symbols-outlined">add</span>
+                New Task
+            </button>
+        </div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-board">
+
+        <!-- Column: To Do -->
+        <div class="kanban-column">
+            <div class="column-header">
+                <div class="column-header-left">
+                    <span class="status-dot todo"></span>
+                    <h3 class="column-title">To Do</h3>
+                    <span class="column-count">@todoTasks.Count</span>
+                </div>
+                <button type="button" class="column-menu-btn">
+                    <span class="material-symbols-outlined">more_horiz</span>
+                </button>
+            </div>
+
+            @if (!todoTasks.Any())
+            {
+                <div class="column-empty">No tasks yet.</div>
+            }
+            else
+            {
+                @foreach (var task in todoTasks)
+                {
+                    <div class="task-card" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="task-card-top">
+                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                            <button type="button" class="task-edit-btn" title="Edit task">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+                        </div>
+                        <h4 class="task-title">@task.TaskName</h4>
+                        <div class="task-footer">
+                            <div class="task-assignee">
+                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                            </div>
+                            <div class="task-due">
+                                <span class="material-symbols-outlined">calendar_today</span>
+                                <span class="due-label">@FormatDueDate(task.DueDate)</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Column: In Progress -->
+        <div class="kanban-column">
+            <div class="column-header">
+                <div class="column-header-left">
+                    <span class="status-dot in-progress"></span>
+                    <h3 class="column-title">In Progress</h3>
+                    <span class="column-count">@inProgressTasks.Count</span>
+                </div>
+                <button type="button" class="column-menu-btn">
+                    <span class="material-symbols-outlined">more_horiz</span>
+                </button>
+            </div>
+
+            @if (!inProgressTasks.Any())
+            {
+                <div class="column-empty">No tasks yet.</div>
+            }
+            else
+            {
+                @foreach (var task in inProgressTasks)
+                {
+                    <div class="task-card in-progress" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="task-card-top">
+                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                            <button type="button" class="task-edit-btn" title="Edit task">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+                        </div>
+                        <h4 class="task-title">@task.TaskName</h4>
+                        <div class="task-progress-track">
+                            <div class="task-progress-fill" style="width: @(task.Progress)%"></div>
+                        </div>
+                        <div class="task-footer">
+                            <div class="task-assignee">
+                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                            </div>
+                            <div class="task-due">
+                                <span class="material-symbols-outlined">calendar_today</span>
+                                <span class="due-label">@FormatDueDate(task.DueDate)</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Column: Completed -->
+        <div class="kanban-column">
+            <div class="column-header">
+                <div class="column-header-left">
+                    <span class="status-dot completed"></span>
+                    <h3 class="column-title">Completed</h3>
+                    <span class="column-count">@completedTasks.Count</span>
+                </div>
+                <button type="button" class="column-menu-btn">
+                    <span class="material-symbols-outlined">more_horiz</span>
+                </button>
+            </div>
+
+            @if (!completedTasks.Any())
+            {
+                <div class="column-empty">No tasks yet.</div>
+            }
+            else
+            {
+                @foreach (var task in completedTasks)
+                {
+                    <div class="task-card completed" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="task-card-top">
+                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                            <span class="material-symbols-outlined task-complete-icon" data-weight="fill">check_circle</span>
+                        </div>
+                        <h4 class="task-title">@task.TaskName</h4>
+                        <div class="task-footer">
+                            <div class="task-assignee">
+                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                            </div>
+                            <div class="task-due">
+                                <span class="due-label">Due @FormatDueDate(task.DueDate)</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+    </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/employeetask.js" asp-append-version="true"></script>
+    }

@@ -25,8 +25,8 @@ public class UserManagementController(DatabaseHelper db) : Controller
             {
                 Id = reader.GetInt32(0),
                 FullName = reader.GetString(1),
-                Email = reader.GetString(2),
-                Department = reader.GetString(3),
+                Email = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                Department = reader.IsDBNull(3) ? "" : reader.GetString(3),
                 Role = reader.GetString(4),
                 Status = reader.GetBoolean(5) ? "active" : "disabled"
             });
@@ -48,8 +48,8 @@ public class UserManagementController(DatabaseHelper db) : Controller
         var email = user.Email.Trim();
         var passwordHash = new PasswordHasher<object>().HashPassword(null!, DefaultPassword);
         const string sql = @"INSERT INTO dbo.Users
-            (Username, PasswordHash, Role, FullName, IsActive, Email, Department)
-            VALUES (@Username, @PasswordHash, @Role, @FullName, 1, @Email, @Department)";
+            (Username, PasswordHash, Role, FullName, IsActive, Email, Department, CreatedAt)
+            VALUES (@Username, @PasswordHash, @Role, @FullName, 1, @Email, @Department, @CreatedAt)";
 
         try
         {
@@ -62,6 +62,7 @@ public class UserManagementController(DatabaseHelper db) : Controller
             cmd.Parameters.AddWithValue("@FullName", user.FullName.Trim());
             cmd.Parameters.AddWithValue("@Email", email);
             cmd.Parameters.AddWithValue("@Department", user.Department);
+            cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
             await cmd.ExecuteNonQueryAsync();
             TempData["SuccessMessage"] = "Account created. Sign in with the email and default password: dtionelink2026.";
         }

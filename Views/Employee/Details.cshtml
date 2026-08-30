@@ -1,0 +1,184 @@
+@model DTIOneLink.Models.TaskItem
+@{
+    ViewData["Title"] = "Task Details";
+    Layout = "~/Views/Employee/employeelayout.cshtml";
+
+    var task = Model;
+    var taskCode = $"TASK-{task.Id:D4}";
+
+    var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
+    var isOverdue = status != "completed" && task.DueDate.Date < DateTime.UtcNow.Date;
+
+    (string CssClass, string Label) StatusInfo()
+    {
+        if (isOverdue) return ("overdue", "Overdue");
+        return status switch
+        {
+            "in-progress" => ("in-progress", "In Progress"),
+            "completed" => ("completed", "Completed"),
+            _ => ("todo", "To Do")
+        };
+    }
+    var (statusClass, statusLabel) = StatusInfo();
+
+    string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
+    {
+        "high" => "high",
+        "low" => "low",
+        _ => "medium"
+    };
+
+    string PriorityLabel(string? priority)
+    {
+        var p = (priority ?? "medium").Trim().ToLowerInvariant();
+        return char.ToUpperInvariant(p[0]) + p.Substring(1) + " Priority";
+    }
+
+    string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "NA";
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+        return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
+    }
+}
+
+@* This view renders ONLY the page content — employeelayout.cshtml already
+   provides <html>/<head>/<body>, the sidebar, and the top nav.
+
+   This view is now shared by two entry points:
+     - EmployeeController.Details  (Employee Kanban board)
+     - DashboardController.Details (Admin/Employee dashboard's Gantt + Kanban)
+   Both pass the same TaskItem, so the content below works for either.
+
+   OPEN QUESTION: Layout is hardcoded to employeelayout.cshtml below. If
+   Admins use a *different* shared layout file, an Admin opening a task
+   from the dashboard will see the Employee sidebar/topbar here instead
+   of the Admin one. Share that layout file's path and this can be made
+   to pick the right layout based on session role.
+
+   NOTE: The original mockup for this page also showed Reporter, Category,
+   a Subtasks checklist, Attachments, a Comments thread, and an Activity
+   Log. None of those are backed by fields on TaskItem today, so rather
+   than invent placeholder content, this view only shows what's real:
+   name, assignee, due date, priority, status, progress, description,
+   and created date. Add Subtask/Attachment/Comment/ActivityLog models
+   (with a TaskId foreign key) if you want those sections back. *@
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/employeetaskdetails.css" asp-append-version="true" />
+}
+
+<div class="task-details">
+    <nav class="td-breadcrumb" aria-label="Breadcrumb">
+        <a asp-controller="Employee" asp-action="TaskManagement">Task Management</a>
+        <span>/</span>
+        <span class="td-breadcrumb-current">@taskCode</span>
+    </nav>
+
+    <div class="td-grid">
+        <!-- Main panel -->
+        <div class="td-panel">
+            <section class="td-header">
+                <div class="td-eyebrow">
+                    <button type="button" class="td-code-btn" id="copyTaskCode" data-code="@taskCode" title="Copy task code">
+                        @taskCode
+                    </button>
+                </div>
+                <h2 class="td-title">@task.TaskName</h2>
+                <div class="td-badges">
+                    <span class="td-badge @statusClass">
+                        <span class="td-badge-dot"></span> @statusLabel
+                    </span>
+                    <span class="td-badge priority-@PriorityClass(task.Priority)">
+                        <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
+                    </span>
+                    <span class="td-badge assignee">
+                        <span class="td-badge-dot"></span> Assigned to @(task.Assignee?.FullName ?? "Unassigned")
+                    </span>
+                </div>
+            </section>
+
+            <section class="td-meta-grid">
+                <div>
+                    <h3>Created</h3>
+                    <p>@task.CreatedAt.ToString("MMM d, yyyy")</p>
+                </div>
+                <div>
+                    <h3>Due Date</h3>
+                    <p>@task.DueDate.ToString("MMM d, yyyy")</p>
+                </div>
+                <div>
+                    <h3>Progress</h3>
+                    <p>@task.Progress%</p>
+                </div>
+                <div>
+                    <h3>Status</h3>
+                    <p>@statusLabel</p>
+                </div>
+            </section>
+
+            <section class="td-progress-section">
+                <h3>Progress</h3>
+                <div class="td-progress-track">
+                    <div class="td-progress-fill" style="width: @(task.Progress)%"></div>
+                </div>
+            </section>
+
+            <section class="td-description">
+                <h3>Description</h3>
+                @if (string.IsNullOrWhiteSpace(task.Description))
+                {
+                    <p class="td-empty">No description provided.</p>
+                }
+                else
+                {
+                    <p>@task.Description</p>
+                }
+            </section>
+
+            <div class="td-actions">
+                <button type="button" class="btn btn-secondary" id="tdBackButton">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="td-sidebar">
+            <h3 class="td-sidebar-title">Task Overview</h3>
+
+            <div class="td-overview-assignee">
+                <div class="avatar-initials-lg">@GetInitials(task.Assignee?.FullName)</div>
+                <div>
+                    <div class="td-overview-name">@(task.Assignee?.FullName ?? "Unassigned")</div>
+                    <div class="td-overview-role">Assignee</div>
+                </div>
+            </div>
+
+            <dl class="td-overview-list">
+                <div>
+                    <dt>Status</dt>
+                    <dd>@statusLabel</dd>
+                </div>
+                <div>
+                    <dt>Priority</dt>
+                    <dd>@PriorityLabel(task.Priority)</dd>
+                </div>
+                <div>
+                    <dt>Due date</dt>
+                    <dd>@task.DueDate.ToString("MMM d, yyyy")</dd>
+                </div>
+                <div>
+                    <dt>Created</dt>
+                    <dd>@task.CreatedAt.ToString("MMM d, yyyy")</dd>
+                </div>
+            </dl>
+        </aside>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/employeetaskdetails.js" asp-append-version="true"></script>
+}

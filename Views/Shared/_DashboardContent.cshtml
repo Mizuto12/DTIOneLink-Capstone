@@ -1,26 +1,111 @@
 @model IEnumerable<DTIOneLink.Models.TaskItem>
+@using System.Linq
+@*
+    _DashboardContent.cshtml
+    ---------------------------------------------------------------------
+    Center column: Global Task Ledger (Gantt / Kanban toggle) + Top
+    Performers. Right sidebar: Calendar, To-do, Announcements.
+
+    Matches the real TaskItem model:
+        TaskName, Description,
+        Priority  -> free text, e.g. "low" | "medium" | "high" (case-insensitive)
+        Status    -> free text, e.g. "pending" | "ongoing"/"in-progress" | "completed" (case-insensitive)
+        CreatedAt (used as the Gantt bar's start), DueDate,
+        Progress  -> 0-100 int
+        Assignee.FullName
+
+    Pairs with:
+        ~/css/admindashboard.css   (styles, incl. Gantt/Kanban blocks)
+        ~/js/dashboard.js          (view toggle, calendar, to-do toggle)
+
+    The controller (DashboardController.AdminDashboard) already filters
+    by role/employee and passes the resulting task list straight in as
+    the model, so no controller changes are required to use this partial.
+*@
+@{
+    var tasks = Model?.ToList() ?? new List<DTIOneLink.Models.TaskItem>();
+
+    // ---- Status / priority normalization ---------------------------------
+    // Status/Priority are free-text strings in the model (defaults are
+    // lowercase: "pending", "medium"), so match case-insensitively and by
+    // keyword rather than assuming an exact casing/spelling.
+    string NormalizeStatus(string? status) => (status ?? string.Empty).Trim().ToLowerInvariant();
+    string NormalizePriority(string? priority) => (priority ?? string.Empty).Trim().ToLowerInvariant();
+
+    bool IsCompleted(DTIOneLink.Models.TaskItem t) => NormalizeStatus(t.Status).Contains("complet") || NormalizeStatus(t.Status) == "done";
+    bool IsInProgress(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && (NormalizeStatus(t.Status).Contains("progress") || NormalizeStatus(t.Status).Contains("ongoing"));
+    bool IsTodo(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && !IsInProgress(t);
+
+    string TitleCase(string? s) => string.IsNullOrWhiteSpace(s) ? "" : char.ToUpper(s.Trim()[0]) + s.Trim().Substring(1).ToLowerInvariant();
+
+    // ---- Gantt timeline scale ------------------------------------------
+    // No explicit StartDate on the model, so CreatedAt -> DueDate is used
+    // as each task's span.
+    var timelineStart = tasks.Any() ? tasks.Min(t => t.CreatedAt) : DateTime.Today;
+    var timelineEnd   = tasks.Any() ? tasks.Max(t => t.DueDate)   : DateTime.Today.AddMonths(3);
+    var totalDays     = Math.Max((timelineEnd - timelineStart).TotalDays, 1);
+    var monthLabels   = Enumerable.Range(0, 3)
+        .Select(i => timelineStart.AddMonths(i).ToString("MMM yyyy"))
+        .ToList();
+
+    // ---- Kanban buckets --------------------------------------------------
+    var todoTasks       = tasks.Where(IsTodo).ToList();
+    var inProgressTasks = tasks.Where(IsInProgress).ToList();
+    var completedTasks  = tasks.Where(IsCompleted).ToList();
+
+    // ---- Top performers ----------------------------------------------------
+    var performerAvatarColors = new[] { "performer-avatar", "performer-avatar--alt", "performer-avatar--secondary" };
+    var performerMetricColors = new[] { "performer-metric--tertiary", "performer-metric--primary", "performer-metric--secondary" };
+
+    var topPerformers = tasks
+        .Where(t => t.Assignee != null)
+        .GroupBy(t => t.Assignee)
+        .Select(g => new { Assignee = g.Key, Total = g.Count(), Completed = g.Count(t => IsCompleted(t)) })
+        .Select(p => new { p.Assignee, p.Total, p.Completed, Efficiency = p.Total > 0 ? (int)Math.Round(p.Completed * 100.0 / p.Total) : 0 })
+        .OrderByDescending(p => p.Efficiency)
+        .ThenByDescending(p => p.Total)
+        .Take(3)
+        .ToList();
+
+    // ---- To-do widget: open tasks, soonest due first ----------------------
+    var dueTasks = tasks
+        .Where(t => !IsCompleted(t))
+        .OrderBy(t => t.DueDate)
+        .Take(5)
+        .ToList();
+
+    string Initials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "?";
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
+            : fullName.Substring(0, Math.Min(2, fullName.Length)).ToUpper();
+    }
+
+    string GanttBarClass(DTIOneLink.Models.TaskItem t) =>
+        IsCompleted(t) ? "gantt-bar--completed" :
+        IsInProgress(t) ? "gantt-bar--inprogress" :
+        "gantt-bar--todo";
+
+    string GanttBarLabel(DTIOneLink.Models.TaskItem t) =>
+        IsCompleted(t) ? "Complete" :
+        IsInProgress(t) ? "On Going" :
+        "Planned";
+
+    string PriorityBadgeClass(string? priority)
+    {
+        var p = NormalizePriority(priority);
+        if (p == "high") return "priority-badge priority-badge--high";
+        if (p == "medium") return "priority-badge priority-badge--medium";
+        return "priority-badge priority-badge--low";
+    }
+}
+
 <div class="dashboard">
 
-    <!-- Center Content Column -->
+    <!-- ============================= CENTER COLUMN ============================= -->
     <div class="dashboard__center custom-scrollbar">
-
-        <!-- Banner -->
-        <div class="banner">
-            <div class="banner__hero">
-                <div class="banner__copy"></div>
-                <div class="banner__qr-wrap">
-                    <div class="banner__qr-card">
-                        <div class="banner__qr-box">
-                            <span class="material-symbols-outlined">qr_code_2</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="banner__footer">
-                <span>DTI Laguna Operational Control</span>
-                <span class="banner__footer-note">Admin Portal v2.4</span>
-            </div>
-        </div>
 
         <!-- Global Task Ledger -->
         <section class="ledger">
@@ -30,69 +115,168 @@
                     <h3 class="ledger__title">Global Task Ledger</h3>
                 </div>
                 <div class="ledger__actions">
-                    <button class="btn-pill" type="button">
+                    <div class="ledger__view-switcher" role="tablist" aria-label="Ledger view">
+                        <button type="button" id="btnGanttView" class="view-switch-btn is-active" role="tab" aria-selected="true">Gantt</button>
+                        <button type="button" id="btnKanbanView" class="view-switch-btn" role="tab" aria-selected="false">Kanban</button>
+                    </div>
+                    <button type="button" class="btn-pill">
                         <span class="material-symbols-outlined">filter_list</span> Filter
                     </button>
                 </div>
             </div>
-            <div class="table-wrap">
-                <table class="ledger-table">
-                    <thead>
-                        <tr>
-                            <th>Employee</th>
-                            <th>Task Assignee</th>
-                            <th>Due Date</th>
-                            <th>Progress</th>
-                            <th>Priority</th>
-                            <th class="text-right">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (Model != null && Model.Any())
-                        {
-                            foreach (var task in Model)
+
+            <!-- Gantt view -->
+            <div id="ganttView" class="ledger__body">
+                @if (!tasks.Any())
+                {
+                    <div class="empty-state">No tasks to display yet.</div>
+                }
+                else
+                {
+                    <div class="gantt-header">
+                        <div class="gantt-header__assignee-col">Task / Assignee</div>
+                        <div class="gantt-header__months">
+                            @foreach (var label in monthLabels)
                             {
-                                var assigneeName = task.Assignee?.FullName ?? "Unassigned";
-                                var initials = !string.IsNullOrWhiteSpace(assigneeName) && assigneeName != "Unassigned"
-                                    ? string.Concat(assigneeName.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
-                                    : "?";
-                                var priorityClass = task.Priority?.ToLower() switch
-                                {
-                                    "high" => "badge--high",
-                                    "medium" => "badge--medium",
-                                    _ => "badge--ongoing"
-                                };
-                                var statusClass = task.Status?.ToLower() switch
-                                {
-                                    "completed" or "complete" => "badge--complete",
-                                    _ => "badge--ongoing"
-                                };
-                                <tr>
-                                    <td>
-                                        <div class="employee-cell">
-                                            <div class="avatar-badge">@initials</div>
-                                            <span class="employee-name">@assigneeName</span>
-                                        </div>
-                                    </td>
-                                    <td><span class="cell-secondary">@task.TaskName</span></td>
-                                    <td><span class="cell-mono">@task.DueDate.ToString("MMM dd, yyyy")</span></td>
-                                    <td>
-                                        <div class="progress-track">
-                                            <div class="progress-fill" style="width: @(task.Progress)%;"></div>
-                                        </div>
-                                    </td>
-                                    <td><span class="badge @priorityClass">@task.Priority</span></td>
-                                    <td class="text-right"><span class="badge @statusClass">@task.Status</span></td>
-                                </tr>
+                                <div class="gantt-header__month">@label</div>
                             }
+                        </div>
+                    </div>
+                    <div class="gantt-rows">
+                        @foreach (var task in tasks)
+                        {
+                            var leftPct  = Math.Max(0, (task.CreatedAt - timelineStart).TotalDays / totalDays * 100);
+                            var widthPct = Math.Max(4, (task.DueDate - task.CreatedAt).TotalDays / totalDays * 100);
+                            var avatarClass = IsCompleted(task)
+                                ? "avatar-badge avatar-badge--lg"
+                                : "avatar-badge avatar-badge--lg avatar-badge--alt";
+                            <div class="gantt-row" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
+                                 role="link" tabindex="0" aria-label="Open @task.TaskName">
+                                <div class="gantt-row__assignee">
+                                    <div class="@avatarClass">@Initials(task.Assignee?.FullName)</div>
+                                    <div>
+                                        <p class="gantt-row__name">@task.TaskName</p>
+                                        <p class="gantt-row__task">@(task.Assignee?.FullName ?? "Unassigned")</p>
+                                    </div>
+                                </div>
+                                <div class="gantt-row__track">
+                                    <div class="gantt-bar @GanttBarClass(task)"
+                                         style="left:@leftPct.ToString("0.##")%; width:@widthPct.ToString("0.##")%;"
+                                         title="@GanttBarLabel(task) &middot; @task.Progress% progress">
+                                        <span>@GanttBarLabel(task)</span>
+                                    </div>
+                                </div>
+                            </div>
                         }
-                    </tbody>
-                </table>
+                    </div>
+                }
             </div>
-            @if (Model == null || !Model.Any())
-            {
-                <div class="empty-state">No tasks recorded yet.</div>
-            }
+
+            <!-- Kanban view -->
+            <div id="kanbanView" class="ledger__body is-hidden">
+                <div class="kanban-board">
+
+                    <div class="kanban-column">
+                        <div class="kanban-column__header">
+                            <h4 class="kanban-column__title">To Do</h4>
+                            <span class="kanban-column__count">@todoTasks.Count</span>
+                        </div>
+                        <div class="kanban-column__cards">
+                            @if (!todoTasks.Any())
+                            {
+                                <div class="empty-state">Nothing queued.</div>
+                            }
+                            @foreach (var task in todoTasks)
+                            {
+                                <div class="kanban-card" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
+                                     role="link" tabindex="0" aria-label="Open @task.TaskName">
+                                    <div class="kanban-card__top">
+                                        <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority) Priority</span>
+                                        <button type="button" class="kanban-card__more-btn">
+                                            <span class="material-symbols-outlined">more_horiz</span>
+                                        </button>
+                                    </div>
+                                    <h5 class="kanban-card__title">@task.TaskName</h5>
+                                    <p class="kanban-card__desc">@task.Description</p>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width:@task.Progress%;"></div>
+                                    </div>
+                                    <div class="kanban-card__footer">
+                                        <div class="avatar-badge avatar-badge--alt">@Initials(task.Assignee?.FullName)</div>
+                                        <span class="kanban-card__assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="kanban-column">
+                        <div class="kanban-column__header">
+                            <h4 class="kanban-column__title kanban-column__title--inprogress">In Progress</h4>
+                            <span class="kanban-column__count kanban-column__count--inprogress">@inProgressTasks.Count</span>
+                        </div>
+                        <div class="kanban-column__cards">
+                            @if (!inProgressTasks.Any())
+                            {
+                                <div class="empty-state">Nothing in progress.</div>
+                            }
+                            @foreach (var task in inProgressTasks)
+                            {
+                                <div class="kanban-card kanban-card--inprogress" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
+                                     role="link" tabindex="0" aria-label="Open @task.TaskName">
+                                    <div class="kanban-card__top">
+                                        <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority) Priority</span>
+                                        <button type="button" class="kanban-card__more-btn">
+                                            <span class="material-symbols-outlined">more_horiz</span>
+                                        </button>
+                                    </div>
+                                    <h5 class="kanban-card__title">@task.TaskName</h5>
+                                    <p class="kanban-card__desc">@task.Description</p>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width:@task.Progress%;"></div>
+                                    </div>
+                                    <div class="kanban-card__footer">
+                                        <div class="avatar-badge">@Initials(task.Assignee?.FullName)</div>
+                                        <span class="kanban-card__assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="kanban-column">
+                        <div class="kanban-column__header">
+                            <h4 class="kanban-column__title kanban-column__title--completed">Completed</h4>
+                            <span class="kanban-column__count kanban-column__count--completed">@completedTasks.Count</span>
+                        </div>
+                        <div class="kanban-column__cards">
+                            @if (!completedTasks.Any())
+                            {
+                                <div class="empty-state">Nothing completed yet.</div>
+                            }
+                            @foreach (var task in completedTasks)
+                            {
+                                <div class="kanban-card kanban-card--completed" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
+                                     role="link" tabindex="0" aria-label="Open @task.TaskName">
+                                    <div class="kanban-card__top">
+                                        <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority) Priority</span>
+                                        <button type="button" class="kanban-card__more-btn">
+                                            <span class="material-symbols-outlined">more_horiz</span>
+                                        </button>
+                                    </div>
+                                    <h5 class="kanban-card__title kanban-card__title--done">@task.TaskName</h5>
+                                    <p class="kanban-card__desc">@task.Description</p>
+                                    <div class="kanban-card__footer">
+                                        <div class="avatar-badge avatar-badge--alt">@Initials(task.Assignee?.FullName)</div>
+                                        <span class="kanban-card__assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </section>
 
         <!-- Top Performers -->
@@ -102,17 +286,29 @@
                 <span class="material-symbols-outlined">military_tech</span>
             </div>
             <div class="performers__grid">
-                <!-- TODO: render performer cards here -->
+                @if (!topPerformers.Any())
+                {
+                    <div class="empty-state">No performance data yet.</div>
+                }
+                @for (int i = 0; i < topPerformers.Count; i++)
+                {
+                    var performer = topPerformers[i];
+                    <div class="performer-card">
+                        <div class="performer-avatar @performerAvatarColors[i % performerAvatarColors.Length]">@Initials(performer.Assignee!.FullName)</div>
+                        <div>
+                            <p class="performer-name">@performer.Assignee!.FullName</p>
+                            <span class="performer-metric @performerMetricColors[i % performerMetricColors.Length]">@performer.Efficiency% Efficiency</span>
+                        </div>
+                    </div>
+                }
             </div>
-            <div class="empty-state">No performance data yet.</div>
         </section>
-
     </div>
-
-    <!-- Right Sidebar -->
+@* 
+    <!-- ============================= RIGHT SIDEBAR ============================= -->
     <aside class="dashboard__rightbar custom-scrollbar">
 
-        <!-- Calendar Widget -->
+        <!-- Calendar (fully driven by dashboard.js:initCalendar) -->
         <div class="widget">
             <div class="widget__header">
                 <div class="widget__title-group">
@@ -121,77 +317,69 @@
                 </div>
             </div>
             <div class="calendar-nav">
-                <button id="calendarPrevBtn" class="calendar-nav__btn material-symbols-outlined" type="button" aria-label="Previous month">chevron_left</button>
+                <button type="button" id="calendarPrevBtn" class="calendar-nav__btn">
+                    <span class="material-symbols-outlined">chevron_left</span>
+                </button>
                 <span id="calendarLabel" class="calendar-nav__label"></span>
-                <button id="calendarNextBtn" class="calendar-nav__btn material-symbols-outlined" type="button" aria-label="Next month">chevron_right</button>
+                <button type="button" id="calendarNextBtn" class="calendar-nav__btn">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </button>
             </div>
             <div class="calendar-weekdays">
                 <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
             </div>
-            <div id="calendarDays" class="calendar-days">
-                <!-- Rendered by dashboard.js -->
+            <div id="calendarDays" class="calendar-days"><!-- populated by initCalendar() --></div>
+            <button type="button" class="widget__link-btn">Full Calendar</button>
+        </div>
+
+        <!-- To-do: driven by the same task list, using the existing toggle pattern -->
+        <div class="widget">
+            <div class="widget__header">
+                <div class="widget__title-group">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <h4 class="widget__title">To-do</h4>
+                </div>
+                <button type="button" class="widget__add-btn">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
             </div>
-            <button class="widget__link-btn" type="button">Full Calendar</button>
-        </div>
 
-      <!-- To-do List -->
-@{
-    var pendingTasks = Model?.Where(t => t.Status != "completed").ToList()
-                       ?? new List<DTIOneLink.Models.TaskItem>();
-}
-<div class="widget">
-    <div class="widget__header">
-        <div class="widget__title-group">
-            <span class="material-symbols-outlined">check_circle</span>
-            <h4 class="widget__title">To-do</h4>
-        </div>
-        <button class="widget__add-btn material-symbols-outlined" type="button" aria-label="Add to-do">add</button>
-    </div>
-    <div class="todo-list">
-        <div class="todo-item">
-            <span class="material-symbols-outlined">description</span>
-            <span>Set profile description</span>
-        </div>
-
-        <button type="button" class="todo-item todo-summary-toggle" id="todoSummaryToggle">
-            <span class="material-symbols-outlined">assignment</span>
-            <span class="todo-summary-text">@pendingTasks.Count task@(pendingTasks.Count != 1 ? "s" : "") due</span>
-        </button>
-
-        <div class="todo-sublist" id="todoList" style="display:none;">
-            @if (pendingTasks.Any())
+            @if (!dueTasks.Any())
             {
-                foreach (var task in pendingTasks)
-                {
-                    var daysLeft = (task.DueDate.Date - DateTime.Today).Days;
-                    <div class="todo-subitem">
-                        <span class="todo-item-bullet">&bull;</span>
-                        <span class="todo-item-name" title="@task.TaskName">@task.TaskName</span>
-                        <span class="todo-item-badge">@(daysLeft >= 0 ? daysLeft.ToString() : "!")</span>
-                    </div>
-                }
+                <div class="empty-state">Nothing due &mdash; you're all caught up.</div>
             }
             else
             {
-                <div class="todo-subitem">
-                    <span>No pending tasks</span>
+                <button type="button" id="todoSummaryToggle" class="todo-summary-toggle">
+                    <span class="material-symbols-outlined">schedule</span>
+                    <span class="todo-summary-text">@dueTasks.Count task@(dueTasks.Count == 1 ? "" : "s") due</span>
+                </button>
+                <div id="todoList" class="todo-sublist" style="display:none;">
+                    @foreach (var task in dueTasks)
+                    {
+                        <div class="todo-subitem">
+                            <span class="todo-item-bullet">&bull;</span>
+                            <span class="todo-item-name">@task.TaskName</span>
+                            <span class="todo-item-badge">@task.DueDate.ToString("MMM d")</span>
+                        </div>
+                    }
                 </div>
+                <button type="button" id="todoSummaryChevron" class="todo-chevron-btn">
+                    <span class="material-symbols-outlined">expand_more</span>
+                </button>
             }
         </div>
 
-        <button type="button" class="todo-chevron-btn" id="todoSummaryChevron" aria-label="Toggle task list">
-            <span class="material-symbols-outlined">expand_more</span>
-        </button>
-    </div>
-</div>
         <!-- Announcements -->
         <div class="widget">
-            <div class="widget__title-group" style="margin-bottom: 16px;">
-                <span class="material-symbols-outlined">campaign</span>
-                <h4 class="widget__title">Announcements</h4>
+            <div class="widget__header">
+                <div class="widget__title-group">
+                    <span class="material-symbols-outlined">campaign</span>
+                    <h4 class="widget__title">Announcements</h4>
+                </div>
             </div>
             <div class="empty-state">No new announcements at this time.</div>
         </div>
-
     </aside>
+    *@
 </div>

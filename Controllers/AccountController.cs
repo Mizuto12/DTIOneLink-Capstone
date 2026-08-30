@@ -62,7 +62,7 @@ namespace DTIOneLink.Controllers
                 return View(model);
             }
 
-            // Sign the user in via session — RecordsController, ReportsController, and
+           // Sign the user in via session — RecordsController, ReportsController, and
             // their shared views all read this same key to decide access and layout.
             HttpContext.Session.SetString("UserRole", user.Role);
             HttpContext.Session.SetString("Username", user.FullName);
@@ -74,11 +74,20 @@ namespace DTIOneLink.Controllers
                 return Redirect(model.ReturnUrl);
             }
 
-            return string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase)
-                ? RedirectToAction("AdminDashboard", "Dashboard")
-                : RedirectToAction("Index", "Employee");
+            // Route by role — SuperAdmin gets its own dashboard, distinct from Admin
+            if (string.Equals(user.Role, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("SuperAdminDashboard", "Dashboard");
+            }
+            else if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("AdminDashboard", "Dashboard");
+            }
+            else
+            {
+                return RedirectToAction("Index", "Employee");
+            }
         }
-
         // POST: /Account/Logout
         [HttpPost]
         [ValidateAntiForgeryToken]
