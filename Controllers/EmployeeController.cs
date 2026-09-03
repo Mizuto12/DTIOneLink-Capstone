@@ -8,6 +8,7 @@ using DTIOneLink.Models;   // <-- add this if it's missing
 
 namespace DTIOneLink.Controllers
 {
+    [RequireLogin]
     public class EmployeeController : Controller
     {
         private readonly AppDbContext _context;
@@ -21,32 +22,22 @@ namespace DTIOneLink.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var userId = HttpContext.Session.GetInt32("UserId");
-
-            var tasks = await _context.TaskItems
-                .Include(t => t.Assignee)
-                .Where(t => t.AssigneeId == userId)
+            var tasks = await AccessibleTasksQuery()
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
             return View(tasks);
         }
 
-        // GET: /Employee/TaskManagement
-        [HttpGet]
+       [HttpGet]
         public async Task<IActionResult> TaskManagement()
         {
-            var userId = HttpContext.Session.GetInt32("UserId");
-
-            var tasks = await _context.TaskItems
-                .Include(t => t.Assignee)
-                .Where(t => t.AssigneeId == userId)
+            var tasks = await AccessibleTasksQuery()
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
             return View(tasks);
         }
-
         // GET: /Employee/Details/5
     [HttpGet]
     public async Task<IActionResult> Details(int id)
@@ -269,6 +260,7 @@ private async Task<TaskItem?> GetAccessibleTaskAsync(int taskId)
     var query = _context.TaskItems
         .Include(t => t.Assignee)
         .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
+        .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
         .AsQueryable();
 
     return isElevated
@@ -293,6 +285,19 @@ private async Task<TaskSubmission?> GetAccessibleSubmissionAsync(int submissionI
     return isElevated
         ? await query.FirstOrDefaultAsync(s => s.Id == submissionId)
         : await query.FirstOrDefaultAsync(s => s.Id == submissionId && s.Task!.AssigneeId == userId);
+}
+// Same access rule as GetAccessibleTaskAsync, but returns a queryable list
+// scope rather than a single task — used by Index/TaskManagement so the
+// "which tasks can this user see" rule lives in exactly one place.
+private IQueryable<TaskItem> AccessibleTasksQuery()
+{
+    var userId = HttpContext.Session.GetInt32("UserId");
+    var role = HttpContext.Session.GetString("UserRole");
+    var isElevated = role == "Admin" || role == "Supervisor";
+
+    var query = _context.TaskItems.Include(t => t.Assignee).AsQueryable();
+
+    return isElevated ? query : query.Where(t => t.AssigneeId == userId);
 }
     }
 }
