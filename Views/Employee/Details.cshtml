@@ -215,6 +215,26 @@
         }
     </section>
 }
+@{
+    var activities = task.Activities?.OrderByDescending(a => a.OccurredAt).ToList() ?? new();
+}
+@if (activities.Any())
+{
+    <section class="td-activity">
+        <h3>Activity History</h3>
+        <ul class="td-activity-list">
+            @foreach (var activity in activities)
+            {
+                <li>
+                    <span class="td-activity-date">@activity.OccurredAt.ToString("MMM d, yyyy, h:mm tt")</span>
+                    <span class="td-activity-user">@(activity.PerformedBy?.FullName ?? "Unknown")</span>
+                    <span class="td-activity-details">@activity.Details</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
 <div class="td-actions">
     <button type="button" class="btn btn-secondary" id="tdBackButton">
         <span class="material-symbols-outlined">arrow_back</span>

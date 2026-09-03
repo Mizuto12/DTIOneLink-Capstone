@@ -17,48 +17,52 @@ namespace DTIOneLink.Controllers
         [HttpGet]
         public async Task<IActionResult> AdminDashboard()
         {
-            var userRole = HttpContext.Session.GetString("UserRole");
             var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var userRole = HttpContext.Session.GetString("UserRole");
+            var isElevated = userRole == "Admin" || userRole == "Supervisor";
 
             IQueryable<TaskItem> query = _context.TaskItems.Include(t => t.Assignee);
 
-            // Employees only see tasks assigned to them; Admins see everything
-            if (userRole != "Admin" && userId.HasValue)
+            if (!isElevated)
             {
                 query = query.Where(t => t.AssigneeId == userId.Value);
             }
-
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
             return View(tasks);
         }
-
-        // GET: /Dashboard/Details/5
-        // Same visibility rule as AdminDashboard: Admins can open any task,
-        // Employees can only open tasks assigned to them.
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
-            var userRole = HttpContext.Session.GetString("UserRole");
             var userId = HttpContext.Session.GetInt32("UserId");
-
-            IQueryable<TaskItem> query = _context.TaskItems
-    .Include(t => t.Assignee)
-    .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy);
-            if (userRole != "Admin" && userId.HasValue)
+            if (userId == null)
             {
-                query = query.Where(t => t.AssigneeId == userId.Value);
+                return NotFound();
             }
 
-            var task = await query.FirstOrDefaultAsync(t => t.Id == id);
+            var userRole = HttpContext.Session.GetString("UserRole");
+            var isElevated = userRole == "Admin" || userRole == "Supervisor";
+
+            IQueryable<TaskItem> query = _context.TaskItems
+                .Include(t => t.Assignee)
+                .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
+                .Include(t => t.Activities).ThenInclude(a => a.PerformedBy);
+
+            var task = isElevated
+                ? await query.FirstOrDefaultAsync(t => t.Id == id)
+                : await query.FirstOrDefaultAsync(t => t.Id == id && t.AssigneeId == userId);
 
             if (task == null)
             {
                 return NotFound();
             }
-
             // Reuses the same detail view built for the Employee Kanban board —
             // it only renders real TaskItem fields, so it's valid for either
             // role. See the note at the top of Details.cshtml about the

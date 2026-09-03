@@ -104,7 +104,52 @@ body{
     flex-direction: column;
     gap: 32px;
 }
+/* --------------------------------------------------------------------
+   Activity History
+   -------------------------------------------------------------------- */
+.task-details .td-activity h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--td-on-surface-variant);
+    margin-bottom: 12px;
+}
 
+.task-details .td-activity-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.task-details .td-activity-list li {
+    padding: 10px 12px;
+    border: 1px solid var(--td-outline-variant);
+    border-radius: var(--td-radius);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    font-size: 13px;
+}
+
+.task-details .td-activity-date {
+    color: var(--td-on-surface-variant);
+    font-variant-numeric: tabular-nums;
+}
+
+.task-details .td-activity-user {
+    font-weight: 600;
+}
+
+.task-details .td-activity-details {
+    flex-basis: 100%;
+    color: var(--td-on-surface-variant);
+}
 /* --------------------------------------------------------------------
    Header
    -------------------------------------------------------------------- */
