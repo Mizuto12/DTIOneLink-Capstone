@@ -401,6 +401,7 @@
 .status-progress { background: #dbeafe; color: #1e40af; }
 .status-complete { background: #dcfce7; color: #166534; }
 .status-pending  { background: #f1f5f9; color: #475569; }
+.status-badge.status-overdue { background-color: #ffdad6; color: #ba1a1a; }
 
 /* ── Empty state ─────────────────────────────────────────── */
 .empty-state {

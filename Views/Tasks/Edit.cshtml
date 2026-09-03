@@ -1,0 +1,149 @@
+@model DTIOneLink.Models.TaskEditViewModel
+@{
+    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    ViewData["Title"] = "Edit Task";
+    var taskCode = ViewBag.TaskCode as string ?? $"TASK-{Model.Id:D4}";
+    var currentStatus = ViewBag.CurrentStatus as string ?? "pending";
+    var currentProgress = ViewBag.CurrentProgress as int? ?? 0;
+    var createdAt = ViewBag.CreatedAt as DateTime? ?? DateTime.UtcNow;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tasks-edit.css" asp-append-version="true" />
+}
+
+<div class="edit-task">
+    <!-- Breadcrumb & Header Actions -->
+    <div class="et-header">
+        <div>
+            <nav class="et-breadcrumb">
+                <ol>
+                    <li><a asp-controller="Tasks" asp-action="Index">Task Management</a></li>
+                    <li><span class="et-sep">/</span></li>
+                    <li><span>@taskCode</span></li>
+                    <li><span class="et-sep">/</span></li>
+                    <li><span class="et-current">Edit</span></li>
+                </ol>
+            </nav>
+            <h2 class="et-title">Edit Task</h2>
+        </div>
+        <div class="et-header-actions">
+            <a asp-controller="Tasks" asp-action="Index" class="et-btn et-btn-outline">
+                Cancel
+            </a>
+            <button form="editTaskForm" type="submit" class="et-btn et-btn-primary">
+                <span class="material-symbols-outlined">save</span>
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+    <form id="editTaskForm" asp-controller="Tasks" asp-action="Edit" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div asp-validation-summary="ModelOnly" class="et-error-text" style="margin-bottom: 16px;"></div>
+
+        <!-- Split Pane Layout -->
+        <div class="et-grid">
+            <!-- Left Pane: Form Fields -->
+            <div class="et-panel">
+                <div class="et-field-grid">
+
+                    <!-- Task Name -->
+                    <div class="et-field et-field-full">
+                        <label asp-for="TaskName" class="et-label">
+                            Task Name <span class="et-required">*</span>
+                        </label>
+                        <input asp-for="TaskName" class="et-input" />
+                        <span asp-validation-for="TaskName" class="et-error-text"></span>
+                    </div>
+
+                    <!-- Assignee -->
+                    <div class="et-field">
+                        <label asp-for="AssigneeId" class="et-label">Assignee</label>
+                        <div class="et-select-wrap">
+                            <select asp-for="AssigneeId" asp-items="ViewBag.Employees as SelectList" class="et-select">
+                                <option value="">-- Select Assignee --</option>
+                            </select>
+                            <span class="material-symbols-outlined et-select-chevron">expand_more</span>
+                        </div>
+                        <span asp-validation-for="AssigneeId" class="et-error-text"></span>
+                    </div>
+
+                    <!-- Due Date -->
+                    <div class="et-field">
+                        <label asp-for="DueDate" class="et-label">Due Date</label>
+                        <input asp-for="DueDate" type="date" class="et-input" />
+                        <span asp-validation-for="DueDate" class="et-error-text"></span>
+                    </div>
+
+                    <!-- Priority -->
+                    <div class="et-field et-field-full">
+                        <label class="et-label">Priority</label>
+                        <div class="et-priority-options">
+                            <label class="et-priority-pill low">
+                                <input id="priorityLow" type="radio" name="Priority" value="low" checked="@(Model.Priority == "low" ? "checked" : null)" />
+                                <span>Low</span>
+                            </label>
+                            <label class="et-priority-pill medium">
+                                <input id="priorityMedium" type="radio" name="Priority" value="medium" checked="@(Model.Priority == "medium" ? "checked" : null)" />
+                                <span>Medium</span>
+                            </label>
+                            <label class="et-priority-pill high">
+                                <input id="priorityHigh" type="radio" name="Priority" value="high" checked="@(Model.Priority == "high" ? "checked" : null)" />
+                                <span>High</span>
+                            </label>
+                        </div>
+                        <span asp-validation-for="Priority" class="et-error-text"></span>
+
+                        <!-- Rule-based suggestion — never auto-applied. Admin/Supervisor must
+                             click "Use this" to accept it, or just pick a radio button directly
+                             to override it. -->
+                        <div id="prioritySuggestionBox" class="et-suggestion-box">
+                            <span id="prioritySuggestionText" class="et-suggestion-text">@ViewBag.SuggestedReason</span>
+                            <button type="button" id="applyPrioritySuggestion" data-priority="@ViewBag.SuggestedPriority" class="et-suggestion-apply">
+                                Use this
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="et-field et-field-full">
+                        <label asp-for="Description" class="et-label">Task Description</label>
+                        <textarea asp-for="Description" rows="6" class="et-textarea"></textarea>
+                        <span asp-validation-for="Description" class="et-error-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Pane: Task Overview (read-only — not part of TaskEditViewModel) -->
+            <div class="et-sidebar">
+                <div class="et-overview-card">
+                    <h3 class="et-overview-title">Task Overview</h3>
+                    <dl class="et-overview-list">
+                        <div>
+                            <dt>Status</dt>
+                            <dd>@currentStatus</dd>
+                        </div>
+                        <div>
+                            <dt>Progress</dt>
+                            <dd>@currentProgress%</dd>
+                        </div>
+                        <div>
+                            <dt>Created</dt>
+                            <dd>@createdAt.ToString("MMM d, yyyy")</dd>
+                        </div>
+                    </dl>
+                    <p class="et-overview-note">
+                        Progress and status are updated by the assignee from the task detail page, not from here.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="~/js/task-priority-suggestion.js" asp-append-version="true"></script>
+}

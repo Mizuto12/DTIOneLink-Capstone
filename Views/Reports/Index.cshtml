@@ -1,84 +1,77 @@
 @{
-    var role = Context.Session.GetString("Role");
-    Layout = role == "Admin"
+    var userRole = Context.Session.GetString("UserRole");
+    Layout = userRole == "Admin"
         ? "~/Views/Admin/AdminLayout.cshtml"
         : "~/Views/Employee/employeelayout.cshtml";
-
-        ViewData["Title"] = "Reports";
+    ViewData["Title"] = "Reports";
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true">
 }
 
-<!-- ── Header Section ─────────────────────────────────── -->
-<div class="rp-header">
-    <button class="rp-btn-export">
-        <span class="material-symbols-outlined">download</span>
-        Export Data
-    </button>
-</div>
+<div class="reports-page">
 
-<!-- ── Main Card ──────────────────────────────────────── -->
-<div class="rp-card">
+  <!-- Header Section -->
+  <div class="page-header">
+    <button class="btn-primary" type="button">
+      <span class="material-symbols-outlined icon-20">download</span>
+      Export Data
+    </button>
+  </div>
+
+  <!-- Dashboard Style Container -->
+  <div class="reports-card">
 
     <!-- Filter & Search Toolbar -->
-    <div class="rp-toolbar">
-        <div class="rp-toolbar-left">
-            <div class="rp-search-wrap">
-                <span class="material-symbols-outlined rp-search-icon">search</span>
-                <input type="text" class="rp-search-input" placeholder="Search report items..." id="reportSearch" />
-            </div>
-            <div class="rp-dropdown-wrap">
-                <button class="rp-dropdown-btn" id="filterBtn" onclick="toggleDropdown()">
-                    <span class="rp-dropdown-label" id="currentFilter">Archived</span>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </button>
-                <div class="rp-dropdown-menu hidden" id="filterDropdown">
-                    <button class="rp-dropdown-item">Audit Logs</button>
-                    <button class="rp-dropdown-item rp-dropdown-active">Archived</button>
-                    <button class="rp-dropdown-item">Disposed</button>
-                    <button class="rp-dropdown-item">Retained</button>
-                    <button class="rp-dropdown-item">Active Tasks</button>
-                    <button class="rp-dropdown-item">Completed Tasks</button>
-                </div>
-            </div>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-pill">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input id="report-search" type="text" placeholder="Search report items...">
         </div>
-        <div class="rp-toolbar-actions">
-            <button class="rp-icon-btn">
-                <span class="material-symbols-outlined">calendar_today</span>
-            </button>
-            <button class="rp-icon-btn">
-                <span class="material-symbols-outlined">tune</span>
-            </button>
+
+        <div class="filter-dropdown-wrapper">
+          <button class="filter-btn" id="filterBtn" type="button">
+            <span id="currentFilter">All Categories</span>
+            <span class="material-symbols-outlined">expand_more</span>
+          </button>
+          <div class="filter-dropdown" id="filterDropdown">
+            <button class="filter-option active" data-value="All Categories">All Categories</button>
+            <button class="filter-option" data-value="Audit Logs">Audit Logs</button>
+            <button class="filter-option" data-value="Archived">Archived</button>
+            <button class="filter-option" data-value="Disposed">Disposed</button>
+            <button class="filter-option" data-value="Retained">Retained</button>
+            <button class="filter-option" data-value="Active Tasks">Active Tasks</button>
+            <button class="filter-option" data-value="Completed Tasks">Completed Tasks</button>
+          </div>
         </div>
+      </div>
+
+      <div class="toolbar-right">
+        <button class="icon-btn-outline" type="button" aria-label="Calendar filter">
+          <span class="material-symbols-outlined">calendar_today</span>
+        </button>
+        <button class="icon-btn-outline" type="button" aria-label="More filters">
+          <span class="material-symbols-outlined">tune</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Report List -->
-    <div class="rp-list">
-        <div class="rp-empty-state">
-            <span class="material-symbols-outlined rp-empty-icon">assessment</span>
-            <p class="rp-empty-text">No reports yet</p>
-            <p class="rp-empty-sub">Reports will appear here once generated.</p>
-        </div>
+    <!-- Report List Content -->
+    <div class="report-list" id="report-list">
+      <!-- Rows are rendered here by reports.js. Empty state shows when there's nothing yet. -->
     </div>
 
     <!-- Footer Pagination -->
-    <div class="rp-pagination-bar">
-        <span class="rp-pagination-info">Showing 0 of 0 reports</span>
-        <div class="rp-pagination-btns">
-            <button class="rp-page-nav" disabled>
-                <span class="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button class="rp-page-btn rp-page-active">1</button>
-            <button class="rp-page-nav" disabled>
-                <span class="material-symbols-outlined">chevron_right</span>
-            </button>
-        </div>
+    <div class="pagination-footer">
+      <span class="pagination-status" id="pagination-status">Showing 0 of 0 reports</span>
+      <div class="pagination-controls" id="pagination-controls"></div>
     </div>
+  </div>
 
 </div>
 
 @section Scripts {
-    <script src="~/js/reports.js" asp-append-version="true"></script>
+    <script src="~/js/reports.js" defer></script>
 }

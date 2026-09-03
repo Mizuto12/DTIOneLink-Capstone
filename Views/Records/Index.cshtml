@@ -1,0 +1,156 @@
+@{
+    var userRole = Context.Session.GetString("UserRole");
+    Layout = userRole == "Admin"
+        ? "~/Views/Admin/AdminLayout.cshtml"
+        : "~/Views/Employee/EmployeeLayout.cshtml";
+    ViewData["Title"] = "Records Management";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/records.css" asp-append-version="true">
+}
+
+<main class="records-page">
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="header-actions">
+      <button class="btn btn-outline" type="button">
+        <span class="material-symbols-outlined">download</span> Export List
+      </button>
+      <button class="btn btn-primary" type="button">
+        <span class="material-symbols-outlined">print</span> Print Log
+      </button>
+    </div>
+  </header>
+
+  <!-- Add New Entry Card -->
+  <section class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="icon-badge">
+          <span class="material-symbols-outlined">description</span>
+        </div>
+        <div>
+          <h2 class="card-title">Add New Entry</h2>
+          <p class="card-desc">Fill in the details to archive a new document</p>
+        </div>
+      </div>
+      <span class="badge">NEW RECORD</span>
+    </div>
+
+    <form id="new-entry-form">
+      <div class="form-grid">
+        <div class="field">
+          <label for="code">Code</label>
+          <input id="code" name="code" type="text" placeholder="# e.g. DTI-REC-01" required>
+        </div>
+        <div class="field">
+          <label for="title">Title of Record</label>
+          <input id="title" name="title" type="text" placeholder="e.g. Business Registration Logs" required>
+        </div>
+        <div class="field">
+          <label for="medium">Medium</label>
+          <select id="medium" name="medium" required>
+            <option value="" disabled selected>Physical/Paper</option>
+            <option value="Physical">Physical</option>
+            <option value="Digital">Digital</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="location">Location</label>
+          <input id="location" name="location" type="text" placeholder="e.g. Archive Room A" required>
+        </div>
+      </div>
+
+      <div class="form-row-actions">
+        <div class="field">
+          <label for="period">Period Covered</label>
+          <input id="period" name="period" type="text" placeholder="e.g. 2023-2024" required>
+        </div>
+        <div class="field">
+          <label for="filing">Filing System</label>
+          <select id="filing" name="filing" required>
+            <option value="" disabled selected>Alphabetical</option>
+            <option value="Numerical">Numerical</option>
+            <option value="Chronological">Chronological</option>
+            <option value="Alphabetical">Alphabetical</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="access">Access Control</label>
+          <select id="access" name="access" required>
+            <option value="" disabled selected>Public</option>
+            <option value="Public">Public</option>
+            <option value="Restricted">Restricted</option>
+            <option value="Confidential">Confidential</option>
+          </select>
+        </div>
+        <button class="commit-btn" type="submit">
+          <span class="material-symbols-outlined">save</span> Save Entry
+        </button>
+      </div>
+
+      <div class="field" style="max-width: 260px; margin-top: 16px;">
+        <label for="retention">Retention Period</label>
+        <input id="retention" name="retention" type="text" placeholder="e.g. 5 Years" required>
+      </div>
+    </form>
+  </section>
+
+  <!-- Recent Submissions Card -->
+  <section class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="icon-badge green">
+          <span class="material-symbols-outlined">inventory_2</span>
+        </div>
+        <div>
+          <h2 class="card-title">Recent Submissions</h2>
+        </div>
+      </div>
+      <span class="badge" id="entry-count-badge">Showing 0 of 0 entries</span>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Title of Record</th>
+            <th>Medium</th>
+            <th>Location</th>
+            <th>Period Covered</th>
+            <th>Filing System</th>
+            <th>Access Control</th>
+            <th>Retention Period</th>
+          </tr>
+        </thead>
+        <tbody id="submissions-body">
+          <tr class="empty-row" id="empty-row">
+            <td colspan="8" class="empty-state">No records yet. Fill in the form above and commit to add one.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <div class="pagination-controls">
+        <button class="page-nav" type="button" id="prev-page-btn" aria-label="Previous page">
+          <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <div class="pagination-controls" id="page-numbers"></div>
+        <button class="page-nav" type="button" id="next-page-btn" aria-label="Next page">
+          <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+      </div>
+      <div class="pagination-status" id="pagination-status">Page 1 of 1</div>
+    </div>
+  </section>
+
+</main>
+
+@section Scripts {
+    <script src="~/js/records.js" defer></script>
+}

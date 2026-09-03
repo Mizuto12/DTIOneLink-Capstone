@@ -1,0 +1,67 @@
+@model DTIOneLink.Models.TaskItem
+@{
+    ViewData["Title"] = "Submit Proof of Completion";
+    Layout = "~/Views/Employee/employeelayout.cshtml";
+    var task = Model;
+    var taskCode = $"TASK-{task.Id:D4}";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/employeetaskproof.css" asp-append-version="true" />
+}
+
+<div class="task-proof">
+    <nav class="tp-breadcrumb" aria-label="Breadcrumb">
+        <a asp-controller="Employee" asp-action="TaskManagement">Task Management</a>
+        <span>/</span>
+        <span class="tp-breadcrumb-current">Submit Proof — @taskCode</span>
+    </nav>
+
+    <div class="tp-panel">
+        <section class="tp-header">
+            <h2 class="tp-title">@task.TaskName</h2>
+            <p class="tp-subtitle">@taskCode</p>
+        </section>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="tp-alert error">
+                <ul>
+                    @foreach (var modelError in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <li>@modelError.ErrorMessage</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@task.Id" />
+
+            <section class="tp-field">
+                <label for="tpFile">Proof file</label>
+                <input type="file" id="tpFile" name="ProofFile"
+                       accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
+                <p class="tp-hint">PDF, DOCX, XLSX, JPG, or PNG. Max size 10 MB.</p>
+            </section>
+
+            <section class="tp-field">
+                <label for="tpRemarks">Remarks</label>
+                <textarea id="tpRemarks" name="Remarks" rows="4"
+                          placeholder="Describe what was completed..."></textarea>
+            </section>
+
+            <div class="tp-actions">
+                <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="btn btn-secondary">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-symbols-outlined">upload</span>
+                    Submit for Review
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

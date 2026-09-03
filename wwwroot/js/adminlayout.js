@@ -1,5 +1,6 @@
 // ==========================================================
 // DTI Laguna OneLink — Admin Shell JS
+// (shared by both AdminLayout.cshtml and EmployeeLayout.cshtml)
 // ==========================================================
 (function () {
     "use strict";
@@ -33,21 +34,24 @@
         });
 
         // ── Notification panel ────────────────────────────
-        var notifBtn   = document.getElementById("notifBtn");
-        var notifPanel = document.getElementById("notifPanel");
-        var notifDot   = document.getElementById("notifDot");
-        var notifList  = document.getElementById("notifList");
-        var markAllBtn = document.getElementById("markAllRead");
+        var notifBtn    = document.getElementById("notifBtn");
+        var notifPanel  = document.getElementById("notifPanel");
+        var notifBadge  = document.getElementById("notifBadge");
+        var notifList   = document.getElementById("notifList");
+        var markAllBtn  = document.getElementById("markAllRead");
 
-        // Seed with a few demo notifications
-        var notifications = [
-            { id: 1, type: "task", text: "New task assigned: \"Q3 Compliance Review\"", time: "5 min ago", unread: true },
-            { id: 2, type: "user", text: "Juan Dela Cruz created a new account", time: "2 hours ago", unread: true },
-            { id: 3, type: "system", text: "System maintenance scheduled for July 15", time: "1 day ago", unread: false }
-        ];
+        // Starts empty — no real notifications exist yet.
+        // Each notification: { id, name, avatarUrl, message, time, unread }
+        var notifications = [];
 
-        function hasUnread() {
-            return notifications.some(function (n) { return n.unread; });
+        function unreadCount() {
+            return notifications.filter(function (n) { return n.unread; }).length;
+        }
+
+        function escapeHtml(value) {
+            var div = document.createElement("div");
+            div.textContent = value == null ? "" : value;
+            return div.innerHTML;
         }
 
         function renderNotifications() {
@@ -57,61 +61,73 @@
                 notifList.innerHTML =
                     '<div class="notif-empty">' +
                     '<span class="material-symbols-outlined">notifications_off</span>' +
-                    '<p>No notifications yet</p>' +
+                    '<p>No current notifications</p>' +
                     '</div>';
             } else {
                 var html = "";
                 notifications.forEach(function (n) {
+                    var avatar = n.avatarUrl
+                        ? '<img src="' + escapeHtml(n.avatarUrl) + '" alt="" />'
+                        : '<span class="material-symbols-outlined">person</span>';
+
                     html +=
                         '<div class="notif-item' + (n.unread ? ' unread' : '') + '" data-id="' + n.id + '">' +
-                        '<div class="notif-icon ' + n.type + '">' +
-                        '<span class="material-symbols-outlined">' +
-                        (n.type === "task" ? "assignment" : n.type === "user" ? "person_add" : "info") +
-                        '</span></div>' +
+                        '<div class="notif-avatar">' + avatar + '</div>' +
                         '<div class="notif-body">' +
-                        '<p class="notif-text">' + n.text + '</p>' +
-                        '<span class="notif-time">' + n.time + '</span>' +
-                        '</div></div>';
+                        '<p class="notif-text"><strong>' + escapeHtml(n.name) + '</strong> ' + escapeHtml(n.message) + '</p>' +
+                        '<span class="notif-time">' + escapeHtml(n.time) + '</span>' +
+                        '</div>' +
+                        '<button class="notif-dismiss" type="button" data-id="' + n.id + '" aria-label="Dismiss">' +
+                        '<span class="material-symbols-outlined">close</span>' +
+                        '</button>' +
+                        '</div>';
                 });
                 notifList.innerHTML = html;
 
-                // Click on individual notification marks it as read
+                // Clicking a notification (not the dismiss button) marks it read
                 notifList.querySelectorAll(".notif-item").forEach(function (item) {
-                    item.addEventListener("click", function () {
+                    item.addEventListener("click", function (e) {
+                        if (e.target.closest(".notif-dismiss")) return;
                         var id = parseInt(item.dataset.id, 10);
                         var notif = notifications.find(function (n) { return n.id === id; });
                         if (notif) {
                             notif.unread = false;
-                            item.classList.remove("unread");
-                            updateDot();
+                            renderNotifications();
                         }
+                    });
+                });
+
+                // Dismiss (×) removes the notification entirely
+                notifList.querySelectorAll(".notif-dismiss").forEach(function (btn) {
+                    btn.addEventListener("click", function (e) {
+                        e.stopPropagation();
+                        var id = parseInt(btn.dataset.id, 10);
+                        notifications = notifications.filter(function (n) { return n.id !== id; });
+                        renderNotifications();
                     });
                 });
             }
 
-            updateDot();
+            updateBadge();
         }
 
-        function updateDot() {
-            if (notifDot) {
-                if (hasUnread()) {
-                    notifDot.classList.remove("hidden");
-                } else {
-                    notifDot.classList.add("hidden");
-                }
+        function updateBadge() {
+            if (!notifBadge) return;
+            var count = unreadCount();
+            if (count > 0) {
+                notifBadge.textContent = count > 99 ? "99+" : String(count);
+                notifBadge.classList.remove("hidden");
+            } else {
+                notifBadge.classList.add("hidden");
             }
         }
 
         function openPanel() {
-            if (notifPanel) {
-                notifPanel.classList.add("open");
-            }
+            if (notifPanel) notifPanel.classList.add("open");
         }
 
         function closePanel() {
-            if (notifPanel) {
-                notifPanel.classList.remove("open");
-            }
+            if (notifPanel) notifPanel.classList.remove("open");
         }
 
         function togglePanel() {
@@ -141,7 +157,6 @@
             });
         }
 
-        // Close panel when clicking outside
         document.addEventListener("click", function (e) {
             if (notifPanel && notifPanel.classList.contains("open")) {
                 if (!notifPanel.contains(e.target) && e.target !== notifBtn) {
@@ -150,15 +165,42 @@
             }
         });
 
-        // Close on Escape
         document.addEventListener("keydown", function (e) {
             if (e.key === "Escape" && notifPanel && notifPanel.classList.contains("open")) {
                 closePanel();
             }
         });
 
-        // Initial render
+        // Initial render (renders the empty state)
         renderNotifications();
+
+        // ── Public API for wiring real notifications in later ──
+        // Example:
+        // NotificationsPanel.add({ name: 'Rogimer Urriza', avatarUrl: '/images/employee.jpg',
+        //   message: "Due soon: assignment '01 Activity 1 - ARG'", time: '2:46 am' });
+        window.NotificationsPanel = {
+            add: function (n) {
+                notifications.unshift({
+                    id: Date.now(),
+                    name: n.name || "",
+                    avatarUrl: n.avatarUrl || null,
+                    message: n.message || "",
+                    time: n.time || "Just now",
+                    unread: true
+                });
+                if (notifications.length > 30) notifications.length = 30;
+                renderNotifications();
+            },
+            setAll: function (list) {
+                notifications = list;
+                renderNotifications();
+            },
+            markAllRead: markAllRead,
+            clear: function () {
+                notifications = [];
+                renderNotifications();
+            }
+        };
 
         // ── Profile dropdown ──────────────────────────────
         var profileTrigger  = document.getElementById("profileTrigger");
@@ -176,7 +218,7 @@
             if (profileDropdown) {
                 profileDropdown.classList.remove("open");
             if (profileTrigger)
-                profileTrigger.classList.remove("active"); // ← add this
+                profileTrigger.classList.remove("active");
             }
         }
 
@@ -184,7 +226,6 @@
             if (profileDropdown && profileDropdown.classList.contains("open")) {
                 closeProfile();
             } else {
-                // Close notif panel if open, then open profile
                 if (notifPanel && notifPanel.classList.contains("open")) {
                     closePanel();
                 }
@@ -199,7 +240,6 @@
             });
         }
 
-        // Close profile when clicking outside
         document.addEventListener("click", function (e) {
             if (profileDropdown && profileDropdown.classList.contains("open")) {
                 if (!profileDropdown.contains(e.target) && e.target !== profileTrigger && !profileTrigger.contains(e.target)) {
@@ -208,34 +248,11 @@
             }
         });
 
-        // Close on Escape
         document.addEventListener("keydown", function (e) {
             if (e.key === "Escape" && profileDropdown && profileDropdown.classList.contains("open")) {
                 closeProfile();
             }
         });
-
-        // ── Demo: add a new notification every 60 seconds ──
-        var demoId = 100;
-        setInterval(function () {
-            var types = ["task", "user", "system"];
-            var texts = [
-                "Reminder: Submit monthly report by Friday",
-                "New user registration pending approval",
-                "Database backup completed successfully",
-                "Task \"Policy Review\" is overdue"
-            ];
-            notifications.unshift({
-                id: demoId++,
-                type: types[Math.floor(Math.random() * types.length)],
-                text: texts[Math.floor(Math.random() * texts.length)],
-                time: "Just now",
-                unread: true
-            });
-            // Keep max 20 notifications
-            if (notifications.length > 20) notifications.length = 20;
-            renderNotifications();
-        }, 60000);
 
     });
 

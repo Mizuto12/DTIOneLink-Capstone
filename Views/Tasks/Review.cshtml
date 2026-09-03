@@ -1,0 +1,43 @@
+@model DTIOneLink.Models.TaskSubmission
+@{
+    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    ViewData["Title"] = "Review Submission";
+    var task = Model.Task!;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tasks-review.css" asp-append-version="true" />
+}
+
+<div class="task-review">
+    <h2 class="tr-title">Review Submission — @task.TaskName</h2>
+
+    <div class="tr-card">
+        <p class="tr-info-row"><strong>Submitted:</strong> @Model.SubmittedAt.ToString("MMM d, yyyy, h:mm tt")</p>
+        <p class="tr-info-row"><strong>Remarks from employee:</strong> @(string.IsNullOrWhiteSpace(Model.Remarks) ? "(none)" : Model.Remarks)</p>
+        <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@Model.Id" class="tr-download">
+            Download submitted proof (@Model.ProofFileName)
+        </a>
+    </div>
+
+    <form asp-controller="Tasks" asp-action="Review" method="post" class="tr-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="SubmissionId" value="@Model.Id" />
+
+        <div asp-validation-summary="ModelOnly" class="tr-error-text"></div>
+
+        <div class="tr-field">
+            <label class="tr-label">
+                Admin remarks <span class="tr-required">*</span>
+                <span class="tr-hint">required if returning — shown to employee</span>
+            </label>
+            <textarea name="AdminRemarks" class="tr-textarea"></textarea>
+            <span asp-validation-for="AdminRemarks" class="tr-error-text"></span>
+        </div>
+
+        <div class="tr-actions">
+            <button type="submit" name="Decision" value="return" class="tr-btn tr-btn-return">Return for Correction</button>
+            <button type="submit" name="Decision" value="approve" class="tr-btn tr-btn-approve">Approve — Mark Completed</button>
+        </div>
+    </form>
+</div>

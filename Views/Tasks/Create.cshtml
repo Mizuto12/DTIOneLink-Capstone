@@ -131,14 +131,15 @@
                 <!-- Assignee + Due Date -->
                 <div class="field-row">
                     <div class="field-group">
-                        <label class="field-label" for="assignee">ASSIGNEE <span class="required-star">*</span></label>
-                        <div class="select-wrap">
-                            <input class="pill-input" id="assignee" asp-for="Assignee" type="text"
-                                   placeholder="Enter assignee name" />
-                            <span class="material-symbols-outlined select-icon">person</span>
-                        </div>
-                        <span asp-validation-for="Assignee" class="field-error"></span>
+                <label class="field-label" for="assignee">ASSIGNEE <span class="required-star">*</span></label>
+                    <div class="select-wrap">
+                        <select class="pill-input" id="assignee" asp-for="AssigneeId" asp-items="ViewBag.Employees">
+                            <option value="">Select assignee</option>
+                        </select>
+                        <span class="material-symbols-outlined select-icon">person</span>
                     </div>
+                    <span asp-validation-for="AssigneeId" class="field-error"></span>
+                </div>
                     <div class="field-group">
                         <label class="field-label" for="dueDate">DUE DATE <span class="required-star">*</span></label>
                         <div class="select-wrap">

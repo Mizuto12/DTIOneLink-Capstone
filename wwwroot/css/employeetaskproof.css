@@ -1,0 +1,57 @@
+.task-proof {
+    --tp-primary: #1d357e;
+    --tp-outline-variant: #c3c6d1;
+    --tp-on-surface: #181b22;
+    --tp-on-surface-variant: #434750;
+    --tp-error-container: #ffdad6;
+    --tp-error: #ba1a1a;
+    --tp-radius: 0.5rem;
+    width: 100%;
+    max-width: 640px;
+    box-sizing: border-box;
+    font-family: 'Hanken Grotesk', sans-serif;
+    color: var(--tp-on-surface);
+}
+.task-proof *, .task-proof *::before, .task-proof *::after { box-sizing: border-box; }
+.task-proof h2, .task-proof p, .task-proof label { margin: 0; }
+.task-proof a { text-decoration: none; }
+
+.task-proof .tp-breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--tp-on-surface-variant); margin-bottom: 16px;
+}
+.task-proof .tp-breadcrumb a { color: var(--tp-on-surface-variant); }
+.task-proof .tp-breadcrumb-current { color: var(--tp-on-surface); font-weight: 600; }
+
+.task-proof .tp-panel {
+    background: #fff; border: 1px solid var(--tp-outline-variant);
+    border-radius: var(--tp-radius); box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    padding: 32px; display: flex; flex-direction: column; gap: 24px;
+}
+.task-proof .tp-title { font-size: 24px; font-weight: 700; }
+.task-proof .tp-subtitle { font-size: 13px; color: var(--tp-on-surface-variant); margin-top: 4px; }
+
+.task-proof .tp-alert.error {
+    background: var(--tp-error-container); color: var(--tp-error);
+    padding: 12px 16px; border-radius: var(--tp-radius); font-size: 14px;
+}
+.task-proof .tp-alert ul { margin: 0; padding-left: 18px; }
+
+.task-proof .tp-field { display: flex; flex-direction: column; gap: 8px; }
+.task-proof .tp-field label { font-weight: 600; font-size: 14px; }
+.task-proof input[type="file"], .task-proof textarea {
+    border: 1px solid var(--tp-outline-variant); border-radius: var(--tp-radius);
+    padding: 10px 12px; font-family: inherit; font-size: 14px;
+}
+.task-proof .tp-hint { font-size: 12px; color: var(--tp-on-surface-variant); }
+
+.task-proof .tp-actions { display: flex; gap: 12px; }
+.task-proof .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 9999px; font-size: 13px;
+    font-weight: 700; letter-spacing: 0.03em; border: none; cursor: pointer;
+}
+.task-proof .btn-primary { background: var(--tp-primary); color: #fff; }
+.task-proof .btn-secondary {
+    background: #eff4ff; color: var(--tp-primary); border: 1px solid var(--tp-outline-variant);
+}

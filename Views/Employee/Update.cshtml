@@ -1,0 +1,143 @@
+@model DTIOneLink.Models.TaskItem
+@{
+    ViewData["Title"] = "Update Task Progress";
+    Layout = "~/Views/Employee/employeelayout.cshtml";
+
+    var task = Model;
+    var taskCode = $"TASK-{task.Id:D4}";
+    var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
+    var isCompleted = status == "completed";
+    var isPending = status == "pending";
+
+    string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
+    {
+        "high" => "high",
+        "low" => "low",
+        _ => "medium"
+    };
+
+    string PriorityLabel(string? priority)
+    {
+        var p = (priority ?? "medium").Trim().ToLowerInvariant();
+        return char.ToUpperInvariant(p[0]) + p.Substring(1) + " Priority";
+    }
+}
+
+@* Assignee, due date, and priority are rendered read-only here on
+   purpose — this view has no inputs for them at all, so there's
+   nothing for a tampered request to target even before the
+   controller's own re-fetch-by-owner check kicks in. *@
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/employeetaskupdate.css" asp-append-version="true" />
+}
+
+<div class="task-update">
+    <nav class="tu-breadcrumb" aria-label="Breadcrumb">
+        <a asp-controller="Employee" asp-action="TaskManagement">Task Management</a>
+        <span>/</span>
+        <span class="tu-breadcrumb-current">Update @taskCode</span>
+    </nav>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="tu-alert error">@TempData["ErrorMessage"]</div>
+    }
+
+    <div class="tu-panel">
+        <section class="tu-header">
+            <h2 class="tu-title">@task.TaskName</h2>
+            <p class="tu-subtitle">@taskCode</p>
+        </section>
+
+        <section class="tu-locked-grid">
+            <div>
+                <h3>Assignee</h3>
+                <p>@(task.Assignee?.FullName ?? "You")</p>
+            </div>
+            <div>
+                <h3>Due Date</h3>
+                <p>@task.DueDate.ToString("MMM d, yyyy")</p>
+            </div>
+            <div>
+                <h3>Priority</h3>
+                <p class="tu-priority priority-@PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</p>
+            </div>
+        </section>
+        <p class="tu-locked-note">
+            <span class="material-symbols-outlined">lock</span>
+            Assignee, due date, and priority are set by your admin and can't be changed here.
+        </p>
+
+        @if (isCompleted)
+        {
+            <div class="tu-completed-banner">
+                <span class="material-symbols-outlined">check_circle</span>
+                This task is complete. No further updates are needed.
+            </div>
+        }
+        else
+        {
+            <form asp-controller="Employee" asp-action="Update" method="post" id="tuForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" value="@task.Id" />
+                <input type="hidden" name="RequestedStatus" id="tuRequestedStatus" value="@status" />
+
+                <section class="tu-progress-section">
+                    <div class="tu-progress-label-row">
+                        <h3>Progress</h3>
+                        <span class="tu-progress-value" id="tuProgressValue">@task.Progress%</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        name="Progress"
+                        id="tuProgressRange"
+                        value="@task.Progress" />
+                    <div class="tu-progress-track">
+                        <div class="tu-progress-fill" id="tuProgressFill" style="width: @(task.Progress)%"></div>
+                    </div>
+                </section>
+
+                @if (isPending)
+                {
+                    <section class="tu-status-section">
+                        <label class="tu-checkbox">
+                            <input type="checkbox" id="tuStartWork" />
+                            <span>Start working on this task now</span>
+                        </label>
+                        <p class="tu-status-hint">
+                            Moves this task from To Do to In Progress. This also happens
+                            automatically once you move the progress slider above 0%.
+                        </p>
+                    </section>
+                }
+                else
+                {
+                    <section class="tu-status-section">
+                        <span class="tu-status-locked-badge">
+                            <span class="tu-badge-dot"></span> In Progress
+                        </span>
+                    </section>
+                }
+
+                <div class="tu-actions">
+                    <button type="button" class="btn btn-secondary" id="tuBackButton">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="material-symbols-outlined">save</span>
+                        Save Progress
+                    </button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/employeetaskupdate.js" asp-append-version="true"></script>
+}

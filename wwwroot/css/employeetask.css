@@ -1,0 +1,400 @@
+/* ==========================================================================
+   Laguna Governance – Task Management (content fragment only)
+   Scoped under .task-management so it never touches the shared layout's
+   own <body>, sidebar, or top nav.
+   ========================================================================== */
+
+/* Fonts (Hanken Grotesk, Inter, Material Symbols Outlined) come from
+   /css/fonts.css, already loaded by employeelayout.cshtml on every page.
+   Do NOT @import them again here — @font-face/@import declarations are
+   NOT scoped by .task-management (fonts are a document-wide resource,
+   not a selector match), so a second import of the same font family
+   can silently override the shared one for the whole page, including
+   the topbar/sidebar that live outside this fragment. That was the
+   cause of the topbar avatar/icon looking different only on this page. */
+body{
+    padding-top: 16px ;
+}
+.task-management .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.task-management .material-symbols-outlined[data-weight="fill"] {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* --------------------------------------------------------------------
+   Design tokens (from the Tailwind theme config)
+   -------------------------------------------------------------------- */
+.task-management {
+    --color-surface-dim: #cbdbf5;
+    --color-surface-container-low: #eff4ff;
+    --color-tertiary-fixed-dim: #4ae183;
+    --color-error-container: #ffdad6;
+    --color-background: #f8f9ff;
+    --color-surface-container-high: #dce9ff;
+    --color-secondary-container: #e0e3e6;
+    --color-on-secondary: #ffffff;
+    --color-outline: #757682;
+    --color-outline-variant: #c5c5d2;
+    --color-secondary: #5c5f61;
+    --color-on-tertiary-container: #0fbe65;
+    --color-secondary-fixed-dim: #c4c7ca;
+    --color-on-surface-variant: #444651;
+    --color-on-background: #0b1c30;
+    --color-on-error-container: #93000a;
+    --color-primary: #001e65;
+    --color-surface-variant: #d3e4fe;
+    --color-on-primary: #ffffff;
+    --color-surface-container-highest: #d3e4fe;
+    --color-surface-container-lowest: #ffffff;
+    --color-primary-container: #1d357e;
+    --color-on-surface: #0b1c30;
+
+    --radius-xl: 0.75rem;
+    --radius-full: 9999px;
+
+    /* Contain the whole fragment inside whatever width the layout's
+       content area gives it — this is what stops the columns from
+       pushing past the viewport. */
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-on-background);
+}
+
+.task-management *,
+.task-management *::before,
+.task-management *::after {
+    box-sizing: border-box;
+}
+
+.task-management button {
+    font-family: inherit;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.task-management img { display: block; }
+
+/* --------------------------------------------------------------------
+   Workspace header (Filter / New Task actions)
+   -------------------------------------------------------------------- */
+.task-management .workspace-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    gap: 16px;
+}
+
+@media (min-width: 640px) {
+    .task-management .workspace-header { flex-direction: row; }
+}
+
+.task-management .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+    .task-management .header-actions { width: auto; }
+}
+
+.task-management .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 24px;
+    border-radius: var(--radius-full);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    flex: 1;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+    white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+    .task-management .btn { flex: none; }
+}
+
+.task-management .btn-secondary {
+    background-color: var(--color-surface-container-highest);
+    color: var(--color-primary);
+    border: 1px solid rgba(197, 197, 210, 0.5);
+    padding-left: 16px;
+    padding-right: 16px;
+}
+.task-management .btn-secondary:hover { background-color: var(--color-surface-variant); }
+
+.task-management .btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.task-management .btn-primary:hover { background-color: rgba(0, 30, 101, 0.9); }
+
+/* --------------------------------------------------------------------
+   Kanban board
+   -------------------------------------------------------------------- */
+.task-management .kanban-board {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+    padding-bottom: 32px;
+    overflow-x: auto;      /* horizontal scroll happens HERE, inside the
+                               board, never on the page itself */
+}
+
+@media (min-width: 1024px) {
+    .task-management .kanban-board { flex-direction: row; }
+}
+
+.task-management .kanban-column {
+    flex-shrink: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (min-width: 1024px) {
+    .task-management .kanban-column { width: 350px; }
+}
+
+.task-management .column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+}
+
+.task-management .column-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-management .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    display: inline-block;
+}
+
+.task-management .status-dot.todo { background-color: var(--color-secondary); }
+.task-management .status-dot.in-progress { background-color: var(--color-primary-container); }
+.task-management .status-dot.completed { background-color: var(--color-tertiary-fixed-dim); }
+
+.task-management .column-title {
+    font-size: 18px;
+    line-height: 32px;
+    font-weight: 600;
+    color: var(--color-on-surface);
+    margin: 0;
+}
+
+.task-management .column-count {
+    background-color: var(--color-surface-container-highest);
+    color: var(--color-on-surface-variant);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 500;
+}
+
+.task-management .column-menu-btn {
+    color: var(--color-on-surface-variant);
+    transition: color 0.15s ease;
+}
+.task-management .column-menu-btn:hover { color: var(--color-primary); }
+
+/* --------------------------------------------------------------------
+   Task cards
+   -------------------------------------------------------------------- */
+.task-management .task-card {
+    background-color: var(--color-surface-container-lowest);
+    border-radius: var(--radius-xl);
+    padding: 16px;
+    box-shadow: 0 4px 20px 0 rgba(68, 90, 164, 0.05);
+    border: 1px solid rgba(197, 197, 210, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+}
+.task-management .task-card:hover { box-shadow: 0 8px 24px 0 rgba(68, 90, 164, 0.1); }
+.task-management .task-card:focus-visible {
+    outline: 2px solid var(--color-primary-container);
+    outline-offset: 2px;
+}
+
+.task-management .task-card.in-progress {
+    border-left: 4px solid var(--color-primary-container);
+}
+
+.task-management .task-card.completed {
+    opacity: 0.75;
+}
+
+.task-management .task-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.task-management .priority-badge {
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+}
+
+.task-management .priority-badge.high {
+    background-color: var(--color-error-container);
+    color: var(--color-on-error-container);
+}
+
+.task-management .priority-badge.medium {
+    background-color: var(--color-surface-container-highest);
+    color: var(--color-primary);
+}
+
+.task-management .priority-badge.low {
+    background-color: var(--color-surface-variant);
+    color: var(--color-on-surface-variant);
+}
+
+.task-management .task-edit-btn { color: var(--color-outline); }
+.task-management .task-edit-btn:hover { color: var(--color-primary); }
+.task-management .task-edit-btn .material-symbols-outlined { font-size: 18px; }
+
+.task-management .task-complete-icon {
+    color: var(--color-tertiary-fixed-dim);
+    font-size: 20px;
+}
+
+.task-management .task-title {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    color: var(--color-on-surface);
+    margin: 0;
+}
+
+.task-management .task-card.completed .task-title {
+    text-decoration: line-through;
+    color: var(--color-outline);
+}
+
+.task-management .task-progress-track {
+    width: 100%;
+    background-color: var(--color-surface-variant);
+    border-radius: var(--radius-full);
+    height: 6px;
+    margin-top: 4px;
+}
+
+.task-management .task-progress-fill {
+    background-color: var(--color-primary-container);
+    height: 6px;
+    border-radius: var(--radius-full);
+}
+
+.task-management .task-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-surface-variant);
+}
+
+.task-management .task-assignee {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-management .avatar-photo {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    object-fit: cover;
+    border: 1px solid #ffffff;
+}
+
+.task-management .avatar-initials {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-secondary-container);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    color: var(--color-on-surface-variant);
+    border: 1px solid #ffffff;
+    flex-shrink: 0;
+}
+
+.task-management .task-card.completed .avatar-initials {
+    background-color: var(--color-surface-dim);
+    color: var(--color-on-surface);
+}
+
+.task-management .assignee-name {
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 500;
+    color: var(--color-on-surface-variant);
+}
+
+.task-management .task-card.completed .assignee-name { color: var(--color-outline); }
+
+.task-management .task-due {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-on-surface-variant);
+    white-space: nowrap;
+}
+
+.task-management .task-due .material-symbols-outlined { font-size: 14px; }
+
+.task-management .task-due span.due-label {
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 500;
+}
+
+.task-management .task-card.completed .task-due { color: var(--color-outline); }
+
+.task-management .column-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--color-outline);
+    font-size: 13px;
+    border: 1px dashed var(--color-outline-variant);
+    border-radius: var(--radius-xl);
+}

@@ -12,5 +12,7 @@ namespace DTIOneLink.Data
 
         public DbSet<TaskItem> TaskItems { get; set; }
         public DbSet<UserItem> UserItems { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<TaskSubmission> TaskSubmissions { get; set; }
     }
 }

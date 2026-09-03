@@ -1,21 +1,27 @@
+using DTIOneLink.Data;
 using DTIOneLink.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── MVC ────────────────────────────────────────────────────
 builder.Services.AddControllersWithViews();
 
-// ── Session (needed to persist login state) ────────────────
+// ── Database (EF Core) ──────────────────────────────────────
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── DatabaseHelper — registered ONCE here, injectable anywhere
+builder.Services.AddSingleton<DatabaseHelper>();
+
+// ── Session (needed to persist login state) ─────────────────
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-
-// ── DatabaseHelper — registered ONCE here, injectable anywhere
-// No need to ever write the connection string in a controller.
-builder.Services.AddSingleton<DatabaseHelper>();
 
 var app = builder.Build();
 
@@ -26,7 +32,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
-app.UseSession();          // must be before MapControllerRoute
+
+// Must come before UseAuthorization, and before any endpoint that reads session
+app.UseSession();
+
 app.UseAuthorization();
 
 app.MapControllerRoute(

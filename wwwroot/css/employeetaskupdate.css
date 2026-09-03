@@ -1,0 +1,239 @@
+/* ==========================================================================
+   Laguna Governance – Task Update
+   Scoped under .task-update, same pattern as employeetaskdetails.css.
+   Fonts come from /css/fonts.css via employeelayout.cshtml — don't
+   @import them again here.
+   ========================================================================== */
+body {
+    padding-top: 16px;
+}       
+.task-update {
+    --tu-primary: #1d357e;
+    --tu-surface-dim: #cbdbf5;
+    --tu-surface-container-low: #eff4ff;
+    --tu-surface-container-high: #d5e4fc;
+    --tu-on-surface: #181b22;
+    --tu-on-surface-variant: #434750;
+    --tu-outline: #737781;
+    --tu-outline-variant: #c3c6d1;
+    --tu-error: #ba1a1a;
+    --tu-error-container: #ffdad6;
+    --tu-warning: #8a5000;
+    --tu-warning-container: #ffdcbe;
+    --tu-success: #166534;
+    --tu-success-container: #dcfce7;
+    --tu-on-success-container: #052e16;
+    --tu-radius: 0.5rem;
+
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: 'Hanken Grotesk', sans-serif;
+    color: var(--tu-on-surface);
+}
+
+.task-update *,
+.task-update *::before,
+.task-update *::after {
+    box-sizing: border-box;
+}
+
+.task-update h2, .task-update h3, .task-update p, .task-update label {
+    margin: 0;
+}
+
+.task-update a { text-decoration: none; }
+.task-update button { font-family: inherit; border: none; background: none; cursor: pointer; }
+
+.task-update .tu-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--tu-on-surface-variant);
+    margin-bottom: 16px;
+}
+.task-update .tu-breadcrumb a { color: var(--tu-on-surface-variant); }
+.task-update .tu-breadcrumb a:hover { color: var(--tu-primary); }
+.task-update .tu-breadcrumb-current { color: var(--tu-on-surface); font-weight: 600; }
+
+.task-update .tu-alert {
+    padding: 12px 16px;
+    border-radius: var(--tu-radius);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+.task-update .tu-alert.error {
+    background-color: var(--tu-error-container);
+    color: var(--tu-error);
+}
+
+.task-update .tu-panel {
+    background-color: #ffffff;
+    border: 1px solid var(--tu-outline-variant);
+    border-radius: var(--tu-radius);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 32px;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.task-update .tu-title {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+.task-update .tu-subtitle {
+    font-size: 13px;
+    color: var(--tu-on-surface-variant);
+    margin-top: 4px;
+}
+
+.task-update .tu-locked-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 20px 0;
+    border-top: 1px solid var(--tu-outline-variant);
+    border-bottom: 1px solid var(--tu-outline-variant);
+}
+.task-update .tu-locked-grid h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--tu-on-surface-variant);
+    margin-bottom: 4px;
+}
+.task-update .tu-locked-grid p {
+    font-weight: 600;
+    font-size: 14px;
+}
+.task-update .tu-priority.priority-high { color: var(--tu-warning); }
+.task-update .tu-priority.priority-medium { color: var(--tu-primary); }
+.task-update .tu-priority.priority-low { color: var(--tu-on-surface-variant); }
+
+.task-update .tu-locked-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--tu-outline);
+    margin-top: -12px;
+}
+.task-update .tu-locked-note .material-symbols-outlined { font-size: 16px; }
+
+.task-update .tu-completed-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--tu-success-container);
+    color: var(--tu-on-success-container);
+    padding: 14px 16px;
+    border-radius: var(--tu-radius);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.task-update .tu-progress-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+}
+.task-update .tu-progress-section h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--tu-on-surface-variant);
+}
+.task-update .tu-progress-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--tu-primary);
+}
+
+.task-update input[type="range"] {
+    width: 100%;
+    accent-color: var(--tu-primary);
+    margin-bottom: 10px;
+}
+
+.task-update .tu-progress-track {
+    width: 100%;
+    height: 8px;
+    background-color: var(--tu-outline-variant);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+.task-update .tu-progress-fill {
+    height: 100%;
+    background-color: var(--tu-primary);
+    border-radius: 9999px;
+    transition: width 0.1s ease;
+}
+
+.task-update .tu-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.task-update .tu-status-hint {
+    font-size: 12px;
+    color: var(--tu-on-surface-variant);
+    margin-top: 6px;
+}
+
+.task-update .tu-status-locked-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    background-color: var(--tu-surface-container-low);
+    color: var(--tu-primary);
+    border: 1px solid var(--tu-surface-dim);
+}
+.task-update .tu-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background-color: currentColor;
+}
+
+.task-update .tu-actions {
+    display: flex;
+    gap: 12px;
+}
+.task-update .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: background-color 0.15s ease;
+}
+.task-update .btn .material-symbols-outlined { font-size: 18px; }
+.task-update .btn-secondary {
+    background-color: var(--tu-surface-container-high);
+    color: var(--tu-primary);
+    border: 1px solid var(--tu-outline-variant);
+}
+.task-update .btn-secondary:hover { background-color: var(--tu-surface-container-low); }
+.task-update .btn-primary {
+    background-color: var(--tu-primary);
+    color: #ffffff;
+}
+.task-update .btn-primary:hover { background-color: #16265e; }
