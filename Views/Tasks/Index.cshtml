@@ -91,10 +91,15 @@
                             "low" => "badge-low",
                             _ => "badge-medium"
                         };
-                        var statusBadgeClass = task.Status?.ToLower() switch
+                        var displayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(task.Status, task.DueDate);
+                        var displayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(task.Status, task.DueDate);
+                        var statusBadgeClass = displayStatus switch
                         {
-                            "in progress" or "progress" => "status-progress",
-                            "completed" or "complete" => "status-complete",
+                            "in-progress" => "status-progress",
+                            "for-review" => "status-progress",
+                            "returned-for-correction" => "status-pending",
+                            "completed" => "status-complete",
+                            "overdue" => "status-overdue",
                             _ => "status-pending"
                         };
                         var progressBarClass = progressWidth >= 80 ? "progress-green" : "";
@@ -122,13 +127,22 @@
                                 <span class="badge @priorityBadgeClass">@task.Priority</span>
                             </td>
                             <td>
-                                <span class="status-badge @statusBadgeClass">@task.Status</span>
+                                <span class="status-badge @statusBadgeClass">@displayLabel</span>
                             </td>
                             <td class="td-last">
-                                <button class="more-btn" aria-label="More options"
-                                        onclick="event.stopPropagation(); alert('Task details: @task.TaskName')">
-                                    <span class="material-symbols-outlined">more_horiz</span>
-                                </button>
+                                <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="more-btn" aria-label="Edit task">
+                                    <span class="material-symbols-outlined">edit</span>
+                                </a>
+                                @if (displayStatus == "for-review")
+                                {
+                                    var pendingSubmission = task.Submissions?.OrderByDescending(s => s.SubmittedAt).FirstOrDefault(s => s.Decision == null);
+                                    if (pendingSubmission != null)
+                                    {
+                                        <a asp-controller="Tasks" asp-action="Review" asp-route-id="@pendingSubmission.Id" class="more-btn" aria-label="Review submission">
+                                            <span class="material-symbols-outlined">fact_check</span>
+                                        </a>
+                                    }
+                                }
                             </td>
                         </tr>
                     }

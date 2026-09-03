@@ -1,7 +1,13 @@
 @model DTIOneLink.Models.TaskItem
 @{
     ViewData["Title"] = "Task Details";
-    Layout = "~/Views/Employee/employeelayout.cshtml";
+
+    var role = Context.Session.GetString("UserRole");
+    var isElevated = role == "Admin" || role == "Supervisor";
+
+    Layout = isElevated
+        ? "~/Views/Admin/AdminLayout.cshtml"
+        : "~/Views/Employee/employeelayout.cshtml";
 
     var task = Model;
     var taskCode = $"TASK-{task.Id:D4}";
@@ -9,16 +15,18 @@
     var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
     var isOverdue = status != "completed" && task.DueDate.Date < DateTime.UtcNow.Date;
 
-    (string CssClass, string Label) StatusInfo()
+   (string CssClass, string Label) StatusInfo()
+{
+    if (isOverdue) return ("overdue", "Overdue");
+    return status switch
     {
-        if (isOverdue) return ("overdue", "Overdue");
-        return status switch
-        {
-            "in-progress" => ("in-progress", "In Progress"),
-            "completed" => ("completed", "Completed"),
-            _ => ("todo", "To Do")
-        };
-    }
+        "in-progress" => ("in-progress", "In Progress"),
+        "for-review" => ("for-review", "For Review"),
+        "returned-for-correction" => ("returned", "Returned for Correction"),
+        "completed" => ("completed", "Completed"),
+        _ => ("todo", "To Do")
+    };
+}
     var (statusClass, statusLabel) = StatusInfo();
 
     string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
@@ -136,13 +144,101 @@
                     <p>@task.Description</p>
                 }
             </section>
+            @{
+    var submissions = task.Submissions?.OrderByDescending(s => s.SubmittedAt).ToList() ?? new();
+    var latest = submissions.FirstOrDefault();
+}
 
-            <div class="td-actions">
-                <button type="button" class="btn btn-secondary" id="tdBackButton">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                    Back
-                </button>
+@if (submissions.Any())
+{
+    <section class="td-validation">
+        <h3>Submission Status</h3>
+
+        @if (latest != null)
+        {
+            <div class="td-validation-latest @(latest.Decision ?? "pending")">
+                <span class="td-validation-label">
+                    @(latest.Decision switch
+                    {
+                        "approved" => "Approved",
+                        "returned" => "Returned for Correction",
+                        _ => "Awaiting Review"
+                    })
+                </span>
+                <span class="td-validation-date">
+                    Submitted @latest.SubmittedAt.ToString("MMM d, yyyy")
+                </span>
+
+               @if (!string.IsNullOrWhiteSpace(latest.AdminRemarks))
+                {
+                    <p class="td-validation-remarks">
+                        <strong>Admin remarks:</strong> @latest.AdminRemarks
+                    </p>
+                }
+                @if (latest.Decision != null && latest.ValidatedBy != null)
+                {
+                    <p class="td-validation-remarks">
+                        <strong>Reviewed by:</strong> @latest.ValidatedBy.FullName on @latest.DecidedAt?.ToString("MMM d, yyyy")
+                    </p>
+                }
             </div>
+        }
+
+        @if (submissions.Count > 1)
+        {
+            <details class="td-submission-history">
+                <summary>Submission history (@submissions.Count)</summary>
+                <ul>
+                    @foreach (var s in submissions)
+                    {
+                        <li>
+                            <span class="td-history-date">@s.SubmittedAt.ToString("MMM d, yyyy, h:mm tt")</span>
+                            <span class="td-history-decision @(s.Decision ?? "pending")">
+                                @(s.Decision switch
+                                {
+                                    "approved" => "Approved",
+                                    "returned" => "Returned",
+                                    _ => "Pending"
+                                })
+                            </span>
+                            <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@s.Id">
+                                @s.ProofFileName
+                            </a>
+                            @if (!string.IsNullOrWhiteSpace(s.Remarks))
+                            {
+                                <p class="td-history-remarks">@s.Remarks</p>
+                            }
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+    </section>
+}
+<div class="td-actions">
+    <button type="button" class="btn btn-secondary" id="tdBackButton">
+        <span class="material-symbols-outlined">arrow_back</span>
+        Back
+    </button>
+    @if (status == "pending" || status == "in-progress")
+    {
+        <a asp-controller="Employee" asp-action="Update" asp-route-id="@task.Id" class="btn btn-primary">
+            <span class="material-symbols-outlined">edit</span>
+            Update Progress
+        </a>
+        <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
+            <span class="material-symbols-outlined">upload</span>
+            Submit Proof
+        </a>
+    }
+    @if (status == "returned-for-correction")
+    {
+        <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
+            <span class="material-symbols-outlined">refresh</span>
+            Resubmit
+        </a>
+    }
+</div>
         </div>
 
         <!-- Sidebar -->

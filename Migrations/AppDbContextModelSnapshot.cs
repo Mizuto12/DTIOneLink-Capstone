@@ -17,7 +17,7 @@ namespace DTIOneLink.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -63,6 +63,55 @@ namespace DTIOneLink.Migrations
                     b.HasIndex("AssigneeId");
 
                     b.ToTable("TaskItems");
+                });
+
+            modelBuilder.Entity("DTIOneLink.Models.TaskSubmission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Decision")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProofFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProofStoredFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ValidatedByUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.HasIndex("ValidatedByUserId");
+
+                    b.ToTable("TaskSubmissions");
                 });
 
             modelBuilder.Entity("DTIOneLink.Models.User", b =>
@@ -153,6 +202,28 @@ namespace DTIOneLink.Migrations
                         .IsRequired();
 
                     b.Navigation("Assignee");
+                });
+
+            modelBuilder.Entity("DTIOneLink.Models.TaskSubmission", b =>
+                {
+                    b.HasOne("DTIOneLink.Models.TaskItem", "Task")
+                        .WithMany("Submissions")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DTIOneLink.Models.User", "ValidatedBy")
+                        .WithMany()
+                        .HasForeignKey("ValidatedByUserId");
+
+                    b.Navigation("Task");
+
+                    b.Navigation("ValidatedBy");
+                });
+
+            modelBuilder.Entity("DTIOneLink.Models.TaskItem", b =>
+                {
+                    b.Navigation("Submissions");
                 });
 #pragma warning restore 612, 618
         }

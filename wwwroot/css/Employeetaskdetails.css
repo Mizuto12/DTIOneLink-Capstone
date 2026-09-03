@@ -6,7 +6,9 @@
    employeelayout.cshtml — do not @import fonts again here (see the
    note in employeetask.css for why that caused problems before).
    ========================================================================== */
-
+body{
+    padding-top: 16px;
+}
 .task-details {
     --td-primary: #1d357e;
     --td-primary-light: #3b5ab0;
@@ -81,7 +83,11 @@
     gap: 24px;
     align-items: start;
 }
-
+.task-details .btn-primary {
+    background-color: var(--td-primary);
+    color: #ffffff;
+}
+.task-details .btn-primary:hover { background-color: #16265e; }
 @media (min-width: 1024px) {
     .task-details .td-grid {
         grid-template-columns: 1fr 380px;
@@ -187,7 +193,96 @@
     color: var(--td-primary);
     border: 1px solid var(--td-surface-dim);
 }
+.task-details .td-badge.for-review {
+    background-color: var(--td-surface-container-low);
+    color: var(--td-primary);
+    border: 1px solid var(--td-surface-dim);
+}
+.task-details .td-badge.returned {
+    background-color: var(--td-warning-container);
+    color: var(--td-on-warning-container);
+}
 
+.task-details .td-validation h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--td-on-surface-variant);
+    margin-bottom: 12px;
+}
+
+.task-details .td-validation-latest {
+    padding: 16px;
+    border-radius: var(--td-radius);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.task-details .td-validation-latest.pending {
+    background-color: var(--td-surface-container-low);
+}
+.task-details .td-validation-latest.approved {
+    background-color: var(--td-success-container);
+}
+.task-details .td-validation-latest.returned {
+    background-color: var(--td-warning-container);
+}
+
+.task-details .td-validation-label {
+    font-weight: 700;
+    font-size: 14px;
+}
+.task-details .td-validation-date {
+    font-size: 12px;
+    color: var(--td-on-surface-variant);
+}
+.task-details .td-validation-remarks {
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.task-details .td-submission-history {
+    margin-top: 12px;
+    font-size: 13px;
+}
+.task-details .td-submission-history summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--td-primary);
+}
+.task-details .td-submission-history ul {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.task-details .td-submission-history li {
+    padding: 10px 12px;
+    border: 1px solid var(--td-outline-variant);
+    border-radius: var(--td-radius);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.task-details .td-history-date { color: var(--td-on-surface-variant); }
+.task-details .td-history-decision {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+}
+.task-details .td-history-decision.approved { background: var(--td-success-container); color: var(--td-on-success-container); }
+.task-details .td-history-decision.returned { background: var(--td-warning-container); color: var(--td-on-warning-container); }
+.task-details .td-history-decision.pending { background: var(--td-surface-container-low); color: var(--td-on-surface-variant); }
+.task-details .td-history-remarks {
+    flex-basis: 100%;
+    font-size: 13px;
+    color: var(--td-on-surface-variant);
+}
 /* --------------------------------------------------------------------
    Metadata grid
    -------------------------------------------------------------------- */

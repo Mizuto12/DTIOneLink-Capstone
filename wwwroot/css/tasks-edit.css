@@ -1,0 +1,380 @@
+/* ==========================================================================
+   Laguna Governance – Edit Task
+   Scoped under .edit-task, same convention as employeetaskdetails.css, so
+   this never touches AdminLayout's own body/sidebar/topbar styling.
+   Fonts (Hanken Grotesk / Material Symbols) come from /css/fonts.css,
+   already loaded by AdminLayout.cshtml.
+   ========================================================================== */
+.edit-task {
+    --et-primary: #001e65;
+    --et-primary-container: #1d357e;
+    --et-primary-fixed: #dce1ff;
+    --et-on-primary: #ffffff;
+    --et-surface: #f8f9ff;
+    --et-surface-container-lowest: #ffffff;
+    --et-surface-container-low: #eff4ff;
+    --et-surface-container: #e5eeff;
+    --et-surface-container-highest: #d3e4fe;
+    --et-on-surface: #0b1c30;
+    --et-on-surface-variant: #444651;
+    --et-outline: #757682;
+    --et-outline-variant: #c5c5d2;
+    --et-error: #ba1a1a;
+    --et-error-container: #ffdad6;
+    --et-secondary: #5c5f61;
+    --et-radius: 0.5rem;
+    --et-radius-lg: 0.75rem;
+
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: 'Hanken Grotesk', sans-serif;
+    color: var(--et-on-surface);
+}
+
+.edit-task *,
+.edit-task *::before,
+.edit-task *::after {
+    box-sizing: border-box;
+}
+
+.edit-task h2, .edit-task h3, .edit-task p, .edit-task dl, .edit-task dt, .edit-task dd {
+    margin: 0;
+}
+
+.edit-task a { text-decoration: none; }
+.edit-task button { font-family: inherit; cursor: pointer; }
+.edit-task .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+
+/* --------------------------------------------------------------------
+   Header row: breadcrumb + title + Cancel/Save buttons
+   -------------------------------------------------------------------- */
+.edit-task .et-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+@media (min-width: 768px) {
+    .edit-task .et-header {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+
+.edit-task .et-breadcrumb {
+    display: flex;
+    font-size: 14px;
+    color: var(--et-secondary);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.edit-task .et-breadcrumb ol {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.edit-task .et-breadcrumb a {
+    color: var(--et-secondary);
+    transition: color 0.15s ease;
+}
+.edit-task .et-breadcrumb a:hover { color: var(--et-primary); }
+
+.edit-task .et-breadcrumb .et-sep { color: var(--et-outline-variant); }
+.edit-task .et-breadcrumb .et-current { color: var(--et-primary); }
+
+.edit-task .et-title {
+    font-size: 32px;
+    line-height: 1.25;
+    font-weight: 700;
+    color: var(--et-on-surface);
+}
+
+.edit-task .et-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.edit-task .et-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 24px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: background-color 0.15s ease;
+    border: none;
+}
+
+.edit-task .et-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.edit-task .et-btn-outline {
+    background-color: transparent;
+    color: var(--et-on-surface);
+    border: 1px solid var(--et-outline-variant);
+}
+.edit-task .et-btn-outline:hover { background-color: var(--et-surface-container); }
+
+.edit-task .et-btn-primary {
+    background-color: var(--et-primary);
+    color: var(--et-on-primary);
+}
+.edit-task .et-btn-primary:hover { background-color: var(--et-primary-container); }
+
+/* --------------------------------------------------------------------
+   Split-pane layout
+   -------------------------------------------------------------------- */
+.edit-task .et-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+@media (min-width: 1280px) {
+    .edit-task .et-grid {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+.edit-task .et-panel {
+    background-color: var(--et-surface-container-lowest);
+    border: 1px solid var(--et-surface-container-highest);
+    border-radius: var(--et-radius-lg);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 32px;
+}
+
+.edit-task .et-field-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+@media (min-width: 768px) {
+    .edit-task .et-field-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.edit-task .et-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.edit-task .et-field-full {
+    grid-column: 1 / -1;
+}
+
+.edit-task .et-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--et-on-surface-variant);
+}
+
+.edit-task .et-required {
+    color: var(--et-error);
+}
+
+.edit-task .et-input,
+.edit-task .et-select,
+.edit-task .et-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: var(--et-radius);
+    border: 1px solid var(--et-outline-variant);
+    background-color: var(--et-surface);
+    color: var(--et-on-surface);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.edit-task .et-input:focus,
+.edit-task .et-select:focus,
+.edit-task .et-textarea:focus {
+    border-color: var(--et-primary);
+    box-shadow: 0 0 0 2px var(--et-primary);
+}
+
+.edit-task .et-textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.edit-task .et-select-wrap {
+    position: relative;
+}
+
+.edit-task .et-select {
+    appearance: none;
+}
+
+.edit-task .et-select-chevron {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--et-outline);
+    pointer-events: none;
+}
+
+.edit-task .et-error-text {
+    font-size: 13px;
+    color: var(--et-error);
+}
+
+/* --------------------------------------------------------------------
+   Priority radio pills
+   -------------------------------------------------------------------- */
+.edit-task .et-priority-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.edit-task .et-priority-pill {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--et-outline-variant);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.edit-task .et-priority-pill:hover { background-color: var(--et-surface-container); }
+
+.edit-task .et-priority-pill input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.edit-task .et-priority-pill.low:has(input:checked) {
+    background-color: var(--et-surface-container);
+    border-color: var(--et-outline);
+    color: var(--et-on-surface);
+}
+
+.edit-task .et-priority-pill.medium:has(input:checked) {
+    background-color: var(--et-primary-fixed);
+    border-color: var(--et-primary);
+    color: var(--et-primary);
+    font-weight: 700;
+}
+
+.edit-task .et-priority-pill.high:has(input:checked) {
+    background-color: var(--et-error-container);
+    border-color: var(--et-error);
+    color: var(--et-error);
+}
+
+/* --------------------------------------------------------------------
+   Priority suggestion box
+   -------------------------------------------------------------------- */
+.edit-task .et-suggestion-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 12px 16px;
+    border-radius: var(--et-radius);
+    background-color: var(--et-surface-container-low);
+    border: 1px solid var(--et-outline-variant);
+    font-size: 14px;
+}
+
+.edit-task .et-suggestion-text {
+    color: var(--et-on-surface-variant);
+}
+
+.edit-task .et-suggestion-apply {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    background-color: var(--et-primary-fixed);
+    color: var(--et-primary);
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.edit-task .et-suggestion-apply:hover {
+    background-color: var(--et-primary-container);
+    color: var(--et-on-primary);
+}
+
+/* --------------------------------------------------------------------
+   Sidebar: Task Overview
+   -------------------------------------------------------------------- */
+.edit-task .et-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.edit-task .et-overview-card {
+    background-color: var(--et-surface-container-lowest);
+    border: 1px solid var(--et-surface-container-highest);
+    border-radius: var(--et-radius-lg);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.edit-task .et-overview-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--et-on-surface);
+}
+
+.edit-task .et-overview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.edit-task .et-overview-list > div {
+    display: flex;
+    justify-content: space-between;
+}
+
+.edit-task .et-overview-list dt {
+    color: var(--et-on-surface-variant);
+}
+
+.edit-task .et-overview-list dd {
+    font-weight: 600;
+}
+
+.edit-task .et-overview-note {
+    font-size: 12px;
+    color: var(--et-on-surface-variant);
+    font-style: italic;
+    padding-top: 8px;
+    border-top: 1px solid var(--et-outline-variant);
+}

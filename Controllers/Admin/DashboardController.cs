@@ -44,8 +44,9 @@ namespace DTIOneLink.Controllers
             var userRole = HttpContext.Session.GetString("UserRole");
             var userId = HttpContext.Session.GetInt32("UserId");
 
-            IQueryable<TaskItem> query = _context.TaskItems.Include(t => t.Assignee);
-
+            IQueryable<TaskItem> query = _context.TaskItems
+    .Include(t => t.Assignee)
+    .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy);
             if (userRole != "Admin" && userId.HasValue)
             {
                 query = query.Where(t => t.AssigneeId == userId.Value);
