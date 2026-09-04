@@ -84,7 +84,6 @@
 }
 
 .records-page .btn-primary:hover { background: var(--primary-hover); }
-
 .records-page .btn:active { transform: scale(0.98); }
 
 /* ---------- Card ---------- */

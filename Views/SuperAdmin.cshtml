@@ -1,117 +1,136 @@
+@model DTIOneLink.Models.SuperAdminDashboardViewModel
 @{
-    Layout = null;
-    var current = ViewContext.RouteData.Values["controller"]?.ToString();
-    bool IsActive(string c) =>
-        string.Equals(current, c, StringComparison.OrdinalIgnoreCase);
+    Layout = "~/Views/SuperAdmin/SuperAdminLayout.cshtml";
+    ViewData["Title"] = "Super Admin Dashboard";
 }
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - DTI Laguna OneLink</title>
 
-    
-    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/adminlayout.css" asp-append-version="true" />
-    @await RenderSectionAsync("Styles", required: false)
-</head>
-<body>
+@section Styles {
+    <link rel="stylesheet" href="~/css/superadmin.css" asp-append-version="true" />
+}
 
-    <!-- ══════════════ TOPBAR ══════════════ -->
-    <header class="topbar">
-        <div class="topbar-left">
-            <div class="topbar-search">
-                <span class="material-symbols-outlined search-icon">search</span>
-                <input type="text" placeholder="Search tasks or records..." />
-            </div>
+<div class="sa-dashboard">
+
+    <!-- ── Summary Cards ─────────────────────────────────── -->
+    <section class="sa-cards">
+        <div class="sa-card">
+            <p class="sa-card__label">Total Tasks</p>
+            <p class="sa-card__value">@Model.TotalTasks</p>
         </div>
-
-        <div class="topbar-right">
-            <!-- Notification bell -->
-            <button class="notif-btn" id="notifBtn" aria-label="Notifications">
-                <span class="material-symbols-outlined">notifications</span>
-                <span class="notif-dot" id="notifDot"></span>
-            </button>
-
-            <div class="topbar-divider"></div>
-
-            <!-- User info + avatar + chevron badge -->
-            <div class="topbar-user" id="profileTrigger">
-                <div class="user-info">
-                    <span class="user-name">ADMIN</span>
-                    <span class="user-role">Super User</span>
-                </div>
-                <div class="avatar-wrapper">
-                    <div class="user-avatar">
-                        <img src="~/images/employee.jpg"
-                             alt="Employee photo"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <span class="avatar-fallback material-symbols-outlined">person</span>
-                    </div>
-                    <span class="material-symbols-outlined profile-chevron">expand_more</span>
-                </div>
-            </div>
-
-            <!-- Profile dropdown -->
-            <div class="profile-dropdown" id="profileDropdown">
-                <div class="profile-dropdown-header">
-                    <div class="user-avatar user-avatar-lg">
-                        <img src="~/images/employee.jpg"
-                             alt="Employee photo"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <span class="avatar-fallback material-symbols-outlined">person</span>
-                    </div>
-                    <div>
-                        <div class="profile-dd-name">ADMIN</div>
-                        <div class="profile-dd-role">Super User</div>
-                    </div>
-                </div>
-                <div class="profile-dropdown-divider"></div>
-                <form asp-controller="Account" asp-action="Logout" method="post" style="margin:4px;">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="profile-logout-btn">
-                        <span class="material-symbols-outlined">logout</span>
-                        <span>Sign Out</span>
-                    </button>
-                </form>
-            </div>
+        <div class="sa-card">
+            <p class="sa-card__label">To Do</p>
+            <p class="sa-card__value">@Model.TodoCount</p>
         </div>
-    </header>
-
-    <!-- ══════════════ SIDEBAR ══════════════ -->
-    <aside class="sidebar">
-
-        <!-- Brand block: logo + DTI (Anton) + OneLink (Open Sauce) -->
-        <div class="sidebar-brand">
-            <img src="~/images/dti-logo.png"
-                 alt="DTI Laguna Provincial Office"
-                 class="sidebar-logo" />
-            <div class="brand-text">
-                <span class="brand-dti">DTI  Laguna</span>
-                <span class="brand-onelink">
-                <span class="word-one">One</span><span class="word-link">Link</span>
-                </span>
-            </div>
+        <div class="sa-card">
+            <p class="sa-card__label">In Progress</p>
+            <p class="sa-card__value sa-card__value--inprogress">@Model.InProgressCount</p>
         </div>
+        <div class="sa-card">
+            <p class="sa-card__label">Completed</p>
+            <p class="sa-card__value sa-card__value--completed">@Model.CompletedCount</p>
+        </div>
+        <div class="sa-card">
+            <p class="sa-card__label">Overdue</p>
+            <p class="sa-card__value sa-card__value--overdue">@Model.OverdueCount</p>
+        </div>
+    </section>
 
-        <nav class="sidebar-nav">
+    <!-- ── Status Distribution ───────────────────────────── -->
+    <section class="sa-section">
+        <h4 class="sa-section__title">Status Distribution</h4>
+        @if (Model.TotalTasks == 0)
+        {
+            <div class="sa-empty-state">No tasks recorded yet.</div>
+        }
+        else
+        {
+            <div class="sa-status-bar">
+                <div class="sa-status-bar__segment--todo" style="width:@(Model.TodoPercent)%;" title="To Do @Model.TodoPercent%"></div>
+                <div class="sa-status-bar__segment--inprogress" style="width:@(Model.InProgressPercent)%;" title="In Progress @Model.InProgressPercent%"></div>
+                <div class="sa-status-bar__segment--completed" style="width:@(Model.CompletedPercent)%;" title="Completed @Model.CompletedPercent%"></div>
+            </div>
+            <div class="sa-status-legend">
+                <span><span class="sa-status-legend__dot sa-status-legend__dot--todo"></span>To Do — @Model.TodoCount (@Model.TodoPercent%)</span>
+                <span><span class="sa-status-legend__dot sa-status-legend__dot--inprogress"></span>In Progress — @Model.InProgressCount (@Model.InProgressPercent%)</span>
+                <span><span class="sa-status-legend__dot sa-status-legend__dot--completed"></span>Completed — @Model.CompletedCount (@Model.CompletedPercent%)</span>
+                <span class="sa-status-legend__efficiency">Overall Efficiency: @Model.OverallEfficiencyPercent%</span>
+            </div>
+        }
+    </section>
 
-            <a asp-controller="Dashboard" asp-action="AdminDashboard"
-               class="nav-item @(IsActive("Dashboard") ? "active" : "")">
-                <span class="material-symbols-outlined"
-                      style="@(IsActive("Dashboard") ? "font-variation-settings:'FILL' 1;" : "")">dashboard</span>
-                <span>Dashboard</span>
-            </a>
-        </nav>
-    </aside>
+    <!-- ── Overdue Tasks ─────────────────────────────────── -->
+    <section class="sa-section">
+        <h4 class="sa-section__title">Overdue Tasks (@Model.OverdueCount)</h4>
+        @if (!Model.OverdueTasks.Any())
+        {
+            <div class="sa-empty-state">Nothing overdue.</div>
+        }
+        else
+        {
+            <table class="sa-table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Assignee</th>
+                        <th>Due Date</th>
+                        <th>Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.OverdueTasks)
+                    {
+                        <tr>
+                            <td>@t.TaskName</td>
+                            <td class="td--muted">@(t.Assignee?.FullName ?? "Unassigned")</td>
+                            <td class="td--overdue">@t.DueDate.ToString("MMM d, yyyy")</td>
+                            <td>@t.Progress%</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
 
-    <!-- ══════════════ MAIN CONTENT ══════════════ -->
-    <main class="main-content">
-        @RenderBody()
-    </main>
+    <!-- ── Employee Workload & Productivity ──────────────── -->
+    <section class="sa-section">
+        <h4 class="sa-section__title">Employee Workload &amp; Productivity</h4>
+        @if (!Model.EmployeeWorkloads.Any())
+        {
+            <div class="sa-empty-state">No assigned tasks yet.</div>
+        }
+        else
+        {
+            <table class="sa-table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Assigned</th>
+                        <th>To Do</th>
+                        <th>In Progress</th>
+                        <th>Completed</th>
+                        <th>Overdue</th>
+                        <th>Efficiency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var w in Model.EmployeeWorkloads)
+                    {
+                        <tr>
+                            <td class="td--strong">@w.FullName</td>
+                            <td>@w.TotalAssigned</td>
+                            <td>@w.ToDo</td>
+                            <td>@w.InProgress</td>
+                            <td>@w.Completed</td>
+                            <td class="@(w.Overdue > 0 ? "td--danger-count" : "")">@w.Overdue</td>
+                            <td class="td--strong">@w.EfficiencyPercent%</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
 
-    <script src="~/js/adminlayout.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
-</body>
-</html>
+</div>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}

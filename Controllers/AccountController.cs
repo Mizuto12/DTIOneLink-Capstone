@@ -75,18 +75,18 @@ namespace DTIOneLink.Controllers
             }
 
             // Route by role — SuperAdmin gets its own dashboard, distinct from Admin
-            if (string.Equals(user.Role, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
-            {
-                return RedirectToAction("SuperAdminDashboard", "Dashboard");
-            }
+           if (string.Equals(user.Role, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return RedirectToAction("SuperAdminDashboard", "Dashboard");
+                }
             else if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                return RedirectToAction("AdminDashboard", "Dashboard");
-            }
+                {
+                    return RedirectToAction("AdminDashboard", "Dashboard");
+                }
             else
-            {
-                return RedirectToAction("Index", "Employee");
-            }
+                {
+                    return RedirectToAction("Index", "Employee");
+                }
         }
         // POST: /Account/Logout
         [HttpPost]

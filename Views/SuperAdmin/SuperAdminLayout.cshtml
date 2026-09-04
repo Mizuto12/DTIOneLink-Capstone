@@ -1,0 +1,123 @@
+@{
+    Layout = null;
+    var current = ViewContext.RouteData.Values["controller"]?.ToString();
+    bool IsActive(string c) =>
+        string.Equals(current, c, StringComparison.OrdinalIgnoreCase);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - DTI Laguna OneLink</title>
+
+    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/adminlayout.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+
+    <!-- ══════════════ TOPBAR ══════════════ -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-search">
+                <span class="material-symbols-outlined search-icon">search</span>
+                <input type="text" placeholder="Search tasks or records..." />
+            </div>
+        </div>
+
+        <div class="topbar-right">
+            <!-- Notification bell -->
+            <button class="notif-btn" id="notifBtn" aria-label="Notifications">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="notif-dot" id="notifDot"></span>
+            </button>
+
+            <div class="topbar-divider"></div>
+
+            <!-- User info + avatar + chevron badge -->
+            <div class="topbar-user" id="profileTrigger">
+                <div class="user-info">
+                    <span class="user-name">SUPER ADMIN</span>
+                    <span class="user-role">System Oversight</span>
+                </div>
+                <div class="avatar-wrapper">
+                    <div class="user-avatar">
+                        <img src="~/images/employee.jpg"
+                             alt="Employee photo"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <span class="avatar-fallback material-symbols-outlined">person</span>
+                    </div>
+                    <span class="material-symbols-outlined profile-chevron">expand_more</span>
+                </div>
+            </div>
+
+            <!-- Profile dropdown -->
+            <div class="profile-dropdown" id="profileDropdown">
+                <div class="profile-dropdown-header">
+                    <div class="user-avatar user-avatar-lg">
+                        <img src="~/images/employee.jpg"
+                             alt="Employee photo"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <span class="avatar-fallback material-symbols-outlined">person</span>
+                    </div>
+                    <div>
+                        <div class="profile-dd-name">SUPER ADMIN</div>
+                        <div class="profile-dd-role">System Oversight</div>
+                    </div>
+                </div>
+                <div class="profile-dropdown-divider"></div>
+                <form asp-controller="Account" asp-action="Logout" method="post" style="margin:4px;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="profile-logout-btn">
+                        <span class="material-symbols-outlined">logout</span>
+                        <span>Sign Out</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <!-- ══════════════ SIDEBAR ══════════════ -->
+    <aside class="sidebar">
+
+        <!-- Brand block: logo + DTI (Anton) + OneLink (Open Sauce) -->
+        <div class="sidebar-brand">
+            <img src="~/images/dti-logo.png"
+                 alt="DTI Laguna Provincial Office"
+                 class="sidebar-logo" />
+            <div class="brand-text">
+                <span class="brand-dti">DTI  Laguna</span>
+                <span class="brand-onelink">
+                <span class="word-one">One</span><span class="word-link">Link</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- SuperAdmin currently has one destination: the office-wide
+             dashboard. If more SuperAdmin-only pages get added later
+             (e.g. User Management once it's SuperAdmin-scoped), add
+             them here rather than pulling in AdminLayout's full nav —
+             SuperAdmin shouldn't link to pages it isn't permitted to
+             open (Tasks, Records, Reports remain Admin-only). -->
+        <nav class="sidebar-nav">
+
+            <a asp-controller="Dashboard" asp-action="SuperAdminDashboard"
+               class="nav-item @(IsActive("Dashboard") ? "active" : "")">
+                <span class="material-symbols-outlined"
+                      style="@(IsActive("Dashboard") ? "font-variation-settings:'FILL' 1;" : "")">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+
+        </nav>
+    </aside>
+
+    <!-- ══════════════ MAIN CONTENT ══════════════ -->
+    <main class="main-content">
+        @RenderBody()
+    </main>
+
+    <script src="~/js/adminlayout.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

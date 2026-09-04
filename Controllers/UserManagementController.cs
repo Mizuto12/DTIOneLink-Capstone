@@ -1,10 +1,12 @@
+using DTIOneLink.Filters;
 using DTIOneLink.Models;
+using DTIOneLink.Security;
 using DTIOneLink.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-
 namespace DTIOneLink.Controllers;
+[RequirePermission(Permissions.ManageUserAccounts)]
 
 public class UserManagementController(DatabaseHelper db) : Controller
 {
