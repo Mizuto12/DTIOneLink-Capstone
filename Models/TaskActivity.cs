@@ -24,14 +24,17 @@ namespace DTIOneLink.Models
         [StringLength(50)]
         public string ActivityType { get; set; } = string.Empty; // see TaskActivityType constants
 
-        // Human-readable summary, e.g. "Reassigned from J. Ramirez to D. Santos"
-        // or "Progress updated to 60%". Free text by design — each call site
-        // writes the message that's actually true for that specific change,
-        // rather than trying to reconstruct it generically later.
-        [StringLength(500)]
-        public string Details { get; set; } = string.Empty;
+[StringLength(500)]
+public string Details { get; set; } = string.Empty;
 
-        public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
+public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
+
+// Set only for proof-submitted / validated events — lets the timeline
+// render a download link and remarks inline instead of just plain text.
+// Null for every other activity type (created, edited, progress, etc.).
+[ForeignKey(nameof(RelatedSubmission))]
+public int? RelatedSubmissionId { get; set; }
+public TaskSubmission? RelatedSubmission { get; set; }
     }
 
     // Fixed vocabulary for ActivityType, so querying/filtering by type
@@ -46,5 +49,6 @@ namespace DTIOneLink.Models
         public const string StatusChanged = "status-changed";
         public const string ProofSubmitted = "proof-submitted";
         public const string Validated = "validated";
+        public const string Commented = "commented";
     }
 }

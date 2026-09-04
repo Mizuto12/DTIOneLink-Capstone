@@ -221,7 +221,7 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
         return RedirectToAction(nameof(Index));
     }
 
-        var decision = model.Decision.Trim().ToLowerInvariant();
+    var decision = model.Decision.Trim().ToLowerInvariant();
     string nextStatus;
     string submissionDecision;
 
@@ -257,15 +257,26 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
         return RedirectToAction(nameof(Index));
     }
 
+    var validatorId = HttpContext.Session.GetInt32("UserId");
+
     submission.Decision = submissionDecision;
     submission.AdminRemarks = model.AdminRemarks;
     submission.DecidedAt = DateTime.UtcNow;
-    submission.ValidatedByUserId = HttpContext.Session.GetInt32("UserId");
+    submission.ValidatedByUserId = validatorId;
 
     task.Status = nextStatus;
     if (nextStatus == TaskWorkflow.Completed)
     {
         task.Progress = 100; // Completed implies fully progressed, for display consistency
+    }
+
+    if (validatorId.HasValue)
+    {
+        TaskActivityLogger.Log(_context, task.Id, validatorId.Value, TaskActivityType.Validated,
+            submissionDecision == "approved"
+                ? "Submission approved — task marked completed."
+                : $"Submission returned for correction: \"{model.AdminRemarks}\"",
+            submission.Id);
     }
 
     await _context.SaveChangesAsync();

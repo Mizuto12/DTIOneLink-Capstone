@@ -4,6 +4,7 @@ using DTIOneLink.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DTIOneLink.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904064323_AddTaskComment")]
+    partial class AddTaskComment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -46,17 +49,12 @@ namespace DTIOneLink.Migrations
                     b.Property<int>("PerformedByUserId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("RelatedSubmissionId")
-                        .HasColumnType("int");
-
                     b.Property<int>("TaskId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("PerformedByUserId");
-
-                    b.HasIndex("RelatedSubmissionId");
 
                     b.HasIndex("TaskId");
 
@@ -273,11 +271,6 @@ namespace DTIOneLink.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("DTIOneLink.Models.TaskSubmission", "RelatedSubmission")
-                        .WithMany()
-                        .HasForeignKey("RelatedSubmissionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("DTIOneLink.Models.TaskItem", "Task")
                         .WithMany("Activities")
                         .HasForeignKey("TaskId")
@@ -285,8 +278,6 @@ namespace DTIOneLink.Migrations
                         .IsRequired();
 
                     b.Navigation("PerformedBy");
-
-                    b.Navigation("RelatedSubmission");
 
                     b.Navigation("Task");
                 });

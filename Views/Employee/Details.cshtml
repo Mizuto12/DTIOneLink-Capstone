@@ -51,27 +51,21 @@
     }
 }
 
-@* This view renders ONLY the page content — employeelayout.cshtml already
-   provides <html>/<head>/<body>, the sidebar, and the top nav.
+@* This view renders ONLY the page content — the chosen layout above
+   already provides <html>/<head>/<body>, the sidebar, and the top nav.
 
-   This view is now shared by two entry points:
+   Shared by two entry points:
      - EmployeeController.Details  (Employee Kanban board)
      - DashboardController.Details (Admin/Employee dashboard's Gantt + Kanban)
-   Both pass the same TaskItem, so the content below works for either.
-
-   OPEN QUESTION: Layout is hardcoded to employeelayout.cshtml below. If
-   Admins use a *different* shared layout file, an Admin opening a task
-   from the dashboard will see the Employee sidebar/topbar here instead
-   of the Admin one. Share that layout file's path and this can be made
-   to pick the right layout based on session role.
+   Both pass the same TaskItem. Layout, breadcrumb target, and which
+   action buttons render are all resolved by session role above/below —
+   no other content differs between the two audiences.
 
    NOTE: The original mockup for this page also showed Reporter, Category,
    a Subtasks checklist, Attachments, a Comments thread, and an Activity
-   Log. None of those are backed by fields on TaskItem today, so rather
-   than invent placeholder content, this view only shows what's real:
-   name, assignee, due date, priority, status, progress, description,
-   and created date. Add Subtask/Attachment/Comment/ActivityLog models
-   (with a TaskId foreign key) if you want those sections back. *@
+   Log. Comments and Activity History are now real (TaskComment /
+   TaskActivity). Subtasks/Attachments/Category/Reporter are still not
+   backed by any model. *@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/employeetaskdetails.css" asp-append-version="true" />
@@ -79,168 +73,159 @@
 
 <div class="task-details">
     <nav class="td-breadcrumb" aria-label="Breadcrumb">
-        <a asp-controller="Employee" asp-action="TaskManagement">Task Management</a>
+        @if (isElevated)
+        {
+            <a asp-controller="Tasks" asp-action="Index">Task Management</a>
+        }
+        else
+        {
+            <a asp-controller="Employee" asp-action="TaskManagement">Task Management</a>
+        }
         <span>/</span>
         <span class="td-breadcrumb-current">@taskCode</span>
     </nav>
 
     <div class="td-grid">
-        <!-- Main panel -->
-        <div class="td-panel">
-            <section class="td-header">
-                <div class="td-eyebrow">
-                    <button type="button" class="td-code-btn" id="copyTaskCode" data-code="@taskCode" title="Copy task code">
-                        @taskCode
-                    </button>
-                </div>
-                <h2 class="td-title">@task.TaskName</h2>
-                <div class="td-badges">
-                    <span class="td-badge @statusClass">
-                        <span class="td-badge-dot"></span> @statusLabel
-                    </span>
-                    <span class="td-badge priority-@PriorityClass(task.Priority)">
-                        <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
-                    </span>
-                    <span class="td-badge assignee">
-                        <span class="td-badge-dot"></span> Assigned to @(task.Assignee?.FullName ?? "Unassigned")
-                    </span>
-                </div>
-            </section>
+        <!-- Left column: Task Details card + Comments card, stacked -->
+        <div class="td-main-column">
 
-            <section class="td-meta-grid">
-                <div>
-                    <h3>Created</h3>
-                    <p>@task.CreatedAt.ToString("MMM d, yyyy")</p>
-                </div>
-                <div>
-                    <h3>Due Date</h3>
-                    <p>@task.DueDate.ToString("MMM d, yyyy")</p>
-                </div>
-                <div>
+            <!-- Task Details card -->
+            <div class="td-panel">
+                <section class="td-header">
+                    <div class="td-eyebrow">
+                        <button type="button" class="td-code-btn" id="copyTaskCode" data-code="@taskCode" title="Copy task code">
+                            @taskCode
+                        </button>
+                    </div>
+                    <h2 class="td-title">@task.TaskName</h2>
+                    <div class="td-badges">
+                        <span class="td-badge @statusClass">
+                            <span class="td-badge-dot"></span> @statusLabel
+                        </span>
+                        <span class="td-badge priority-@PriorityClass(task.Priority)">
+                            <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
+                        </span>
+                        <span class="td-badge assignee">
+                            <span class="td-badge-dot"></span> Assigned to @(task.Assignee?.FullName ?? "Unassigned")
+                        </span>
+                    </div>
+                </section>
+
+                <section class="td-meta-grid">
+                    <div>
+                        <h3>Created</h3>
+                        <p>@task.CreatedAt.ToString("MMM d, yyyy")</p>
+                    </div>
+                    <div>
+                        <h3>Due Date</h3>
+                        <p>@task.DueDate.ToString("MMM d, yyyy")</p>
+                    </div>
+                    <div>
+                        <h3>Progress</h3>
+                        <p>@task.Progress%</p>
+                    </div>
+                    <div>
+                        <h3>Status</h3>
+                        <p>@statusLabel</p>
+                    </div>
+                </section>
+
+                <section class="td-progress-section">
                     <h3>Progress</h3>
-                    <p>@task.Progress%</p>
-                </div>
-                <div>
-                    <h3>Status</h3>
-                    <p>@statusLabel</p>
-                </div>
-            </section>
+                    <div class="td-progress-track">
+                        <div class="td-progress-fill" style="width: @(task.Progress)%"></div>
+                    </div>
+                </section>
 
-            <section class="td-progress-section">
-                <h3>Progress</h3>
-                <div class="td-progress-track">
-                    <div class="td-progress-fill" style="width: @(task.Progress)%"></div>
-                </div>
-            </section>
-
-            <section class="td-description">
-                <h3>Description</h3>
-                @if (string.IsNullOrWhiteSpace(task.Description))
-                {
-                    <p class="td-empty">No description provided.</p>
-                }
-                else
-                {
-                    <p>@task.Description</p>
-                }
-            </section>
-            @{
-    var submissions = task.Submissions?.OrderByDescending(s => s.SubmittedAt).ToList() ?? new();
-    var latest = submissions.FirstOrDefault();
-}
-
-@if (submissions.Any())
-{
-    <section class="td-validation">
-        <h3>Submission Status</h3>
-
-        @if (latest != null)
-        {
-            <div class="td-validation-latest @(latest.Decision ?? "pending")">
-                <span class="td-validation-label">
-                    @(latest.Decision switch
+                <section class="td-description">
+                    <h3>Description</h3>
+                    @if (string.IsNullOrWhiteSpace(task.Description))
                     {
-                        "approved" => "Approved",
-                        "returned" => "Returned for Correction",
-                        _ => "Awaiting Review"
-                    })
-                </span>
-                <span class="td-validation-date">
-                    Submitted @latest.SubmittedAt.ToString("MMM d, yyyy")
-                </span>
-
-               @if (!string.IsNullOrWhiteSpace(latest.AdminRemarks))
-                {
-                    <p class="td-validation-remarks">
-                        <strong>Admin remarks:</strong> @latest.AdminRemarks
-                    </p>
-                }
-                @if (latest.Decision != null && latest.ValidatedBy != null)
-                {
-                    <p class="td-validation-remarks">
-                        <strong>Reviewed by:</strong> @latest.ValidatedBy.FullName on @latest.DecidedAt?.ToString("MMM d, yyyy")
-                    </p>
-                }
-            </div>
-        }
-
-        @if (submissions.Count > 1)
-        {
-            <details class="td-submission-history">
-                <summary>Submission history (@submissions.Count)</summary>
-                <ul>
-                    @foreach (var s in submissions)
-                    {
-                        <li>
-                            <span class="td-history-date">@s.SubmittedAt.ToString("MMM d, yyyy, h:mm tt")</span>
-                            <span class="td-history-decision @(s.Decision ?? "pending")">
-                                @(s.Decision switch
-                                {
-                                    "approved" => "Approved",
-                                    "returned" => "Returned",
-                                    _ => "Pending"
-                                })
-                            </span>
-                            <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@s.Id">
-                                @s.ProofFileName
-                            </a>
-                            @if (!string.IsNullOrWhiteSpace(s.Remarks))
-                            {
-                                <p class="td-history-remarks">@s.Remarks</p>
-                            }
-                        </li>
+                        <p class="td-empty">No description provided.</p>
                     }
-                </ul>
-            </details>
-        }
-    </section>
-}
+                    else
+                    {
+                        <p>@task.Description</p>
+                    }
+                </section>
+                @{
+                    var currentUserId = Context.Session.GetInt32("UserId");
+                    var isAssignee = currentUserId.HasValue && currentUserId.Value == task.AssigneeId;
+                }
+                <div class="td-actions">
+                    <button type="button" class="btn btn-secondary" id="tdBackButton">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        Back
+                    </button>
+                    @if (isAssignee)
+                    {
+                        @if (status == "pending" || status == "in-progress")
+                        {
+                            <a asp-controller="Employee" asp-action="Update" asp-route-id="@task.Id" class="btn btn-primary">
+                                <span class="material-symbols-outlined">edit</span>
+                                Update Progress
+                            </a>
+                            <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
+                                <span class="material-symbols-outlined">upload</span>
+                                Submit Proof
+                            </a>
+                        }
+                        @if (status == "returned-for-correction")
+                        {
+                            <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
+                                <span class="material-symbols-outlined">refresh</span>
+                                Resubmit
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+            <!-- /Task Details card -->
 
-<div class="td-actions">
-    <button type="button" class="btn btn-secondary" id="tdBackButton">
-        <span class="material-symbols-outlined">arrow_back</span>
-        Back
-    </button>
-    @if (status == "pending" || status == "in-progress")
-    {
-        <a asp-controller="Employee" asp-action="Update" asp-route-id="@task.Id" class="btn btn-primary">
-            <span class="material-symbols-outlined">edit</span>
-            Update Progress
-        </a>
-        <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
-            <span class="material-symbols-outlined">upload</span>
-            Submit Proof
-        </a>
-    }
-    @if (status == "returned-for-correction")
-    {
-        <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
-            <span class="material-symbols-outlined">refresh</span>
-            Resubmit
-        </a>
-    }
+            <!-- Comments card -->
+            <div class="td-panel td-comments-card">
+    <section class="td-comments">
+        <h3>Comments</h3>
+
+        @{
+            var comments = task.Comments?.OrderByDescending(c => c.CreatedAt).ToList() ?? new();
+        }
+        @if (comments.Any())
+        {
+            <ul class="td-comment-list">
+                @foreach (var comment in comments)
+                {
+                    var commentTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(comment.CreatedAt);
+                    <li>
+                        <div class="td-comment-header">
+                            <span class="td-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
+                            <span class="td-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                        </div>
+                        <p class="td-comment-text">@comment.Text</p>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="td-empty">No comments yet.</p>
+        }
+
+        <form asp-controller="Employee" asp-action="AddComment" method="post" class="td-comment-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="taskId" value="@task.Id" />
+            <textarea name="text" class="td-comment-input" placeholder="Write a comment..." rows="3" required></textarea>
+            <button type="submit" class="btn btn-primary td-comment-submit">
+                <span class="material-symbols-outlined">send</span>
+                Post
+            </button>
+        </form>
+    </section>
 </div>
+            <!-- /Comments card -->
+
         </div>
+        <!-- /Left column -->
 
         <!-- Sidebar -->
         <aside class="td-sidebar">
@@ -253,6 +238,7 @@
                     <div class="td-overview-role">Assignee</div>
                 </div>
             </div>
+
             <dl class="td-overview-list">
                 <div>
                     <dt>Status</dt>
@@ -279,20 +265,40 @@
             {
                 <div class="td-activity">
                     <h3 class="td-sidebar-subtitle">Activity History</h3>
-                    <ul class="td-activity-list">
+                    <ul class="td-timeline">
                         @foreach (var activity in activities)
                         {
                             var localTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(activity.OccurredAt);
-                            <li>
-                                <span class="td-activity-date">@localTime.ToString("MMM d, yyyy, h:mm tt")</span>
-                                <span class="td-activity-user">@(activity.PerformedBy?.FullName ?? "Unknown")</span>
-                                <span class="td-activity-details">@activity.Details</span>
+                            var dotClass = activity.ActivityType switch
+                            {
+                                "validated" => activity.Details.StartsWith("Submission approved") ? "approved" : "returned",
+                                "proof-submitted" => "submitted",
+                                "status-changed" => "status",
+                                _ => "default"
+                            };
+                            <li class="td-timeline-item">
+                                <span class="td-timeline-dot @dotClass"></span>
+                                <div class="td-timeline-content">
+                                    <div class="td-timeline-header">
+                                        <span class="td-activity-user">@(activity.PerformedBy?.FullName ?? "Unknown")</span>
+                                        <span class="td-activity-date">@localTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                                    </div>
+                                    <p class="td-activity-details">@activity.Details</p>
+                                    @if (activity.RelatedSubmission != null)
+                                    {
+                                        <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@activity.RelatedSubmission.Id" class="td-timeline-download">
+                                            @activity.RelatedSubmission.ProofFileName
+                                        </a>
+                                    }
+                                </div>
                             </li>
                         }
                     </ul>
                 </div>
             }
         </aside>
+        <!-- /Sidebar -->
+
     </div>
 </div>
 

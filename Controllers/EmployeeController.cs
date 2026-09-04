@@ -214,7 +214,18 @@ if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
 
     _context.TaskSubmissions.Add(submission);
     task.Status = TaskWorkflow.ForReview;
-    await _context.SaveChangesAsync();
+
+    await _context.SaveChangesAsync(); // submission.Id is only assigned after this save
+
+    if (userId.HasValue)
+    {
+        TaskActivityLogger.Log(_context, task.Id, userId.Value, TaskActivityType.ProofSubmitted,
+            status == TaskWorkflow.ReturnedForCorrection
+                ? "Corrected proof resubmitted for review."
+                : "Proof of completion submitted for review.",
+            submission.Id);
+        await _context.SaveChangesAsync();
+    }
 
     TempData["SuccessMessage"] = status == "returned-for-correction"
         ? "Corrected submission sent for review."
@@ -261,6 +272,8 @@ private async Task<TaskItem?> GetAccessibleTaskAsync(int taskId)
         .Include(t => t.Assignee)
         .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
         .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
+        .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
+        .Include(t => t.Comments).ThenInclude(c => c.Author)
         .AsQueryable();
 
     return isElevated
@@ -298,6 +311,43 @@ private IQueryable<TaskItem> AccessibleTasksQuery()
     var query = _context.TaskItems.Include(t => t.Assignee).AsQueryable();
 
     return isElevated ? query : query.Where(t => t.AssigneeId == userId);
+}
+// POST: /Employee/AddComment
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> AddComment(int taskId, string text)
+{
+    var task = await GetAccessibleTaskAsync(taskId);
+    if (task == null)
+    {
+        return NotFound();
+    }
+
+    if (string.IsNullOrWhiteSpace(text))
+    {
+        TempData["ErrorMessage"] = "Comment can't be empty.";
+        return RedirectToAction(nameof(Details), new { id = taskId });
+    }
+
+    var userId = HttpContext.Session.GetInt32("UserId");
+    if (userId == null)
+    {
+        return NotFound();
+    }
+
+    _context.TaskComments.Add(new TaskComment
+    {
+        TaskId = taskId,
+        AuthorUserId = userId.Value,
+        Text = text.Trim(),
+        CreatedAt = DateTime.UtcNow
+    });
+
+    TaskActivityLogger.Log(_context, taskId, userId.Value, "commented", "Added a comment.");
+
+    await _context.SaveChangesAsync();
+
+    return RedirectToAction(nameof(Details), new { id = taskId });
 }
     }
 }

@@ -105,7 +105,7 @@ body{
     gap: 32px;
 }
 /* --------------------------------------------------------------------
-   Activity History (sidebar)
+   Activity History — timeline (sidebar)
    -------------------------------------------------------------------- */
 .task-details .td-activity {
     margin-top: 20px;
@@ -119,43 +119,170 @@ body{
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--td-on-surface-variant);
+    margin-bottom: 16px;
+}
+
+.task-details .td-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.task-details .td-timeline-item {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    padding-bottom: 20px;
+}
+
+.task-details .td-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+/* Vertical connecting line between dots */
+.task-details .td-timeline-item:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 14px;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--td-outline-variant);
+}
+
+.task-details .td-timeline-dot {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    margin-top: 4px;
+    background-color: var(--td-outline);
+    z-index: 1;
+}
+
+.task-details .td-timeline-dot.approved { background-color: var(--td-success); }
+.task-details .td-timeline-dot.returned { background-color: var(--td-warning); }
+.task-details .td-timeline-dot.submitted { background-color: var(--td-primary); }
+.task-details .td-timeline-dot.status { background-color: var(--td-primary-light); }
+
+.task-details .td-timeline-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-details .td-timeline-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.task-details .td-activity-user {
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.task-details .td-activity-date {
+    font-size: 11px;
+    color: var(--td-on-surface-variant);
+    white-space: nowrap;
+}
+
+.task-details .td-activity-details {
+    font-size: 13px;
+    color: var(--td-on-surface-variant);
+    line-height: 1.4;
+    margin: 0;
+}
+
+.task-details .td-timeline-download {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--td-primary);
+}
+/* --------------------------------------------------------------------
+   Comments
+   -------------------------------------------------------------------- */
+.task-details .td-comments h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--td-on-surface-variant);
     margin-bottom: 12px;
 }
 
-.task-details .td-activity-list {
+.task-details .td-comment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.task-details .td-comment-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--td-radius);
+    border: 1px solid var(--td-outline-variant);
+    background-color: #ffffff;
+    color: var(--td-on-surface);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.task-details .td-comment-input:focus {
+    border-color: var(--td-primary);
+    box-shadow: 0 0 0 2px var(--td-primary);
+}
+
+.task-details .td-comment-submit {
+    align-self: flex-end;
+}
+
+.task-details .td-comment-list {
     list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    max-height: 280px;
-    overflow-y: auto;
+    gap: 12px;
 }
 
-.task-details .td-activity-list li {
-    padding: 8px 10px;
+.task-details .td-comment-list li {
+    padding: 12px;
     border: 1px solid var(--td-outline-variant);
     border-radius: var(--td-radius);
+}
+
+.task-details .td-comment-header {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.task-details .td-comment-author {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.task-details .td-comment-date {
     font-size: 12px;
-}
-
-.task-details .td-activity-date {
     color: var(--td-on-surface-variant);
-    font-variant-numeric: tabular-nums;
-    font-size: 11px;
 }
 
-.task-details .td-activity-user {
-    font-weight: 600;
-}
-
-.task-details .td-activity-details {
-    color: var(--td-on-surface-variant);
-    line-height: 1.4;
+.task-details .td-comment-text {
+    font-size: 14px;
+    color: var(--td-on-surface);
+    line-height: 1.5;
+    white-space: pre-wrap;
 }
 /* --------------------------------------------------------------------
    Header

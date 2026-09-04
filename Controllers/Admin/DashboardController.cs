@@ -53,7 +53,9 @@ namespace DTIOneLink.Controllers
             IQueryable<TaskItem> query = _context.TaskItems
                 .Include(t => t.Assignee)
                 .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
-                .Include(t => t.Activities).ThenInclude(a => a.PerformedBy);
+                .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
+                .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
+                .Include(t => t.Comments).ThenInclude(c => c.Author);
 
             var task = isElevated
                 ? await query.FirstOrDefaultAsync(t => t.Id == id)

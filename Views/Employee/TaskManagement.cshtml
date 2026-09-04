@@ -3,10 +3,15 @@
     ViewData["Title"] = "Task Management";
     Layout = "~/Views/Employee/EmployeeLayout.cshtml";
 
+    var role = Context.Session.GetString("UserRole");
+    var isElevated = role == "Admin" || role == "Supervisor";
+
     var tasks = Model ?? Enumerable.Empty<DTIOneLink.Models.TaskItem>();
 
     var todoTasks = tasks.Where(t => t.Status == "pending").ToList();
     var inProgressTasks = tasks.Where(t => t.Status == "in-progress").ToList();
+    var forReviewTasks = tasks.Where(t => t.Status == "for-review").ToList();
+    var rejectedTasks = tasks.Where(t => t.Status == "returned-for-correction").ToList();
     var completedTasks = tasks.Where(t => t.Status == "completed").ToList();
 
     string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
@@ -62,11 +67,14 @@
                 <span class="material-symbols-outlined">filter_list</span>
                 Filter
             </button>
-            <button type="button" class="btn btn-primary" data-action="new-task"
-                    data-url="@Url.Action("Create", "Tasks")">
-                <span class="material-symbols-outlined">add</span>
-                New Task
-            </button>
+            @if (isElevated)
+            {
+                <button type="button" class="btn btn-primary" data-action="new-task"
+                        data-url="@Url.Action("Create", "Tasks")">
+                    <span class="material-symbols-outlined">add</span>
+                    New Task
+                </button>
+            }
         </div>
     </div>
 
@@ -166,6 +174,89 @@
             }
         </div>
 
+        <!-- Column: For Review -->
+        <div class="kanban-column">
+            <div class="column-header">
+                <div class="column-header-left">
+                    <span class="status-dot for-review"></span>
+                    <h3 class="column-title">For Review</h3>
+                    <span class="column-count">@forReviewTasks.Count</span>
+                </div>
+                <button type="button" class="column-menu-btn">
+                    <span class="material-symbols-outlined">more_horiz</span>
+                </button>
+            </div>
+
+            @if (!forReviewTasks.Any())
+            {
+                <div class="column-empty">No tasks yet.</div>
+            }
+            else
+            {
+                @foreach (var task in forReviewTasks)
+                {
+                    <div class="task-card for-review" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="task-card-top">
+                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                        </div>
+                        <h4 class="task-title">@task.TaskName</h4>
+                        <div class="task-footer">
+                            <div class="task-assignee">
+                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                            </div>
+                            <div class="task-due">
+                                <span class="due-label">Awaiting review</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Column: Rejected -->
+        <div class="kanban-column">
+            <div class="column-header">
+                <div class="column-header-left">
+                    <span class="status-dot rejected"></span>
+                    <h3 class="column-title">Rejected</h3>
+                    <span class="column-count">@rejectedTasks.Count</span>
+                </div>
+                <button type="button" class="column-menu-btn">
+                    <span class="material-symbols-outlined">more_horiz</span>
+                </button>
+            </div>
+
+            @if (!rejectedTasks.Any())
+            {
+                <div class="column-empty">No tasks yet.</div>
+            }
+            else
+            {
+                @foreach (var task in rejectedTasks)
+                {
+                    <div class="task-card rejected" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="task-card-top">
+                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                            <span class="material-symbols-outlined task-rejected-icon">refresh</span>
+                        </div>
+                        <h4 class="task-title">@task.TaskName</h4>
+                        <div class="task-footer">
+                            <div class="task-assignee">
+                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                            </div>
+                            <div class="task-due">
+                                <span class="due-label">Needs resubmission</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
         <!-- Column: Completed -->
         <div class="kanban-column">
             <div class="column-header">
@@ -213,4 +304,4 @@
 
 @section Scripts {
     <script src="~/js/employeetask.js" asp-append-version="true"></script>
-    }
+}
