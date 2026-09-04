@@ -105,9 +105,15 @@ body{
     gap: 32px;
 }
 /* --------------------------------------------------------------------
-   Activity History
+   Activity History (sidebar)
    -------------------------------------------------------------------- */
-.task-details .td-activity h3 {
+.task-details .td-activity {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--td-outline-variant);
+}
+
+.task-details .td-sidebar-subtitle {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -122,24 +128,25 @@ body{
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-height: 320px;
+    gap: 8px;
+    max-height: 280px;
     overflow-y: auto;
 }
 
 .task-details .td-activity-list li {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: 1px solid var(--td-outline-variant);
     border-radius: var(--td-radius);
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px 10px;
-    font-size: 13px;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
 }
 
 .task-details .td-activity-date {
     color: var(--td-on-surface-variant);
     font-variant-numeric: tabular-nums;
+    font-size: 11px;
 }
 
 .task-details .td-activity-user {
@@ -147,8 +154,8 @@ body{
 }
 
 .task-details .td-activity-details {
-    flex-basis: 100%;
     color: var(--td-on-surface-variant);
+    line-height: 1.4;
 }
 /* --------------------------------------------------------------------
    Header
