@@ -15,7 +15,7 @@ public class UserManagementController(DatabaseHelper db) : Controller
     public async Task<IActionResult> Index()
     {
         var users = new List<UserItem>();
-        const string sql = "SELECT Id, FullName, Email, Department, Role, IsActive FROM dbo.Users ORDER BY FullName";
+        const string sql = "SELECT Id, FullName, Username, Email, Department, Role, IsActive FROM dbo.Users ORDER BY FullName";
 
         using var conn = db.GetConnection();
         await conn.OpenAsync();
@@ -27,10 +27,11 @@ public class UserManagementController(DatabaseHelper db) : Controller
             {
                 Id = reader.GetInt32(0),
                 FullName = reader.GetString(1),
-                Email = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                Department = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                Role = reader.GetString(4),
-                Status = reader.GetBoolean(5) ? "active" : "disabled"
+                Username = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                Email = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                Department = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                Role = reader.GetString(5),
+                Status = reader.GetBoolean(6) ? "active" : "disabled"
             });
         }
 

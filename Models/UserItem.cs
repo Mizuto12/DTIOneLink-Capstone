@@ -10,6 +10,11 @@ namespace DTIOneLink.Models
         [Display(Name = "Full Name")]
         public string FullName { get; set; } = string.Empty;
 
+        // Not [Required]: only populated when reading existing rows (Index),
+        // never posted by the Create form — Create derives Username from Email.
+        [Display(Name = "Username")]
+        public string Username { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Invalid email address.")]
         [Display(Name = "Email Address")]

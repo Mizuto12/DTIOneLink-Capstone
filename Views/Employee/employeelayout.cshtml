@@ -1,3 +1,4 @@
+@using DTIOneLink.Helpers
 @{
     Layout = null;
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
@@ -7,6 +8,15 @@
     bool IsActiveAction(string c, string a) =>
         string.Equals(currentController, c, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(currentAction, a, StringComparison.OrdinalIgnoreCase);
+}
+@{
+    var sessFullName = Context.Session.GetString("FullName");
+    var sessRole     = Context.Session.GetString("UserRole");
+    var sessEmail    = Context.Session.GetString("UserEmail");
+    var sessDept     = Context.Session.GetString("UserDepartment");
+
+    var displayName  = string.IsNullOrWhiteSpace(sessFullName) ? "USER" : sessFullName.ToUpper();
+    var readableRole = DisplayHelpers.GetReadableRole(sessRole);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -39,16 +49,16 @@
 
             <div class="topbar-divider"></div>
 
-            <div class="topbar-user" id="profileTrigger">
+           <div class="topbar-user" id="profileTrigger">
                 <div class="user-info">
-                    <span class="user-name">EMPLOYEE</span>
-                    <span class="user-role">Staff</span>
+                    <span class="user-name">@displayName</span>
+                    <span class="user-role">@readableRole</span>
                 </div>
                 <div class="avatar-wrapper">
                     <div class="user-avatar">
                         <img src="~/images/employee.jpg"
-                             alt="Employee photo"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            alt="Employee photo"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                         <span class="avatar-fallback material-symbols-outlined">person</span>
                     </div>
                     <span class="material-symbols-outlined profile-chevron">expand_more</span>
@@ -59,13 +69,21 @@
                 <div class="profile-dropdown-header">
                     <div class="user-avatar user-avatar-lg">
                         <img src="~/images/employee.jpg"
-                             alt="Employee photo"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            alt="Employee photo"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                         <span class="avatar-fallback material-symbols-outlined">person</span>
                     </div>
                     <div>
-                        <div class="profile-dd-name">EMPLOYEE</div>
-                        <div class="profile-dd-role">Staff</div>
+                        <div class="profile-dd-name">@displayName</div>
+                        <div class="profile-dd-role">@readableRole</div>
+                        @if (!string.IsNullOrWhiteSpace(sessEmail))
+                        {
+                            <div class="profile-dd-email">@sessEmail</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sessDept))
+                        {
+                            <div class="profile-dd-dept">@sessDept</div>
+                        }
                     </div>
                 </div>
                 <div class="profile-dropdown-divider"></div>
@@ -77,7 +95,6 @@
                     </button>
                 </form>
             </div>
-        </div>
     </header>
 
     <!-- ══════════════ SIDEBAR ══════════════ -->

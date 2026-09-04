@@ -65,8 +65,11 @@ namespace DTIOneLink.Controllers
            // Sign the user in via session — RecordsController, ReportsController, and
             // their shared views all read this same key to decide access and layout.
             HttpContext.Session.SetString("UserRole", user.Role);
-            HttpContext.Session.SetString("Username", user.FullName);
+            HttpContext.Session.SetString("Username", user.FullName); // unchanged — other controllers rely on this key holding FullName
+            HttpContext.Session.SetString("FullName", user.FullName);          // new, explicit
+            HttpContext.Session.SetString("LoginUsername", user.Username);     // new — actual login username
             HttpContext.Session.SetString("UserEmail", user.Email);
+            HttpContext.Session.SetString("UserDepartment", user.Department ?? string.Empty); // new
             HttpContext.Session.SetInt32("UserId", user.Id);
 
             if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))

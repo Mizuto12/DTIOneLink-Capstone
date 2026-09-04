@@ -1,3 +1,4 @@
+@using DTIOneLink.Helpers
 @model IEnumerable<DTIOneLink.Models.UserItem>
 @{
     Layout = "~/Views/Admin/AdminLayout.cshtml";
@@ -125,10 +126,7 @@
                     @if (Model != null && Model.Any())
                     {
                         foreach (var user in Model)
-                        {
-                            var initials = !string.IsNullOrWhiteSpace(user.FullName)
-                                ? string.Concat(user.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])))
-                                : "??";
+                        {var initials = DisplayHelpers.GetInitials(user.FullName, user.Username);
                             var isActive = string.Equals(user.Status, "active", StringComparison.OrdinalIgnoreCase);
                             <tr class="um-row@(isActive ? "" : " um-row-disabled")">
                                 <td>

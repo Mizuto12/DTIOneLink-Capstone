@@ -15,6 +15,13 @@
     height: auto;
 }
 
+.profile-dd-email,
+.profile-dd-dept {
+    font-size: 12px;
+    color: var(--text-muted, #6b7280);
+    margin-top: 2px;
+}
+
 .sa-dashboard {
     display: flex;
     flex-direction: column;
