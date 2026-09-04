@@ -1,3 +1,4 @@
+@using DTIOneLink.Helpers
 @{
     Layout = null;
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
@@ -7,6 +8,15 @@
     bool IsActiveAction(string c, string a) =>
         string.Equals(currentController, c, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(currentAction, a, StringComparison.OrdinalIgnoreCase);
+}
+@{
+    var sessFullName = Context.Session.GetString("FullName");
+    var sessRole     = Context.Session.GetString("UserRole");
+    var sessEmail    = Context.Session.GetString("UserEmail");
+    var sessDept     = Context.Session.GetString("UserDepartment");
+
+    var displayName  = string.IsNullOrWhiteSpace(sessFullName) ? "USER" : sessFullName.ToUpper();
+    var readableRole = DisplayHelpers.GetReadableRole(sessRole);
 }
 <!DOCTYPE html>
 <html lang="en">
