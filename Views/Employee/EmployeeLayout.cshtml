@@ -41,8 +41,8 @@
 
             <div class="topbar-user" id="profileTrigger">
                 <div class="user-info">
-                    <span class="user-name">EMPLOYEE</span>
-                    <span class="user-role">Staff</span>
+                    <span class="user-name">@displayName</span>
+                    <span class="user-role">@readableRole</span>
                 </div>
                 <div class="avatar-wrapper">
                     <div class="user-avatar">
@@ -64,8 +64,16 @@
                         <span class="avatar-fallback material-symbols-outlined">person</span>
                     </div>
                     <div>
-                        <div class="profile-dd-name">EMPLOYEE</div>
-                        <div class="profile-dd-role">Staff</div>
+                        <div class="profile-dd-name">@displayName</div>
+                        <div class="profile-dd-role">@readableRole</div>
+                        @if (!string.IsNullOrWhiteSpace(sessEmail))
+                        {
+                            <div class="profile-dd-email">@sessEmail</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sessDept))
+                        {
+                            <div class="profile-dd-dept">@sessDept</div>
+                        }
                     </div>
                 </div>
                 <div class="profile-dropdown-divider"></div>
