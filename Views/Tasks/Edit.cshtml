@@ -6,10 +6,14 @@
     var currentStatus = ViewBag.CurrentStatus as string ?? "pending";
     var currentProgress = ViewBag.CurrentProgress as int? ?? 0;
     var createdAt = ViewBag.CreatedAt as DateTime? ?? DateTime.UtcNow;
+    var assignmentSummaries = ViewBag.AssignmentSummaries as List<DTIOneLink.Models.TaskAssignmentSummaryViewModel>
+        ?? new List<DTIOneLink.Models.TaskAssignmentSummaryViewModel>();
+    var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-edit.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/assignee-multiselect.css" asp-append-version="true" />
 }
 
 <div class="edit-task">
@@ -59,16 +63,42 @@
                         <span asp-validation-for="TaskName" class="et-error-text"></span>
                     </div>
 
-                    <!-- Assignee -->
-                    <div class="et-field">
-                        <label asp-for="AssigneeId" class="et-label">Assignee</label>
-                        <div class="et-select-wrap">
-                            <select asp-for="AssigneeId" asp-items="ViewBag.Employees as SelectList" class="et-select">
-                                <option value="">-- Select Assignee --</option>
-                            </select>
-                            <span class="material-symbols-outlined et-select-chevron">expand_more</span>
+                                        <!-- Assignees -->
+                    <div class="et-field et-field-full">
+                        <label class="et-label" id="assigneeLabel">Assignees</label>
+                        <div class="assignee-select@(hasAssigneeError ? " assignee-select-invalid" : "")" data-assignee-select>
+                            <button type="button"
+                                    class="assignee-select-trigger"
+                                    id="assigneeTrigger"
+                                    data-assignee-trigger
+                                    aria-haspopup="true"
+                                    aria-expanded="false"
+                                    aria-labelledby="assigneeLabel assigneeTrigger">
+                                <span class="assignee-select-label is-placeholder" data-assignee-label>Select assignees</span>
+                                <span class="material-symbols-outlined assignee-select-chevron">expand_more</span>
+                            </button>
+                            <div class="assignee-select-panel" data-assignee-panel role="group" aria-label="Employees" hidden>
+                                <div class="assignee-select-search-wrap">
+                                    <span class="material-symbols-outlined assignee-select-search-icon">search</span>
+                                    <input type="text" class="assignee-select-search" data-assignee-search
+                                           placeholder="Search employees..." aria-label="Search employees" />
+                                </div>
+                                <div class="assignee-select-options">
+                                    @foreach (var emp in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Employees)
+                                    {
+                                        var empId = int.Parse(emp.Value);
+                                        <label class="assignee-select-option" data-assignee-option
+                                               data-name="@emp.Text.ToLowerInvariant()" data-display-name="@emp.Text">
+                                            <input type="checkbox" name="AssigneeIds" value="@emp.Value"
+                                                   checked="@(Model.AssigneeIds.Contains(empId) ? "checked" : null)" />
+                                            <span>@emp.Text</span>
+                                        </label>
+                                    }
+                                </div>
+                                <p class="assignee-select-empty" data-assignee-empty hidden>No employees found</p>
+                            </div>
                         </div>
-                        <span asp-validation-for="AssigneeId" class="et-error-text"></span>
+                        <span asp-validation-for="AssigneeIds" class="et-error-text"></span>
                     </div>
 
                     <!-- Due Date -->
@@ -123,11 +153,11 @@
                     <h3 class="et-overview-title">Task Overview</h3>
                     <dl class="et-overview-list">
                         <div>
-                            <dt>Status</dt>
+                            <dt>Overall Status</dt>
                             <dd>@currentStatus</dd>
                         </div>
                         <div>
-                            <dt>Progress</dt>
+                            <dt>Overall Progress</dt>
                             <dd>@currentProgress%</dd>
                         </div>
                         <div>
@@ -136,14 +166,38 @@
                         </div>
                     </dl>
                     <p class="et-overview-note">
-                        Progress and status are updated by the assignee from the task detail page, not from here.
+                        Overall status/progress is a rollup: the task only moves to
+                        For Review once every assignee below has submitted their own
+                        proof, and only becomes Completed once every assignee's
+                        submission is approved.
                     </p>
                 </div>
+
+                @if (assignmentSummaries.Any())
+                {
+                    <div class="et-overview-card" style="margin-top: 16px;">
+                        <h3 class="et-overview-title">Per-Assignee Status</h3>
+                        <dl class="et-overview-list">
+                            @foreach (var a in assignmentSummaries)
+                            {
+                                <div>
+                                    <dt>@a.Name @(a.IsPrimaryAssignee ? " (Primary)" : "")</dt>
+                                    <dd>@a.Status — @a.Progress%</dd>
+                                </div>
+                            }
+                        </dl>
+                        <p class="et-overview-note">
+                            Each assignee updates their own progress/status from
+                            their task detail page — not from here.
+                        </p>
+                    </div>
+                }
             </div>
         </div>
     </form>
 </div>
 
 @section Scripts {
+    <script src="~/js/assignee-multiselect.js" asp-append-version="true"></script>
     <script src="~/js/task-priority-suggestion.js" asp-append-version="true"></script>
 }

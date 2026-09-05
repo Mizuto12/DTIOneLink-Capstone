@@ -12,10 +12,12 @@ namespace DTIOneLink.Controllers
     public class EmployeeController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly TaskAssignmentService _taskAssignments;
 
-        public EmployeeController(AppDbContext context)
+        public EmployeeController(AppDbContext context, TaskAssignmentService taskAssignments)
         {
             _context = context;
+            _taskAssignments = taskAssignments;
         }
 
         // GET: /Employee or /Employee/Index
@@ -66,14 +68,23 @@ public async Task<IActionResult> Update(int id)
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> Update(TaskProgressUpdateViewModel model)
 {
-    
-   var task = await GetAccessibleTaskAsync(model.Id);
+    var userId = HttpContext.Session.GetInt32("UserId");
+    var task = await GetAccessibleTaskAsync(model.Id);
     if (task == null)
     {
         return NotFound();
     }
 
-    var currentStatus = (task.Status ?? "pending").Trim().ToLowerInvariant();
+    // Progress/Status now live per-assignee. An elevated user can OPEN any
+    // task via GetAccessibleTaskAsync without being an assignee themselves —
+    // there's nothing here for them to update.
+    var assignment = task.Assignments.FirstOrDefault(a => a.UserId == userId);
+    if (assignment == null)
+    {
+        return NotFound();
+    }
+
+    var currentStatus = (assignment.Status ?? "pending").Trim().ToLowerInvariant();
 
 if (currentStatus == "completed")
 {
@@ -119,10 +130,14 @@ if (!TaskWorkflow.CanTransition(currentStatus, nextStatus) || nextStatus == Task
     return RedirectToAction(nameof(TaskManagement));
 }
 
-task.Progress = model.Progress;
-task.Status = nextStatus;
+assignment.Progress = model.Progress;
+assignment.Status = nextStatus;
     // AssigneeId, DueDate, Priority, TaskName, Description, CreatedAt:
-    // untouched, because nothing above ever assigns to them.
+    // untouched, because nothing above ever assigns to them. Other
+    // assignees' TaskAssignment rows are untouched too — this only ever
+    // writes to the current user's own assignment.
+
+    _taskAssignments.RecalculateOverallStatus(task);
 
     await _context.SaveChangesAsync();
 
@@ -141,7 +156,13 @@ public async Task<IActionResult> SubmitProof(int id)
         return NotFound();
     }
 
-var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
+    var assignment = task.Assignments.FirstOrDefault(a => a.UserId == userId);
+    if (assignment == null)
+    {
+        return NotFound();
+    }
+
+var status = (assignment.Status ?? "pending").Trim().ToLowerInvariant();
 if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
 {
     // Nothing to submit — either already done, or already awaiting
@@ -167,7 +188,13 @@ public async Task<IActionResult> SubmitProof(ProofSubmissionViewModel model)
         return NotFound();
     }
 
-var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
+    var assignment = task.Assignments.FirstOrDefault(a => a.UserId == userId);
+    if (assignment == null)
+    {
+        return NotFound();
+    }
+
+var status = (assignment.Status ?? "pending").Trim().ToLowerInvariant();
 
 // Allowed from: pending, in-progress, returned-for-correction — i.e.
 // anywhere TaskWorkflow permits a transition into ForReview.
@@ -202,10 +229,13 @@ if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
     }
 
     // New row every time — this is what makes "submission history" real,
-    // rather than overwriting the same fields on every resubmit.
+    // rather than overwriting the same fields on every resubmit. Now tied
+    // to the specific assignee's TaskAssignment, not just the Task, so two
+    // assignees on the same task each build their own submission history.
     var submission = new TaskSubmission
     {
         TaskId = task.Id,
+        TaskAssignmentId = assignment.Id,
         ProofFileName = Path.GetFileName(model.ProofFile.FileName),
         ProofStoredFileName = storedFileName,
         Remarks = model.Remarks,
@@ -213,7 +243,12 @@ if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
     };
 
     _context.TaskSubmissions.Add(submission);
-    task.Status = TaskWorkflow.ForReview;
+    assignment.Status = TaskWorkflow.ForReview;
+
+    // Requirement 8: this is where "did everyone submit yet" gets
+    // re-evaluated — the task only flips to ForReview once every
+    // assignment reaches ForReview/Completed.
+    _taskAssignments.RecalculateOverallStatus(task);
 
     await _context.SaveChangesAsync(); // submission.Id is only assigned after this save
 
@@ -255,8 +290,9 @@ public async Task<IActionResult> DownloadProof(int submissionId)
     return File(bytes, "application/octet-stream", submission.ProofFileName);
 }
 // Every task-scoped action goes through this instead of querying
-// _context.TaskItems directly. Admin/Supervisor bypass the AssigneeId
-// check entirely; everyone else only ever sees their own tasks.
+// _context.TaskItems directly. Admin/Supervisor bypass the assignment
+// check entirely; everyone else only ever sees tasks they have a
+// TaskAssignment row on (any one of possibly several assignees).
 private async Task<TaskItem?> GetAccessibleTaskAsync(int taskId)
 {
     var userId = HttpContext.Session.GetInt32("UserId");
@@ -270,6 +306,7 @@ private async Task<TaskItem?> GetAccessibleTaskAsync(int taskId)
 
     var query = _context.TaskItems
         .Include(t => t.Assignee)
+        .Include(t => t.Assignments).ThenInclude(a => a.User)
         .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
         .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
         .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
@@ -278,10 +315,11 @@ private async Task<TaskItem?> GetAccessibleTaskAsync(int taskId)
 
     return isElevated
         ? await query.FirstOrDefaultAsync(t => t.Id == taskId)
-        : await query.FirstOrDefaultAsync(t => t.Id == taskId && t.AssigneeId == userId);
+        : await query.FirstOrDefaultAsync(t => t.Id == taskId && t.Assignments.Any(a => a.UserId == userId));
 }
-// Same pattern for submission history / proof downloads, since those
-// are scoped through the parent Task's AssigneeId, not their own field.
+// Same pattern for submission history / proof downloads, since those are
+// now scoped through the parent TaskAssignment's UserId, not the Task's
+// legacy AssigneeId.
 private async Task<TaskSubmission?> GetAccessibleSubmissionAsync(int submissionId)
 {
     var userId = HttpContext.Session.GetInt32("UserId");
@@ -293,11 +331,14 @@ private async Task<TaskSubmission?> GetAccessibleSubmissionAsync(int submissionI
     var role = HttpContext.Session.GetString("UserRole");
     var isElevated = role == "Admin" || role == "Supervisor";
 
-    var query = _context.TaskSubmissions.Include(s => s.Task).AsQueryable();
+    var query = _context.TaskSubmissions
+        .Include(s => s.Task)
+        .Include(s => s.TaskAssignment)
+        .AsQueryable();
 
     return isElevated
         ? await query.FirstOrDefaultAsync(s => s.Id == submissionId)
-        : await query.FirstOrDefaultAsync(s => s.Id == submissionId && s.Task!.AssigneeId == userId);
+        : await query.FirstOrDefaultAsync(s => s.Id == submissionId && s.TaskAssignment != null && s.TaskAssignment.UserId == userId);
 }
 // Same access rule as GetAccessibleTaskAsync, but returns a queryable list
 // scope rather than a single task — used by Index/TaskManagement so the
@@ -308,9 +349,12 @@ private IQueryable<TaskItem> AccessibleTasksQuery()
     var role = HttpContext.Session.GetString("UserRole");
     var isElevated = role == "Admin" || role == "Supervisor";
 
-    var query = _context.TaskItems.Include(t => t.Assignee).AsQueryable();
+    var query = _context.TaskItems
+        .Include(t => t.Assignee)
+        .Include(t => t.Assignments).ThenInclude(a => a.User)
+        .AsQueryable();
 
-    return isElevated ? query : query.Where(t => t.AssigneeId == userId);
+    return isElevated ? query : query.Where(t => t.Assignments.Any(a => a.UserId == userId));
 }
 // POST: /Employee/AddComment
 [HttpPost]

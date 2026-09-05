@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ── DatabaseHelper — registered ONCE here, injectable anywhere
 builder.Services.AddSingleton<DatabaseHelper>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<TaskAssignmentService>();
 builder.Services.AddHostedService<TaskReminderService>();
 
 builder.Services.AddAntiforgery(options =>

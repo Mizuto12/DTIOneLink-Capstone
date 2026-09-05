@@ -5,14 +5,32 @@
 
     var role = Context.Session.GetString("UserRole");
     var isElevated = role == "Admin" || role == "Supervisor";
+    var currentUserId = Context.Session.GetInt32("UserId");
 
     var tasks = Model ?? Enumerable.Empty<DTIOneLink.Models.TaskItem>();
 
-    var todoTasks = tasks.Where(t => t.Status == "pending").ToList();
-    var inProgressTasks = tasks.Where(t => t.Status == "in-progress").ToList();
-    var forReviewTasks = tasks.Where(t => t.Status == "for-review").ToList();
-    var rejectedTasks = tasks.Where(t => t.Status == "returned-for-correction").ToList();
-    var completedTasks = tasks.Where(t => t.Status == "completed").ToList();
+    // Elevated viewers (Admin/Supervisor) see the task's overall/aggregate
+    // status here, since they aren't themselves doing the work. A regular
+    // employee sees THEIR OWN assignment's status/progress — on a shared
+    // task, one assignee finishing doesn't move another assignee's card,
+    // and vice versa.
+    string EffectiveStatus(DTIOneLink.Models.TaskItem t) => isElevated
+        ? (t.Status ?? "pending")
+        : (t.Assignments.FirstOrDefault(a => a.UserId == currentUserId)?.Status ?? t.Status ?? "pending");
+
+    int EffectiveProgress(DTIOneLink.Models.TaskItem t) => isElevated
+        ? t.Progress
+        : (t.Assignments.FirstOrDefault(a => a.UserId == currentUserId)?.Progress ?? t.Progress);
+
+    string AssigneeDisplay(DTIOneLink.Models.TaskItem t) => t.Assignments.Count > 1
+        ? $"{t.Assignments.Count} assignees"
+        : (t.Assignee?.FullName ?? "Unassigned");
+
+    var todoTasks = tasks.Where(t => EffectiveStatus(t) == "pending").ToList();
+    var inProgressTasks = tasks.Where(t => EffectiveStatus(t) == "in-progress").ToList();
+    var forReviewTasks = tasks.Where(t => EffectiveStatus(t) == "for-review").ToList();
+    var rejectedTasks = tasks.Where(t => EffectiveStatus(t) == "returned-for-correction").ToList();
+    var completedTasks = tasks.Where(t => EffectiveStatus(t) == "completed").ToList();
 
     string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
     {
@@ -114,7 +132,7 @@
                         <div class="task-footer">
                             <div class="task-assignee">
                                 <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                <span class="assignee-name">@AssigneeDisplay(task)</span>
                             </div>
                             <div class="task-due">
                                 <span class="material-symbols-outlined">calendar_today</span>
@@ -157,12 +175,12 @@
                         </div>
                         <h4 class="task-title">@task.TaskName</h4>
                         <div class="task-progress-track">
-                            <div class="task-progress-fill" style="width: @(task.Progress)%"></div>
+                            <div class="task-progress-fill" style="width: @(EffectiveProgress(task))%"></div>
                         </div>
                         <div class="task-footer">
                             <div class="task-assignee">
                                 <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                <span class="assignee-name">@AssigneeDisplay(task)</span>
                             </div>
                             <div class="task-due">
                                 <span class="material-symbols-outlined">calendar_today</span>
@@ -204,7 +222,7 @@
                         <div class="task-footer">
                             <div class="task-assignee">
                                 <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                <span class="assignee-name">@AssigneeDisplay(task)</span>
                             </div>
                             <div class="task-due">
                                 <span class="due-label">Awaiting review</span>
@@ -246,7 +264,7 @@
                         <div class="task-footer">
                             <div class="task-assignee">
                                 <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                <span class="assignee-name">@AssigneeDisplay(task)</span>
                             </div>
                             <div class="task-due">
                                 <span class="due-label">Needs resubmission</span>
@@ -288,7 +306,7 @@
                         <div class="task-footer">
                             <div class="task-assignee">
                                 <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                <span class="assignee-name">@AssigneeDisplay(task)</span>
                             </div>
                             <div class="task-due">
                                 <span class="due-label">Due @FormatDueDate(task.DueDate)</span>

@@ -1,6 +1,7 @@
 using DTIOneLink.Data;
 using DTIOneLink.Services;
-using Microsoft.EntityFrameworkCore;  
+using DTIOneLink.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace DTIOneLink.Services
 {
@@ -48,34 +49,50 @@ namespace DTIOneLink.Services
             var today = DateTime.UtcNow.Date;
             var dueSoonCutoff = today.Add(DueSoonWindow);
 
-            // Every TaskItem has a required AssigneeId — no unassigned state to guard against.
-            var incompleteTasks = await db.TaskItems
-                .Where(t => t.Status != TaskWorkflow.Completed)
+            // Due-soon/overdue is now evaluated per assignee, not per task —
+            // one employee on a shared task can be done while another is
+            // still overdue, and each needs their own notification driven by
+            // their own TaskAssignment.Status.
+            var incompleteAssignments = await db.TaskAssignments
+                .Include(a => a.Task)
+                .Where(a => a.Status != TaskWorkflow.Completed && a.Task!.Status != TaskWorkflow.Completed)
                 .ToListAsync(stoppingToken);
 
-            if (incompleteTasks.Count == 0) return;
-            
+            if (incompleteAssignments.Count == 0) return;
+
             var admins = await db.Users
                 .Where(u => u.IsActive && (u.Role == "Admin" || u.Role == "Supervisor" || u.Role == "SuperAdmin"))
                 .Select(u => u.Id)
                 .ToListAsync(stoppingToken);
 
-            foreach (var task in incompleteTasks)
+            // The admin "overdue" copy is a task-level notice, not a
+            // per-assignee one — send it at most once per task per run even
+            // if several assignees on that task are overdue. NotifyTaskOverdueAsync
+            // already de-dupes across runs via ExistsAsync; this just avoids
+            // redundant calls within a single run.
+            var notifiedAdminForTask = new HashSet<int>();
+
+            foreach (var assignment in incompleteAssignments)
             {
+                var task = assignment.Task!;
+
                 // Reuses TaskWorkflow.IsOverdue (same calculation already used for
                 // display everywhere else) rather than reimplementing the date logic.
-                if (TaskWorkflow.IsOverdue(task.Status, task.DueDate))
+                if (TaskWorkflow.IsOverdue(assignment.Status, task.DueDate))
                 {
-                    await notifications.NotifyTaskOverdueAsync(task.AssigneeId, task.Id, task.TaskName, task.DueDate);
+                    await notifications.NotifyTaskOverdueAsync(assignment.UserId, task.Id, task.TaskName, task.DueDate);
 
-                    foreach (var adminId in admins)
+                    if (notifiedAdminForTask.Add(task.Id))
                     {
-                        await notifications.NotifyTaskOverdueAsync(adminId, task.Id, task.TaskName, task.DueDate, isAdminCopy: true);
+                        foreach (var adminId in admins)
+                        {
+                            await notifications.NotifyTaskOverdueAsync(adminId, task.Id, task.TaskName, task.DueDate, isAdminCopy: true);
+                        }
                     }
                 }
                 else if (task.DueDate.Date <= dueSoonCutoff)
                 {
-                    await notifications.NotifyTaskDueSoonAsync(task.AssigneeId, task.Id, task.TaskName, task.DueDate);
+                    await notifications.NotifyTaskDueSoonAsync(assignment.UserId, task.Id, task.TaskName, task.DueDate);
                 }
             }
         }

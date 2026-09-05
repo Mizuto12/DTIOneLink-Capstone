@@ -13,6 +13,7 @@ namespace DTIOneLink.Data
     public DbSet<TaskItem> TaskItems { get; set; }
     public DbSet<UserItem> UserItems { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<TaskAssignment> TaskAssignments { get; set; }
     public DbSet<TaskSubmission> TaskSubmissions { get; set; }
     public DbSet<TaskActivity> TaskActivities { get; set; }
     public DbSet<TaskComment> TaskComments { get; set; }
@@ -64,6 +65,36 @@ modelBuilder.Entity<Notification>()
 
 modelBuilder.Entity<Notification>()
     .HasIndex(n => new { n.RecipientUserId, n.IsRead });
+
+    // ── Multi-employee task assignment ───────────────────────────
+    // TaskAssignment.TaskId keeps its default cascade from TaskItem (that's
+    // the only cascade path reaching it, so no SQL Server conflict). The
+    // User-facing FKs are restricted for the same "multiple cascade paths"
+    // reason as TaskActivity/TaskComment above.
+    modelBuilder.Entity<TaskAssignment>()
+        .HasIndex(a => new { a.TaskId, a.UserId })
+        .IsUnique();
+
+    modelBuilder.Entity<TaskAssignment>()
+        .HasOne(a => a.User)
+        .WithMany()
+        .HasForeignKey(a => a.UserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<TaskAssignment>()
+        .HasOne(a => a.AssignedBy)
+        .WithMany()
+        .HasForeignKey(a => a.AssignedByUserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // A submission now belongs to one assignee's TaskAssignment. Restrict
+    // (not cascade) so deleting a TaskAssignment can't create a second
+    // cascade path alongside TaskSubmission's existing cascade from Task.
+    modelBuilder.Entity<TaskSubmission>()
+        .HasOne(s => s.TaskAssignment)
+        .WithMany()
+        .HasForeignKey(s => s.TaskAssignmentId)
+        .OnDelete(DeleteBehavior.Restrict);
 }
 }
 }

@@ -3,9 +3,15 @@ using System.ComponentModel.DataAnnotations;
 namespace DTIOneLink.Models
 {
     // Deliberately narrow, mirroring TaskProgressUpdateViewModel's approach:
-    // only the fields Admin/Supervisor are allowed to change here. Progress,
-    // Status, and CreatedAt are intentionally absent — those are owned by
-    // the employee-facing Update/SubmitProof flow, not this form.
+    // only the fields Admin/Supervisor are allowed to change here. Progress
+    // and Status are intentionally absent at the task level — those are now
+    // per-assignee (TaskAssignment.Progress/Status), owned by the
+    // employee-facing Update/SubmitProof flow and the Admin Review decision,
+    // never by this form.
+    //
+    // AssigneeId (singular) has become AssigneeIds (list) — same
+    // "at least one assignee" rule as TaskCreateViewModel, enforced in the
+    // controller rather than via [Required] on the list itself.
     public class TaskEditViewModel
     {
         [Required]
@@ -16,9 +22,8 @@ namespace DTIOneLink.Models
         [StringLength(200)]
         public string TaskName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Assignee is required.")]
-        [Display(Name = "Assignee")]
-        public int AssigneeId { get; set; }
+        [Display(Name = "Assignees")]
+        public List<int> AssigneeIds { get; set; } = new();
 
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]

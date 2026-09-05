@@ -11,11 +11,13 @@ namespace DTIOneLink.Controllers
     {
         private readonly AppDbContext _context;
         private readonly NotificationService _notifications;
+        private readonly TaskAssignmentService _taskAssignments;
 
-        public TasksController(AppDbContext context, NotificationService notifications)
+        public TasksController(AppDbContext context, NotificationService notifications, TaskAssignmentService taskAssignments)
         {
             _context = context;
              _notifications = notifications;
+            _taskAssignments = taskAssignments;
         }
 
         // GET: /Tasks/Index
@@ -23,6 +25,7 @@ namespace DTIOneLink.Controllers
         {
             var tasks = await _context.TaskItems
                 .Include(t => t.Assignee)
+                .Include(t => t.Assignments).ThenInclude(a => a.User)
                 .Include(t => t.Submissions)
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
@@ -33,37 +36,44 @@ namespace DTIOneLink.Controllers
         // GET: /Tasks/Create
         public async Task<IActionResult> Create()
         {
-            var employees = await _context.Users
-                .Where(u => u.IsActive && u.Role == "Employee")
-                .OrderBy(u => u.FullName)
-                .ToListAsync();
-            ViewBag.Employees = new SelectList(employees, "Id", "FullName");
-            return View();
+            await PopulateEmployeesAsync();
+            return View(new TaskCreateViewModel());
         }
 
         // POST: /Tasks/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(TaskItem task)
+        public async Task<IActionResult> Create(TaskCreateViewModel model)
         {
+            await ValidateAssigneeIdsAsync(model.AssigneeIds, nameof(model.AssigneeIds));
+
             if (!ModelState.IsValid)
             {
-                var employees = await _context.Users
-                    .Where(u => u.IsActive)
-                    .OrderBy(u => u.FullName)
-                    .ToListAsync();
-
-                ViewBag.Employees = new SelectList(employees, "Id", "FullName");
-                return View(task);
+                await PopulateEmployeesAsync();
+                return View(model);
             }
 
+            var task = new TaskItem
+            {
+                TaskName = model.TaskName,
+                DueDate = model.DueDate,
+                Priority = model.Priority,
+                Description = model.Description
+            };
+
             _context.TaskItems.Add(task);
+            await _context.SaveChangesAsync(); // need task.Id before creating assignments
+
+            var createdByUserId = HttpContext.Session.GetInt32("UserId");
+            _taskAssignments.AssignEmployees(task, model.AssigneeIds, createdByUserId);
+
             await _context.SaveChangesAsync();
 
-            // new — notify the assignee once the task has an Id to link to
-            if (task.AssigneeId != 0)
+            // new — notify every assignee once the task (and its assignment
+            // rows) have Ids to link to.
+            foreach (var assignment in task.Assignments)
             {
-                await _notifications.NotifyTaskAssignedAsync(task.AssigneeId, task.Id, task.TaskName);
+                await _notifications.NotifyTaskAssignedAsync(assignment.UserId, task.Id, task.TaskName);
             }
 
             TempData["SuccessMessage"] = "Task created successfully!";
@@ -78,7 +88,9 @@ namespace DTIOneLink.Controllers
         return StatusCode(403);
      }
 
-     var task = await _context.TaskItems.FirstOrDefaultAsync(t => t.Id == id);
+     var task = await _context.TaskItems
+         .Include(t => t.Assignments).ThenInclude(a => a.User)
+         .FirstOrDefaultAsync(t => t.Id == id);
      if (task == null)
      {
          return NotFound();
@@ -88,7 +100,7 @@ namespace DTIOneLink.Controllers
      {
          Id = task.Id,
          TaskName = task.TaskName,
-         AssigneeId = task.AssigneeId,
+         AssigneeIds = task.Assignments.Select(a => a.UserId).ToList(),
          DueDate = task.DueDate,
          Priority = task.Priority,
          Description = task.Description
@@ -96,11 +108,13 @@ namespace DTIOneLink.Controllers
 
     // Read-only display context for the "Task Overview" panel — not part of
     // TaskEditViewModel on purpose (Status/Progress/CreatedAt aren't editable
-    // here; they're owned by the employee-facing Update/SubmitProof flow).
+    // here; they're owned by the employee-facing Update/SubmitProof flow and
+    // the Admin Review decision).
     ViewBag.TaskCode = $"TASK-{task.Id:D4}";
-    ViewBag.CurrentStatus = task.Status;
-    ViewBag.CurrentProgress = task.Progress;
+    ViewBag.CurrentStatus = task.Status;      // aggregate across all assignees
+    ViewBag.CurrentProgress = task.Progress;  // aggregate across all assignees
     ViewBag.CreatedAt = task.CreatedAt;
+    ViewBag.AssignmentSummaries = BuildAssignmentSummaries(task);
 
     // Initial suggestion for page load, before any JS runs. Recalculated
     // live via SuggestPriority whenever the due-date field changes.
@@ -112,7 +126,6 @@ namespace DTIOneLink.Controllers
     return View(model);
  }
 // POST: /Tasks/Edit
-// POST: /Tasks/Edit
 [HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> Edit(TaskEditViewModel model)
@@ -122,60 +135,70 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
        return StatusCode(403);
     }
 
-    var task = await _context.TaskItems.FirstOrDefaultAsync(t => t.Id == model.Id);
+    var task = await _context.TaskItems
+        .Include(t => t.Assignments).ThenInclude(a => a.User)
+        .FirstOrDefaultAsync(t => t.Id == model.Id);
     if (task == null)
     {
         return NotFound();
     }
 
-    // Assignee must be an active Employee, same rule as Create's dropdown.
-    var assigneeExists = await _context.Users
-        .AnyAsync(u => u.Id == model.AssigneeId && u.IsActive && u.Role == "Employee");
-    if (!assigneeExists)
-    {
-        ModelState.AddModelError(nameof(model.AssigneeId), "Select a valid assignee.");
-    }
+    await ValidateAssigneeIdsAsync(model.AssigneeIds, nameof(model.AssigneeIds));
 
     if (!ModelState.IsValid)
     {
-        await PopulateEmployeesAsync();
+        await RepopulateEditContextAsync(task);
         return View(model);
     }
 
     // new — snapshot the pre-edit values before they get overwritten below,
     // so we know what actually changed once the save is done.
-    var oldAssigneeId = task.AssigneeId;
-    var oldDueDate     = task.DueDate;
-    var oldPriority    = task.Priority;
+    var oldDueDate = task.DueDate;
+    var oldPriority = task.Priority;
+    var oldAssigneeUserIds = task.Assignments.Select(a => a.UserId).ToList();
 
     // Only the editable fields — Progress, Status, CreatedAt, Submissions
     // are untouched, same discipline as Employee.Update's comment block.
     task.TaskName = model.TaskName;
-    task.AssigneeId = model.AssigneeId;
     task.DueDate = model.DueDate;
     task.Priority = model.Priority;
     task.Description = model.Description;
 
+    var changedByUserId = HttpContext.Session.GetInt32("UserId");
+    var sync = await _taskAssignments.SyncAssignmentsAsync(task, model.AssigneeIds, changedByUserId);
+
+    if (sync.BlockedRemovals.Count > 0)
+    {
+        ModelState.AddModelError(nameof(model.AssigneeIds),
+            "Can't unassign someone who has already submitted proof for this task.");
+        await RepopulateEditContextAsync(task);
+        return View(model);
+    }
+
+    _taskAssignments.RecalculateOverallStatus(task);
+
     await _context.SaveChangesAsync();
 
-    // new — notify only the affected employee, and only for what actually changed.
-    // Reassignment takes priority: if the assignee changed, the new assignee
-    // gets one "reassigned to you" notice, not a stack of separate ones.
-    bool wasReassigned = oldAssigneeId != task.AssigneeId;
-
-    if (wasReassigned)
+    // new — notify only the affected employees, and only for what actually
+    // changed. Newly added assignees get one "assigned to you" notice;
+    // everyone who was already on the task before AND after this edit gets
+    // notified about due-date/priority changes (each is independent, so
+    // both can fire).
+    foreach (var newUserId in sync.Added)
     {
-        await _notifications.NotifyTaskReassignedAsync(task.AssigneeId, task.Id, task.TaskName);
+        await _notifications.NotifyTaskReassignedAsync(newUserId, task.Id, task.TaskName);
     }
-    else
+
+    var stillAssignedUserIds = oldAssigneeUserIds.Except(sync.Removed).ToList();
+    foreach (var userId in stillAssignedUserIds)
     {
         if (oldDueDate != task.DueDate)
         {
-            await _notifications.NotifyTaskDueDateChangedAsync(task.AssigneeId, task.Id, task.TaskName, task.DueDate);
+            await _notifications.NotifyTaskDueDateChangedAsync(userId, task.Id, task.TaskName, task.DueDate);
         }
         if (oldPriority != task.Priority)
         {
-            await _notifications.NotifyTaskPriorityChangedAsync(task.AssigneeId, task.Id, task.TaskName, task.Priority);
+            await _notifications.NotifyTaskPriorityChangedAsync(userId, task.Id, task.TaskName, task.Priority);
         }
     }
 
@@ -200,6 +223,58 @@ private async Task PopulateEmployeesAsync()
         .ToListAsync();
     ViewBag.Employees = new SelectList(employees, "Id", "FullName");
 }
+
+// Checks every requested id is an active Employee, and that at least one
+// was selected. Shared by Create and Edit so the rule lives in one place.
+private async Task ValidateAssigneeIdsAsync(List<int> assigneeIds, string modelKey)
+{
+    if (assigneeIds == null || assigneeIds.Count == 0)
+    {
+        ModelState.AddModelError(modelKey, "Select at least one assignee.");
+        return;
+    }
+
+    var distinct = assigneeIds.Distinct().ToList();
+    var validCount = await _context.Users
+        .CountAsync(u => distinct.Contains(u.Id) && u.IsActive && u.Role == "Employee");
+
+    if (validCount != distinct.Count)
+    {
+        ModelState.AddModelError(modelKey, "One or more selected assignees are invalid.");
+    }
+}
+
+private List<TaskAssignmentSummaryViewModel> BuildAssignmentSummaries(TaskItem task)
+{
+    return task.Assignments
+        .OrderByDescending(a => a.IsPrimaryAssignee)
+        .ThenBy(a => a.User?.FullName)
+        .Select(a => new TaskAssignmentSummaryViewModel
+        {
+            Name = a.User?.FullName ?? "Unknown",
+            Status = a.Status,
+            Progress = a.Progress,
+            IsPrimaryAssignee = a.IsPrimaryAssignee
+        })
+        .ToList();
+}
+
+// Re-hydrates the ViewBag context Edit's GET action sets, for re-rendering
+// the Edit form after a POST validation failure.
+private async Task RepopulateEditContextAsync(TaskItem task)
+{
+    ViewBag.TaskCode = $"TASK-{task.Id:D4}";
+    ViewBag.CurrentStatus = task.Status;
+    ViewBag.CurrentProgress = task.Progress;
+    ViewBag.CreatedAt = task.CreatedAt;
+    ViewBag.AssignmentSummaries = BuildAssignmentSummaries(task);
+
+    var suggestion = PrioritySuggestionService.Suggest(task.DueDate);
+    ViewBag.SuggestedPriority = suggestion.Priority;
+    ViewBag.SuggestedReason = suggestion.Reason;
+
+    await PopulateEmployeesAsync();
+}
 // GET: /Tasks/Review/5  (submissionId)
 [HttpGet]
 public async Task<IActionResult> Review(int id)
@@ -211,16 +286,18 @@ public async Task<IActionResult> Review(int id)
 
     var submission = await _context.TaskSubmissions
         .Include(s => s.Task).ThenInclude(t => t!.Assignee)
+        .Include(s => s.TaskAssignment).ThenInclude(a => a!.User)
         .FirstOrDefaultAsync(s => s.Id == id);
 
-    if (submission == null || submission.Task == null)
+    if (submission == null || submission.Task == null || submission.TaskAssignment == null)
     {
         return NotFound();
     }
 
-    // Only the currently-pending submission on a ForReview task can be
-    // decided — an old, already-superseded submission has nothing to act on.
-    if (submission.Task.Status?.ToLowerInvariant() != TaskWorkflow.ForReview || submission.Decision != null)
+    // Only the currently-pending submission on an assignee whose own
+    // assignment is ForReview can be decided — an old, already-superseded
+    // submission has nothing to act on.
+    if (submission.TaskAssignment.Status?.ToLowerInvariant() != TaskWorkflow.ForReview || submission.Decision != null)
     {
         TempData["ErrorMessage"] = "This submission is no longer awaiting review.";
         return RedirectToAction(nameof(Index));
@@ -240,31 +317,33 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
     }
 
     var submission = await _context.TaskSubmissions
-        .Include(s => s.Task)
+        .Include(s => s.Task).ThenInclude(t => t!.Assignments)
+        .Include(s => s.TaskAssignment)
         .FirstOrDefaultAsync(s => s.Id == model.SubmissionId);
 
-    if (submission == null || submission.Task == null)
+    if (submission == null || submission.Task == null || submission.TaskAssignment == null)
     {
         return NotFound();
     }
 
     var task = submission.Task;
-    var currentStatus = task.Status ?? TaskWorkflow.Pending;
+    var assignment = submission.TaskAssignment;
+    var currentAssignmentStatus = assignment.Status ?? TaskWorkflow.Pending;
 
-    if (currentStatus.ToLowerInvariant() != TaskWorkflow.ForReview || submission.Decision != null)
+    if (currentAssignmentStatus.ToLowerInvariant() != TaskWorkflow.ForReview || submission.Decision != null)
     {
         TempData["ErrorMessage"] = "This submission is no longer awaiting review.";
         return RedirectToAction(nameof(Index));
     }
 
     var decision = model.Decision.Trim().ToLowerInvariant();
-    string nextStatus;
+    string nextAssignmentStatus;
     string submissionDecision;
 
     switch (decision)
     {
         case "approve":
-            nextStatus = TaskWorkflow.Completed;
+            nextAssignmentStatus = TaskWorkflow.Completed;
             submissionDecision = "approved";
             break;
         case "return":
@@ -276,7 +355,7 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
                 ModelState.AddModelError(nameof(model.AdminRemarks), "Remarks are required when returning a submission for correction.");
                 return View(submission);
             }
-            nextStatus = TaskWorkflow.ReturnedForCorrection;
+            nextAssignmentStatus = TaskWorkflow.ReturnedForCorrection;
             submissionDecision = "returned";
             break;
         default:
@@ -287,7 +366,7 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
     // Belt-and-suspenders: this should always be true given the switch above,
     // but routes every status change through the same guard as the rest of
     // the app so ForReview's allowed edges live in exactly one place.
-    if (!TaskWorkflow.CanTransition(currentStatus, nextStatus))
+    if (!TaskWorkflow.CanTransition(currentAssignmentStatus, nextAssignmentStatus))
     {
         TempData["ErrorMessage"] = "That decision isn't allowed from the task's current state.";
         return RedirectToAction(nameof(Index));
@@ -300,25 +379,30 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
     submission.DecidedAt = DateTime.UtcNow;
     submission.ValidatedByUserId = validatorId;
 
-    task.Status = nextStatus;
-    if (nextStatus == TaskWorkflow.Completed)
+    assignment.Status = nextAssignmentStatus;
+    if (nextAssignmentStatus == TaskWorkflow.Completed)
     {
-        task.Progress = 100; // Completed implies fully progressed, for display consistency
+        assignment.Progress = 100; // Completed implies fully progressed, for display consistency
     }
+
+    // Requirement 8: recompute the task-level aggregate — this is what
+    // actually decides whether the overall task moves to ForReview/Completed
+    // now that every (or not every) assignee has weighed in.
+    _taskAssignments.RecalculateOverallStatus(task);
 
     if (validatorId.HasValue)
     {
         TaskActivityLogger.Log(_context, task.Id, validatorId.Value, TaskActivityType.Validated,
             submissionDecision == "approved"
-                ? "Submission approved — task marked completed."
+                ? "Submission approved — marked completed for this assignee."
                 : $"Submission returned for correction: \"{model.AdminRemarks}\"",
             submission.Id);
     }
 
     await _context.SaveChangesAsync();
 
-    TempData["SuccessMessage"] = nextStatus == TaskWorkflow.Completed
-        ? "Task marked as completed."
+    TempData["SuccessMessage"] = nextAssignmentStatus == TaskWorkflow.Completed
+        ? "Submission approved."
         : "Task returned for correction.";
 
     return RedirectToAction(nameof(Index));

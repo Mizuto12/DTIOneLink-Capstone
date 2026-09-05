@@ -1,12 +1,14 @@
-@model DTIOneLink.Models.TaskItem
+@model DTIOneLink.Models.TaskCreateViewModel
 @{
     Layout = "~/Views/Admin/AdminLayout.cshtml"; 
     ViewData["Title"] = "Create Task";
+    var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/assignee-multiselect.css" asp-append-version="true" />
 }
 
 <!-- ── Validation Summary ────────────────────────────── -->
@@ -108,7 +110,7 @@
         <div class="modal-header">
             <div>
                 <h2 class="modal-title" id="modalTitle">Create New Task</h2>
-                <p class="modal-sub">Assign a new operational task to a team member.</p>
+                <p class="modal-sub">Assign a new operational task to one or more team members.</p>
             </div>
             <a asp-controller="Tasks" asp-action="Index" class="modal-close" aria-label="Close">
                 <span class="material-symbols-outlined">close</span>
@@ -128,18 +130,42 @@
                     <span asp-validation-for="TaskName" class="field-error"></span>
                 </div>
 
-                <!-- Assignee + Due Date -->
+                               <!-- Assignees + Due Date -->
                 <div class="field-row">
                     <div class="field-group">
-                <label class="field-label" for="assignee">ASSIGNEE <span class="required-star">*</span></label>
-                    <div class="select-wrap">
-                        <select class="pill-input" id="assignee" asp-for="AssigneeId" asp-items="ViewBag.Employees">
-                            <option value="">Select assignee</option>
-                        </select>
-                        <span class="material-symbols-outlined select-icon">person</span>
+                        <label class="field-label" id="assigneeLabel">ASSIGNEES <span class="required-star">*</span></label>
+                        <div class="assignee-select@(hasAssigneeError ? " assignee-select-invalid" : "")" data-assignee-select>
+                            <button type="button"
+                                    class="assignee-select-trigger"
+                                    id="assigneeTrigger"
+                                    data-assignee-trigger
+                                    aria-haspopup="true"
+                                    aria-expanded="false"
+                                    aria-labelledby="assigneeLabel assigneeTrigger">
+                                <span class="assignee-select-label is-placeholder" data-assignee-label>Select assignees</span>
+                                <span class="material-symbols-outlined assignee-select-chevron">expand_more</span>
+                            </button>
+                            <div class="assignee-select-panel" data-assignee-panel role="group" aria-label="Employees" hidden>
+                                <div class="assignee-select-search-wrap">
+                                    <span class="material-symbols-outlined assignee-select-search-icon">search</span>
+                                    <input type="text" class="assignee-select-search" data-assignee-search
+                                           placeholder="Search employees..." aria-label="Search employees" />
+                                </div>
+                                <div class="assignee-select-options">
+                                    @foreach (var emp in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Employees)
+                                    {
+                                        <label class="assignee-select-option" data-assignee-option
+                                               data-name="@emp.Text.ToLowerInvariant()" data-display-name="@emp.Text">
+                                            <input type="checkbox" name="AssigneeIds" value="@emp.Value" />
+                                            <span>@emp.Text</span>
+                                        </label>
+                                    }
+                                </div>
+                                <p class="assignee-select-empty" data-assignee-empty hidden>No employees found</p>
+                            </div>
+                        </div>
+                        <span asp-validation-for="AssigneeIds" class="field-error"></span>
                     </div>
-                    <span asp-validation-for="AssigneeId" class="field-error"></span>
-                </div>
                     <div class="field-group">
                         <label class="field-label" for="dueDate">DUE DATE <span class="required-star">*</span></label>
                         <div class="select-wrap">
@@ -149,7 +175,6 @@
                         <span asp-validation-for="DueDate" class="field-error"></span>
                     </div>
                 </div>
-
                 <!-- Priority -->
                 <div class="field-group">
                     <span class="field-label">PRIORITY LEVEL <span class="required-star">*</span></span>
@@ -204,5 +229,6 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/assignee-multiselect.js" asp-append-version="true"></script>
     <script src="~/js/tasks-create.js" asp-append-version="true"></script>
 }
