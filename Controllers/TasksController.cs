@@ -10,10 +10,12 @@ namespace DTIOneLink.Controllers
     public class TasksController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly NotificationService _notifications;
 
-        public TasksController(AppDbContext context)
+        public TasksController(AppDbContext context, NotificationService notifications)
         {
             _context = context;
+             _notifications = notifications;
         }
 
         // GET: /Tasks/Index
@@ -57,6 +59,12 @@ namespace DTIOneLink.Controllers
 
             _context.TaskItems.Add(task);
             await _context.SaveChangesAsync();
+
+            // new — notify the assignee once the task has an Id to link to
+            if (task.AssigneeId != 0)
+            {
+                await _notifications.NotifyTaskAssignedAsync(task.AssigneeId, task.Id, task.TaskName);
+            }
 
             TempData["SuccessMessage"] = "Task created successfully!";
             return RedirectToAction(nameof(Index));
@@ -104,6 +112,7 @@ namespace DTIOneLink.Controllers
     return View(model);
  }
 // POST: /Tasks/Edit
+// POST: /Tasks/Edit
 [HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> Edit(TaskEditViewModel model)
@@ -133,6 +142,12 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         return View(model);
     }
 
+    // new — snapshot the pre-edit values before they get overwritten below,
+    // so we know what actually changed once the save is done.
+    var oldAssigneeId = task.AssigneeId;
+    var oldDueDate     = task.DueDate;
+    var oldPriority    = task.Priority;
+
     // Only the editable fields — Progress, Status, CreatedAt, Submissions
     // are untouched, same discipline as Employee.Update's comment block.
     task.TaskName = model.TaskName;
@@ -142,6 +157,27 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     task.Description = model.Description;
 
     await _context.SaveChangesAsync();
+
+    // new — notify only the affected employee, and only for what actually changed.
+    // Reassignment takes priority: if the assignee changed, the new assignee
+    // gets one "reassigned to you" notice, not a stack of separate ones.
+    bool wasReassigned = oldAssigneeId != task.AssigneeId;
+
+    if (wasReassigned)
+    {
+        await _notifications.NotifyTaskReassignedAsync(task.AssigneeId, task.Id, task.TaskName);
+    }
+    else
+    {
+        if (oldDueDate != task.DueDate)
+        {
+            await _notifications.NotifyTaskDueDateChangedAsync(task.AssigneeId, task.Id, task.TaskName, task.DueDate);
+        }
+        if (oldPriority != task.Priority)
+        {
+            await _notifications.NotifyTaskPriorityChangedAsync(task.AssigneeId, task.Id, task.TaskName, task.Priority);
+        }
+    }
 
     TempData["SuccessMessage"] = "Task updated successfully!";
     return RedirectToAction(nameof(Index));

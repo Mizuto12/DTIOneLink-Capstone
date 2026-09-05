@@ -1,6 +1,6 @@
 // ==========================================================
 // DTI Laguna OneLink — Admin Shell JS
-// (shared by both AdminLayout.cshtml and EmployeeLayout.cshtml)
+// (shared by AdminLayout.cshtml, SuperAdminLayout.cshtml, EmployeeLayout.cshtml)
 // ==========================================================
 (function () {
     "use strict";
@@ -33,82 +33,24 @@
             }, stepTime);
         });
 
-        // ── Notification panel ────────────────────────────
-        var notifBtn    = document.getElementById("notifBtn");
-        var notifPanel  = document.getElementById("notifPanel");
-        var notifBadge  = document.getElementById("notifBadge");
-        var notifList   = document.getElementById("notifList");
-        var markAllBtn  = document.getElementById("markAllRead");
+        // ── Notifications ──────────────────────────────────
+        var notifBtn   = document.getElementById("notifBtn");
+        var notifPanel = document.getElementById("notifPanel");
+        var notifBadge = document.getElementById("notifBadge");
+        var notifList  = document.getElementById("notifList");
+        var markAllBtn = document.getElementById("markAllRead");
 
-        // Starts empty — no real notifications exist yet.
-        // Each notification: { id, name, avatarUrl, message, time, unread }
+        // Loaded from /Notifications/List — never seeded locally.
+        // { id, message, time, unread, link }
         var notifications = [];
+
+        function getCsrfToken() {
+            var input = document.querySelector('input[name="__RequestVerificationToken"]');
+            return input ? input.value : "";
+        }
 
         function unreadCount() {
             return notifications.filter(function (n) { return n.unread; }).length;
-        }
-
-        function escapeHtml(value) {
-            var div = document.createElement("div");
-            div.textContent = value == null ? "" : value;
-            return div.innerHTML;
-        }
-
-        function renderNotifications() {
-            if (!notifList) return;
-
-            if (notifications.length === 0) {
-                notifList.innerHTML =
-                    '<div class="notif-empty">' +
-                    '<span class="material-symbols-outlined">notifications_off</span>' +
-                    '<p>No current notifications</p>' +
-                    '</div>';
-            } else {
-                var html = "";
-                notifications.forEach(function (n) {
-                    var avatar = n.avatarUrl
-                        ? '<img src="' + escapeHtml(n.avatarUrl) + '" alt="" />'
-                        : '<span class="material-symbols-outlined">person</span>';
-
-                    html +=
-                        '<div class="notif-item' + (n.unread ? ' unread' : '') + '" data-id="' + n.id + '">' +
-                        '<div class="notif-avatar">' + avatar + '</div>' +
-                        '<div class="notif-body">' +
-                        '<p class="notif-text"><strong>' + escapeHtml(n.name) + '</strong> ' + escapeHtml(n.message) + '</p>' +
-                        '<span class="notif-time">' + escapeHtml(n.time) + '</span>' +
-                        '</div>' +
-                        '<button class="notif-dismiss" type="button" data-id="' + n.id + '" aria-label="Dismiss">' +
-                        '<span class="material-symbols-outlined">close</span>' +
-                        '</button>' +
-                        '</div>';
-                });
-                notifList.innerHTML = html;
-
-                // Clicking a notification (not the dismiss button) marks it read
-                notifList.querySelectorAll(".notif-item").forEach(function (item) {
-                    item.addEventListener("click", function (e) {
-                        if (e.target.closest(".notif-dismiss")) return;
-                        var id = parseInt(item.dataset.id, 10);
-                        var notif = notifications.find(function (n) { return n.id === id; });
-                        if (notif) {
-                            notif.unread = false;
-                            renderNotifications();
-                        }
-                    });
-                });
-
-                // Dismiss (×) removes the notification entirely
-                notifList.querySelectorAll(".notif-dismiss").forEach(function (btn) {
-                    btn.addEventListener("click", function (e) {
-                        e.stopPropagation();
-                        var id = parseInt(btn.dataset.id, 10);
-                        notifications = notifications.filter(function (n) { return n.id !== id; });
-                        renderNotifications();
-                    });
-                });
-            }
-
-            updateBadge();
         }
 
         function updateBadge() {
@@ -122,12 +64,160 @@
             }
         }
 
+        // Builds one notification row using DOM APIs only. All user-controlled
+        // text (message, time) is set via textContent, never innerHTML — a
+        // notification message can never be interpreted as markup.
+        function buildNotifItem(n) {
+            var item = document.createElement("div");
+            item.className = "notif-item" + (n.unread ? " unread" : "");
+            item.dataset.id = String(n.id);
+
+            var avatar = document.createElement("div");
+            avatar.className = "notif-avatar";
+            var avatarIcon = document.createElement("span");
+            avatarIcon.className = "material-symbols-outlined";
+            avatarIcon.textContent = "notifications";
+            avatar.appendChild(avatarIcon);
+
+            var body = document.createElement("div");
+            body.className = "notif-body";
+
+            var text = document.createElement("p");
+            text.className = "notif-text";
+            text.textContent = n.message;
+            body.appendChild(text);
+
+            var time = document.createElement("span");
+            time.className = "notif-time";
+            time.textContent = n.time;
+            body.appendChild(time);
+
+            var dismissBtn = document.createElement("button");
+            dismissBtn.className = "notif-dismiss";
+            dismissBtn.type = "button";
+            dismissBtn.setAttribute("aria-label", "Dismiss");
+            var dismissIcon = document.createElement("span");
+            dismissIcon.className = "material-symbols-outlined";
+            dismissIcon.textContent = "close";
+            dismissBtn.appendChild(dismissIcon);
+
+            item.appendChild(avatar);
+            item.appendChild(body);
+            item.appendChild(dismissBtn);
+
+            dismissBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                dismissNotification(n.id);
+            });
+
+            item.addEventListener("click", function (e) {
+                if (e.target.closest(".notif-dismiss")) return;
+                openNotification(n.id);
+            });
+
+            return item;
+        }
+
+        function renderNotifications() {
+            if (!notifList) return;
+            notifList.textContent = ""; // clears safely — no innerHTML
+
+            if (notifications.length === 0) {
+                var empty = document.createElement("div");
+                empty.className = "notif-empty";
+                var icon = document.createElement("span");
+                icon.className = "material-symbols-outlined";
+                icon.textContent = "notifications_off";
+                var p = document.createElement("p");
+                p.textContent = "No current notifications";
+                empty.appendChild(icon);
+                empty.appendChild(p);
+                notifList.appendChild(empty);
+            } else {
+                notifications.forEach(function (n) {
+                    notifList.appendChild(buildNotifItem(n));
+                });
+            }
+
+            updateBadge();
+        }
+
+        function markReadOnServer(id) {
+            return fetch("/Notifications/MarkRead?id=" + encodeURIComponent(id), {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": getCsrfToken() }
+            });
+        }
+
+        function openNotification(id) {
+            var notif = notifications.find(function (n) { return n.id === id; });
+            if (!notif) return;
+
+            if (notif.unread) {
+                notif.unread = false;
+                renderNotifications();
+                markReadOnServer(id).catch(function () { /* local state already updated */ });
+            }
+
+            // Only navigate to a same-origin relative path ("/something"), never
+            // "//host/..." (protocol-relative) or an absolute external URL — a
+            // notification's Link is treated as untrusted data, not a trusted redirect.
+            var target = notif.link;
+            if (target && target.indexOf("/") === 0 && target.indexOf("//") !== 0) {
+                window.location.href = target;
+            }
+        }
+
+        function dismissNotification(id) {
+            notifications = notifications.filter(function (n) { return n.id !== id; });
+            renderNotifications();
+            fetch("/Notifications/Dismiss?id=" + encodeURIComponent(id), {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": getCsrfToken() }
+            }).catch(function () { /* local state already updated */ });
+        }
+
+        function markAllRead() {
+            notifications.forEach(function (n) { n.unread = false; });
+            renderNotifications();
+            fetch("/Notifications/MarkAllRead", {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": getCsrfToken() }
+            }).catch(function () { /* local state already updated */ });
+        }
+
+        function loadNotifications() {
+            fetch("/Notifications/List")
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    notifications = data.map(function (n) {
+                        return {
+                            id: n.id,
+                            message: n.text,
+                            time: n.time,
+                            unread: n.unread,
+                            link: n.link || null
+                        };
+                    });
+                    renderNotifications();
+                })
+                .catch(function () {
+                    renderNotifications(); // shows the empty state on failure
+                });
+        }
+
         function openPanel() {
-            if (notifPanel) notifPanel.classList.add("open");
+            if (notifPanel) {
+                notifPanel.classList.add("open");
+                if (notifBtn) notifBtn.setAttribute("aria-expanded", "true");
+            }
         }
 
         function closePanel() {
-            if (notifPanel) notifPanel.classList.remove("open");
+            if (notifPanel) {
+                notifPanel.classList.remove("open");
+                if (notifBtn) notifBtn.setAttribute("aria-expanded", "false");
+            }
         }
 
         function togglePanel() {
@@ -136,11 +226,6 @@
             } else {
                 openPanel();
             }
-        }
-
-        function markAllRead() {
-            notifications.forEach(function (n) { n.unread = false; });
-            renderNotifications();
         }
 
         if (notifBtn) {
@@ -159,7 +244,7 @@
 
         document.addEventListener("click", function (e) {
             if (notifPanel && notifPanel.classList.contains("open")) {
-                if (!notifPanel.contains(e.target) && e.target !== notifBtn) {
+                if (!notifPanel.contains(e.target) && e.target !== notifBtn && !(notifBtn && notifBtn.contains(e.target))) {
                     closePanel();
                 }
             }
@@ -171,45 +256,17 @@
             }
         });
 
-        // Initial render (renders the empty state)
-        renderNotifications();
+        renderNotifications(); // empty state immediately
+        loadNotifications();   // then fill in from the database
 
-        // ── Public API for wiring real notifications in later ──
-        // Example:
-        // NotificationsPanel.add({ name: 'Rogimer Urriza', avatarUrl: '/images/employee.jpg',
-        //   message: "Due soon: assignment '01 Activity 1 - ARG'", time: '2:46 am' });
-        window.NotificationsPanel = {
-            add: function (n) {
-                notifications.unshift({
-                    id: Date.now(),
-                    name: n.name || "",
-                    avatarUrl: n.avatarUrl || null,
-                    message: n.message || "",
-                    time: n.time || "Just now",
-                    unread: true
-                });
-                if (notifications.length > 30) notifications.length = 30;
-                renderNotifications();
-            },
-            setAll: function (list) {
-                notifications = list;
-                renderNotifications();
-            },
-            markAllRead: markAllRead,
-            clear: function () {
-                notifications = [];
-                renderNotifications();
-            }
-        };
-
-        // ── Profile dropdown ──────────────────────────────
+        // ── Profile dropdown (unchanged) ───────────────────
         var profileTrigger  = document.getElementById("profileTrigger");
         var profileDropdown = document.getElementById("profileDropdown");
 
         function openProfile() {
             if (profileDropdown) {
                 profileDropdown.classList.add("open");
-            if (profileTrigger)  
+            if (profileTrigger)
                 profileTrigger.classList.add("active");
             }
         }
@@ -256,4 +313,4 @@
 
     });
 
-})();
+})(); 

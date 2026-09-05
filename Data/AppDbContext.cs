@@ -14,8 +14,9 @@ namespace DTIOneLink.Data
     public DbSet<UserItem> UserItems { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<TaskSubmission> TaskSubmissions { get; set; }
-public DbSet<TaskActivity> TaskActivities { get; set; }
-public DbSet<TaskComment> TaskComments { get; set; }
+    public DbSet<TaskActivity> TaskActivities { get; set; }
+    public DbSet<TaskComment> TaskComments { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
 
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -48,6 +49,21 @@ modelBuilder.Entity<TaskActivity>()
     .WithMany()
     .HasForeignKey(a => a.RelatedSubmissionId)
     .OnDelete(DeleteBehavior.Restrict);
+
+modelBuilder.Entity<Notification>()
+    .HasOne(n => n.Recipient)
+    .WithMany()
+    .HasForeignKey(n => n.RecipientUserId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+modelBuilder.Entity<Notification>()
+    .HasOne(n => n.RelatedTask)
+    .WithMany()
+    .HasForeignKey(n => n.RelatedTaskId)
+    .OnDelete(DeleteBehavior.SetNull);
+
+modelBuilder.Entity<Notification>()
+    .HasIndex(n => new { n.RecipientUserId, n.IsRead });
 }
 }
 }

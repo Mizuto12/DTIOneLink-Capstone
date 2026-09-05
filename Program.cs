@@ -13,6 +13,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // ── DatabaseHelper — registered ONCE here, injectable anywhere
 builder.Services.AddSingleton<DatabaseHelper>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddHostedService<TaskReminderService>();
+
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+});
 
 // ── Session (needed to persist login state) ─────────────────
 builder.Services.AddDistributedMemoryCache();
