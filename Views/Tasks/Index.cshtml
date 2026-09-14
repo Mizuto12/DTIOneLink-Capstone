@@ -1,6 +1,8 @@
 @model IEnumerable<DTIOneLink.Models.TaskItem>
 @{
-    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Task Management";
 }
 

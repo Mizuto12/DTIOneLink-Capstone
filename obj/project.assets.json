@@ -2392,11 +2392,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
+      "projectUniqueName": "C:\\Users\\chandrei\\Desktop\\DTIOneLink-Capstone\\DTIOnelink.csproj",
       "projectName": "DTIOneLink",
-      "projectPath": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\DTIOnelink.csproj",
+      "projectPath": "C:\\Users\\chandrei\\Desktop\\DTIOneLink-Capstone\\DTIOnelink.csproj",
       "packagesPath": "C:\\Users\\chandrei\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\chandrei\\Desktop\\DTI OneLink\\obj\\",
+      "outputPath": "C:\\Users\\chandrei\\Desktop\\DTIOneLink-Capstone\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\chandrei\\AppData\\Roaming\\NuGet\\NuGet.Config"

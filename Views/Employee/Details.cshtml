@@ -3,11 +3,13 @@
     ViewData["Title"] = "Task Details";
 
     var role = Context.Session.GetString("UserRole");
-    var isElevated = role == "Admin" || role == "Supervisor";
+    var isElevated = role == "Admin" || role == "Supervisor" || role == "SuperAdmin";
 
-    Layout = isElevated
-        ? "~/Views/Admin/AdminLayout.cshtml"
-        : "~/Views/Employee/employeelayout.cshtml";
+    Layout = role == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : isElevated
+            ? "~/Views/Admin/AdminLayout.cshtml"
+            : "~/Views/Employee/employeelayout.cshtml";
 
     var task = Model;
     var taskCode = $"TASK-{task.Id:D4}";
@@ -56,10 +58,11 @@
 
    Shared by two entry points:
      - EmployeeController.Details  (Employee Kanban board)
-     - DashboardController.Details (Admin/Employee dashboard's Gantt + Kanban)
-   Both pass the same TaskItem. Layout, breadcrumb target, and which
+     - DashboardController.Details (Admin/Employee dashboard's Gantt + Kanban,
+       and now the SuperAdmin office-wide task view)
+   All three pass the same TaskItem. Layout, breadcrumb target, and which
    action buttons render are all resolved by session role above/below —
-   no other content differs between the two audiences.
+   no other content differs between the audiences.
 
    NOTE: The original mockup for this page also showed Reporter, Category,
    a Subtasks checklist, Attachments, a Comments thread, and an Activity

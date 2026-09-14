@@ -109,18 +109,37 @@ namespace DTIOneLink.Controllers
             }
 
             var userRole = HttpContext.Session.GetString("UserRole");
-            var isElevated = userRole == "Admin" || userRole == "Supervisor";
+            var isDepartmentElevated = userRole == "Admin" || userRole == "Supervisor";
+
+            // Office-wide (SuperAdmin) is a separate check from the
+            // department-elevated one above — granted only by
+            // ManageOfficeWideTasks, never by adding "SuperAdmin" to the
+            // Admin/Supervisor role list.
+            var isOfficeWide = RolePermissions.Has(userRole, Permissions.ManageOfficeWideTasks);
 
             IQueryable<TaskItem> query = _context.TaskItems
                 .Include(t => t.Assignee)
+                .Include(t => t.Assignments).ThenInclude(a => a.User)
                 .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
                 .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
                 .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
                 .Include(t => t.Comments).ThenInclude(c => c.Author);
 
-            var task = isElevated
-                ? await query.FirstOrDefaultAsync(t => t.Id == id)
-                : await query.FirstOrDefaultAsync(t => t.Id == id && t.AssigneeId == userId);
+            TaskItem? task;
+            if (isOfficeWide)
+            {
+                task = await query.FirstOrDefaultAsync(t => t.Id == id);
+            }
+            else if (isDepartmentElevated)
+            {
+                var department = HttpContext.Session.GetString("UserDepartment");
+                task = await query.FirstOrDefaultAsync(t => t.Id == id &&
+                    t.Assignments.Any(a => a.User != null && a.User.Department == department));
+            }
+            else
+            {
+                task = await query.FirstOrDefaultAsync(t => t.Id == id && t.AssigneeId == userId);
+            }
 
             if (task == null)
             {

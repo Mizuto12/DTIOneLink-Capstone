@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DTIOneLink.Models;
 using DTIOneLink.Data;
 using DTIOneLink.Services;
+using DTIOneLink.Security;
 
 namespace DTIOneLink.Controllers
 {
@@ -23,10 +24,27 @@ namespace DTIOneLink.Controllers
         // GET: /Tasks/Index
         public async Task<IActionResult> Index()
         {
-            var tasks = await _context.TaskItems
+            if (!CanAccessTaskManagement())
+            {
+                return StatusCode(403);
+            }
+
+            IQueryable<TaskItem> query = _context.TaskItems
                 .Include(t => t.Assignee)
                 .Include(t => t.Assignments).ThenInclude(a => a.User)
-                .Include(t => t.Submissions)
+                .Include(t => t.Submissions);
+
+            // Office-wide (SuperAdmin, via ManageOfficeWideTasks) sees every
+            // task regardless of department. Everyone else who can reach
+            // this action (Admin/Supervisor) only sees tasks with at least
+            // one assignee in their own department.
+            if (!IsOfficeWideTaskManager())
+            {
+                var department = CurrentUserDepartment();
+                query = query.Where(t => t.Assignments.Any(a => a.User != null && a.User.Department == department));
+            }
+
+            var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
@@ -36,6 +54,11 @@ namespace DTIOneLink.Controllers
         // GET: /Tasks/Create
         public async Task<IActionResult> Create()
         {
+            if (!CanAccessTaskManagement())
+            {
+                return StatusCode(403);
+            }
+
             await PopulateEmployeesAsync();
             return View(new TaskCreateViewModel());
         }
@@ -45,6 +68,11 @@ namespace DTIOneLink.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TaskCreateViewModel model)
         {
+            if (!CanAccessTaskManagement())
+            {
+                return StatusCode(403);
+            }
+
             await ValidateAssigneeIdsAsync(model.AssigneeIds, nameof(model.AssigneeIds));
 
             if (!ModelState.IsValid)
@@ -83,7 +111,7 @@ namespace DTIOneLink.Controllers
  [HttpGet]
  public async Task<IActionResult> Edit(int id)
  {
-     if (!IsElevated())
+     if (!CanAccessTaskManagement())
      {
         return StatusCode(403);
      }
@@ -93,6 +121,15 @@ namespace DTIOneLink.Controllers
          .FirstOrDefaultAsync(t => t.Id == id);
      if (task == null)
      {
+         return NotFound();
+     }
+
+     if (!IsWithinTaskScope(task))
+     {
+         // Department-scoped Admin/Supervisor hitting a task outside their
+         // department by id — treat exactly like it doesn't exist, same as
+         // any other out-of-scope lookup, rather than leaking a 403 that
+         // confirms the task's existence.
          return NotFound();
      }
 
@@ -130,7 +167,7 @@ namespace DTIOneLink.Controllers
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> Edit(TaskEditViewModel model)
 {
-    if (!IsElevated())
+    if (!CanAccessTaskManagement())
     {
        return StatusCode(403);
     }
@@ -139,6 +176,11 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         .Include(t => t.Assignments).ThenInclude(a => a.User)
         .FirstOrDefaultAsync(t => t.Id == model.Id);
     if (task == null)
+    {
+        return NotFound();
+    }
+
+    if (!IsWithinTaskScope(task))
     {
         return NotFound();
     }
@@ -206,26 +248,70 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     return RedirectToAction(nameof(Index));
 }
 
-// Same elevation check as EmployeeController.GetAccessibleTaskAsync,
-// just enforced as a hard gate since this whole controller is Admin/
-// Supervisor territory rather than something Employees ever see scoped.
-private bool IsElevated()
+// Admin/Supervisor: the original "elevated" role check this controller has
+// always used, unchanged — still department-scoped by every method below.
+// Deliberately NOT how SuperAdmin gets in (see IsOfficeWideTaskManager) —
+// SuperAdmin is never added to this string list.
+private bool IsDepartmentTaskManager()
 {
     var role = HttpContext.Session.GetString("UserRole");
     return string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
         || string.Equals(role, "Supervisor", StringComparison.OrdinalIgnoreCase);
 }
+
+// SuperAdmin: gated by its own dedicated permission (ManageOfficeWideTasks),
+// not by role-string comparison and not by ManageRecords/ViewConfidentialRecords.
+// Grants access to every department's tasks, never just SuperAdmin's own.
+private bool IsOfficeWideTaskManager()
+{
+    var role = HttpContext.Session.GetString("UserRole");
+    return RolePermissions.Has(role, Permissions.ManageOfficeWideTasks);
+}
+
+// Combined gate for every action in this controller: department-scoped
+// Admin/Supervisor OR office-wide SuperAdmin. Which of the two decides how
+// far each action's data is then filtered/validated below.
+private bool CanAccessTaskManagement() => IsDepartmentTaskManager() || IsOfficeWideTaskManager();
+
+private string? CurrentUserDepartment() => HttpContext.Session.GetString("UserDepartment");
+
+// Office-wide task managers can act on any task. Department-scoped
+// managers can only act on a task that has at least one assignee in their
+// own department. Call with task.Assignments (+ .User) already loaded.
+private bool IsWithinTaskScope(TaskItem task)
+{
+    if (IsOfficeWideTaskManager())
+    {
+        return true;
+    }
+
+    var department = CurrentUserDepartment();
+    return task.Assignments.Any(a => a.User != null &&
+        string.Equals(a.User.Department, department, StringComparison.OrdinalIgnoreCase));
+}
+
 private async Task PopulateEmployeesAsync()
 {
-    var employees = await _context.Users
-        .Where(u => u.IsActive && u.Role == "Employee")
-        .OrderBy(u => u.FullName)
-        .ToListAsync();
+    var employeesQuery = _context.Users
+        .Where(u => u.IsActive && u.Role == "Employee");
+
+    // Office-wide task managers may assign anyone. Department-scoped
+    // managers may only pick employees from their own department — this is
+    // what actually keeps Admin/Supervisor task assignment department-scoped,
+    // not just the Index listing.
+    if (!IsOfficeWideTaskManager())
+    {
+        var department = CurrentUserDepartment();
+        employeesQuery = employeesQuery.Where(u => u.Department == department);
+    }
+
+    var employees = await employeesQuery.OrderBy(u => u.FullName).ToListAsync();
     ViewBag.Employees = new SelectList(employees, "Id", "FullName");
 }
 
-// Checks every requested id is an active Employee, and that at least one
-// was selected. Shared by Create and Edit so the rule lives in one place.
+// Checks every requested id is an active Employee (and, for department-scoped
+// managers, in their own department), and that at least one was selected.
+// Shared by Create and Edit so the rule lives in one place.
 private async Task ValidateAssigneeIdsAsync(List<int> assigneeIds, string modelKey)
 {
     if (assigneeIds == null || assigneeIds.Count == 0)
@@ -235,8 +321,16 @@ private async Task ValidateAssigneeIdsAsync(List<int> assigneeIds, string modelK
     }
 
     var distinct = assigneeIds.Distinct().ToList();
-    var validCount = await _context.Users
-        .CountAsync(u => distinct.Contains(u.Id) && u.IsActive && u.Role == "Employee");
+    var validQuery = _context.Users
+        .Where(u => distinct.Contains(u.Id) && u.IsActive && u.Role == "Employee");
+
+    if (!IsOfficeWideTaskManager())
+    {
+        var department = CurrentUserDepartment();
+        validQuery = validQuery.Where(u => u.Department == department);
+    }
+
+    var validCount = await validQuery.CountAsync();
 
     if (validCount != distinct.Count)
     {
@@ -279,7 +373,7 @@ private async Task RepopulateEditContextAsync(TaskItem task)
 [HttpGet]
 public async Task<IActionResult> Review(int id)
 {
-    if (!IsElevated())
+    if (!CanAccessTaskManagement())
     {
         return StatusCode(403);
     }
@@ -292,6 +386,15 @@ public async Task<IActionResult> Review(int id)
     if (submission == null || submission.Task == null || submission.TaskAssignment == null)
     {
         return NotFound();
+    }
+
+    if (!IsOfficeWideTaskManager())
+    {
+        var department = CurrentUserDepartment();
+        if (!string.Equals(submission.TaskAssignment.User?.Department, department, StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound();
+        }
     }
 
     // Only the currently-pending submission on an assignee whose own
@@ -311,19 +414,28 @@ public async Task<IActionResult> Review(int id)
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
 {
-    if (!IsElevated())
+    if (!CanAccessTaskManagement())
     {
         return StatusCode(403);
     }
 
     var submission = await _context.TaskSubmissions
         .Include(s => s.Task).ThenInclude(t => t!.Assignments)
-        .Include(s => s.TaskAssignment)
+        .Include(s => s.TaskAssignment).ThenInclude(a => a!.User)
         .FirstOrDefaultAsync(s => s.Id == model.SubmissionId);
 
     if (submission == null || submission.Task == null || submission.TaskAssignment == null)
     {
         return NotFound();
+    }
+
+    if (!IsOfficeWideTaskManager())
+    {
+        var department = CurrentUserDepartment();
+        if (!string.Equals(submission.TaskAssignment.User?.Department, department, StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound();
+        }
     }
 
     var task = submission.Task;
@@ -414,7 +526,7 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
 [HttpGet]
 public IActionResult SuggestPriority(DateTime dueDate)
 {
-    if (!IsElevated())
+    if (!CanAccessTaskManagement())
     {
         return StatusCode(403);
     }
