@@ -1,0 +1,14 @@
+# Build output (recreated by every build)
+bin/
+obj/
+bin-verify/
+verify-bin/
+verify-obj/
+
+# Files users upload while using the app (proofs of work)
+App_Data/ProofUploads/
+
+# Editor / tool leftovers
+.vs/
+*.user
+cookies.txt
