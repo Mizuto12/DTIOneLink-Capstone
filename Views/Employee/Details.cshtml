@@ -44,6 +44,32 @@
         return char.ToUpperInvariant(p[0]) + p.Substring(1) + " Priority";
     }
 
+        // Null for tasks created before CreatedByUserId existed — shown as
+    // "Unknown" rather than guessed at.
+    var creatorName = task.CreatedBy?.FullName;
+    var creatorLabel = string.IsNullOrWhiteSpace(creatorName)
+        ? "Unknown"
+        : creatorName;
+
+    // The signed-in user's own assignment on this task (null if they aren't
+    // an assignee). The progress slider edits only this row, and only while
+    // it is To Do / In Progress — the same rules EmployeeController.UpdateProgress
+    // enforces on the server.
+    var viewerId = Context.Session.GetInt32("UserId");
+    var myAssignment = viewerId.HasValue
+        ? task.Assignments?.FirstOrDefault(a => a.UserId == viewerId.Value)
+        : null;
+    var myAssignmentStatus = (myAssignment?.Status ?? "").Trim().ToLowerInvariant();
+    var canEditProgress = myAssignment != null
+        && (myAssignmentStatus == "pending" || myAssignmentStatus == "in-progress");
+    var sliderProgress = canEditProgress ? myAssignment!.Progress : task.Progress;
+
+    // Assignees may permanently delete a task once it is fully Completed.
+    // EmployeeController.Delete re-checks all of this on the server.
+    var canDeleteTask = myAssignment != null
+        && status == "completed"
+        && task.TaskLevel != DTIOneLink.Services.TaskLevels.Main;
+
     string GetInitials(string? fullName)
     {
         if (string.IsNullOrWhiteSpace(fullName)) return "NA";
@@ -88,6 +114,14 @@
         <span class="td-breadcrumb-current">@taskCode</span>
     </nav>
 
+    @if (TempData["ErrorMessage"] is string detailsError)
+    {
+        <div class="td-alert error" role="alert">
+            <span class="material-symbols-outlined">error</span>
+            <span>@detailsError</span>
+        </div>
+    }
+
     <div class="td-grid">
         <!-- Left column: Task Details card + Comments card, stacked -->
         <div class="td-main-column">
@@ -102,8 +136,8 @@
                     </div>
                     <h2 class="td-title">@task.TaskName</h2>
                     <div class="td-badges">
-                        <span class="td-badge @statusClass">
-                            <span class="td-badge-dot"></span> @statusLabel
+                        <span class="td-badge @statusClass" id="tdStatusBadge">
+                            <span class="td-badge-dot"></span> <span id="tdStatusBadgeText">@statusLabel</span>
                         </span>
                         <span class="td-badge priority-@PriorityClass(task.Priority)">
                             <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
@@ -120,24 +154,53 @@
                         <p>@task.CreatedAt.ToString("MMM d, yyyy")</p>
                     </div>
                     <div>
+                        <h3>Created By</h3>
+                        <p>@creatorLabel</p>
+                    </div>
+                    <div>
                         <h3>Due Date</h3>
                         <p>@task.DueDate.ToString("MMM d, yyyy")</p>
                     </div>
                     <div>
                         <h3>Progress</h3>
-                        <p>@task.Progress%</p>
+                        <p id="tdMetaProgress">@task.Progress%</p>
                     </div>
                     <div>
                         <h3>Status</h3>
-                        <p>@statusLabel</p>
+                        <p id="tdMetaStatus">@statusLabel</p>
                     </div>
                 </section>
 
                 <section class="td-progress-section">
-                    <h3>Progress</h3>
-                    <div class="td-progress-track">
-                        <div class="td-progress-fill" style="width: @(task.Progress)%"></div>
-                    </div>
+                    @if (canEditProgress)
+                    {
+                        @* Assignee's own progress: drag (or use arrow keys) and it
+                           saves automatically when released. *@
+                        <div class="td-progress-head">
+                            <h3 id="tdProgressLabel">Progress</h3>
+                            <span class="td-progress-value" id="tdProgressValue">@(sliderProgress)%</span>
+                        </div>
+                        <input type="range"
+                               class="td-progress-range"
+                               id="tdProgressRange"
+                               min="0" max="100" step="1"
+                               value="@sliderProgress"
+                               style="--pct: @(sliderProgress)%"
+                               data-task-id="@task.Id"
+                               data-overdue="@(isOverdue ? "true" : "false")"
+                               aria-labelledby="tdProgressLabel"
+                               aria-valuetext="@(sliderProgress) percent" />
+                        <p class="td-progress-hint" id="tdProgressHint" aria-live="polite">
+                            Drag the slider to update your progress. It saves automatically.
+                        </p>
+                    }
+                    else
+                    {
+                        <h3>Progress</h3>
+                        <div class="td-progress-track">
+                            <div class="td-progress-fill" style="width: @(task.Progress)%"></div>
+                        </div>
+                    }
                 </section>
 
                 <section class="td-description">
@@ -164,10 +227,6 @@
                     {
                         @if (status == "pending" || status == "in-progress")
                         {
-                            <a asp-controller="Employee" asp-action="Update" asp-route-id="@task.Id" class="btn btn-primary">
-                                <span class="material-symbols-outlined">edit</span>
-                                Update Progress
-                            </a>
                             <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
                                 <span class="material-symbols-outlined">upload</span>
                                 Submit Proof
@@ -180,6 +239,18 @@
                                 Resubmit
                             </a>
                         }
+                    }
+                    @if (canDeleteTask)
+                    {
+                        <form asp-controller="Employee" asp-action="Delete" method="post" class="td-delete-form" id="tdDeleteForm"
+                              data-task-name="@task.TaskName">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@task.Id" />
+                            <button type="submit" class="btn btn-danger">
+                                <span class="material-symbols-outlined">delete</span>
+                                Delete Task
+                            </button>
+                        </form>
                     }
                 </div>
             </div>
@@ -259,46 +330,63 @@
                     <dt>Created</dt>
                     <dd>@task.CreatedAt.ToString("MMM d, yyyy")</dd>
                 </div>
+                 <div>
+                    <dt>Created by</dt>
+                    <dd>@creatorLabel</dd>
+                </div>
             </dl>
 
-            @{
+                       @{
                 var activities = task.Activities?.OrderByDescending(a => a.OccurredAt).ToList() ?? new();
             }
-            @if (activities.Any())
-            {
-                <div class="td-activity">
-                    <h3 class="td-sidebar-subtitle">Activity History</h3>
-                    <ul class="td-timeline">
-                        @foreach (var activity in activities)
+            <div class="td-activity">
+                <h3 class="td-sidebar-subtitle">Activity History</h3>
+                <ul class="td-timeline">
+                    @* Synthetic first entry, rendered from TaskItem itself
+                       rather than TaskActivity — task creation predates the
+                       activity log, so there's no logged row for it. Always
+                       shown, since a task always has a creation event. *@
+                    <li class="td-timeline-item">
+                        <span class="td-timeline-dot default"></span>
+                        <div class="td-timeline-content">
+                            <div class="td-timeline-header">
+                                <span class="td-activity-user">@creatorLabel</span>
+                                <span class="td-activity-date">
+                                    @DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(task.CreatedAt).ToString("MMM d, yyyy, h:mm tt")
+                                </span>
+                            </div>
+                            <p class="td-activity-details">Created this task.</p>
+                        </div>
+                    </li>
+                    @foreach (var activity in activities)
+                    {
+                        var localTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(activity.OccurredAt);
+                        var dotClass = activity.ActivityType switch
                         {
-                            var localTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(activity.OccurredAt);
-                            var dotClass = activity.ActivityType switch
-                            {
-                                "validated" => activity.Details.StartsWith("Submission approved") ? "approved" : "returned",
-                                "proof-submitted" => "submitted",
-                                "status-changed" => "status",
-                                _ => "default"
-                            };
-                            <li class="td-timeline-item">
-                                <span class="td-timeline-dot @dotClass"></span>
-                                <div class="td-timeline-content">
-                                    <div class="td-timeline-header">
-                                        <span class="td-activity-user">@(activity.PerformedBy?.FullName ?? "Unknown")</span>
-                                        <span class="td-activity-date">@localTime.ToString("MMM d, yyyy, h:mm tt")</span>
-                                    </div>
-                                    <p class="td-activity-details">@activity.Details</p>
-                                    @if (activity.RelatedSubmission != null)
-                                    {
-                                        <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@activity.RelatedSubmission.Id" class="td-timeline-download">
-                                            @activity.RelatedSubmission.ProofFileName
-                                        </a>
-                                    }
+                            "validated" => activity.Details.StartsWith("Submission approved") ? "approved" : "returned",
+                            "proof-submitted" => "submitted",
+                            "status-changed" => "status",
+                            _ => "default"
+                        };
+                        <li class="td-timeline-item">
+                            <span class="td-timeline-dot @dotClass"></span>
+                            <div class="td-timeline-content">
+                                <div class="td-timeline-header">
+                                    <span class="td-activity-user">@(activity.PerformedBy?.FullName ?? "Unknown")</span>
+                                    <span class="td-activity-date">@localTime.ToString("MMM d, yyyy, h:mm tt")</span>
                                 </div>
-                            </li>
-                        }
-                    </ul>
-                </div>
-            }
+                                <p class="td-activity-details">@activity.Details</p>
+                                @if (activity.RelatedSubmission != null)
+                                {
+                                    <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@activity.RelatedSubmission.Id" class="td-timeline-download">
+                                        @activity.RelatedSubmission.ProofFileName
+                                    </a>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
         </aside>
         <!-- /Sidebar -->
 

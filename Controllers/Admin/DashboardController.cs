@@ -26,14 +26,45 @@ namespace DTIOneLink.Controllers
             }
 
             var userRole = HttpContext.Session.GetString("UserRole");
-            var isElevated = userRole == "Admin" || userRole == "Supervisor";
+            var isDepartmentElevated = userRole == "Admin" || userRole == "Supervisor";
 
-            IQueryable<TaskItem> query = _context.TaskItems.Include(t => t.Assignee);
+            // Office-wide (SuperAdmin) is its own permission check, same as
+            // TasksController/DashboardController.Details — never granted by
+            // the Admin/Supervisor role-string check above.
+            var isOfficeWide = RolePermissions.Has(userRole, Permissions.ManageOfficeWideTasks);
 
-            if (!isElevated)
+            IQueryable<TaskItem> query = _context.TaskItems
+                .Include(t => t.Assignee)
+                .Include(t => t.ParentTask)
+                .Include(t => t.Assignments).ThenInclude(a => a.User);
+
+            if (isDepartmentElevated && !isOfficeWide)
             {
-                query = query.Where(t => t.AssigneeId == userId.Value);
+                // Same effective-department priority used throughout the app:
+                // this task's own OwningDepartment first; if null, inherit the
+                // parent Main Task's OwningDepartment; only if BOTH are null
+                // (a legacy pre-OwningDepartment task) fall back to any
+                // assignee's own Department. This is what this action was
+                // previously missing entirely — every Admin/Supervisor saw
+                // every department's tasks here regardless of their own
+                // Department.
+                var department = HttpContext.Session.GetString("UserDepartment");
+                query = query.Where(t =>
+                    (t.OwningDepartment != null && t.OwningDepartment == department) ||
+                    (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
+                    (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
+                        t.Assignments.Any(a => a.User != null && a.User.Department == department)));
             }
+            else if (!isOfficeWide)
+            {
+                // Employee: only tasks they hold a TaskAssignment row on.
+                // (Kept as t.Assignments rather than the legacy AssigneeId
+                // column, matching the multi-assignee model used elsewhere —
+                // AssigneeId only ever reflects the primary assignee.)
+                query = query.Where(t => t.Assignments.Any(a => a.UserId == userId.Value));
+            }
+            // isOfficeWide: no filter — SuperAdmin sees every department.
+
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
@@ -118,12 +149,21 @@ namespace DTIOneLink.Controllers
             var isOfficeWide = RolePermissions.Has(userRole, Permissions.ManageOfficeWideTasks);
 
             IQueryable<TaskItem> query = _context.TaskItems
+                // The detail page is read-only, so avoid change-tracker work.
+                .AsNoTracking()
                 .Include(t => t.Assignee)
-                .Include(t => t.Assignments).ThenInclude(a => a.User)
-                .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
+                .Include(t => t.CreatedBy)
                 .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
                 .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
-                .Include(t => t.Comments).ThenInclude(c => c.Author);
+                .Include(t => t.Comments).ThenInclude(c => c.Author)
+                // Needed by the Details view to find the viewer's own
+                // assignment for the progress slider.
+                .Include(t => t.Assignments)
+                // Activities and Comments are independent collections. Split
+                // them to prevent a JOIN from multiplying their rows.
+                .AsSplitQuery();
+
+            query = query.Include(t => t.ParentTask);
 
             TaskItem? task;
             if (isOfficeWide)
@@ -132,13 +172,21 @@ namespace DTIOneLink.Controllers
             }
             else if (isDepartmentElevated)
             {
+                // Same effective-department priority as AdminDashboard/
+                // TasksController — previously this only checked the legacy
+                // assignee-department fallback, so it could wrongly 404 an
+                // in-department subtask with an out-of-department assignee
+                // (edge case), and had no OwningDepartment check at all.
                 var department = HttpContext.Session.GetString("UserDepartment");
                 task = await query.FirstOrDefaultAsync(t => t.Id == id &&
-                    t.Assignments.Any(a => a.User != null && a.User.Department == department));
+                    ((t.OwningDepartment != null && t.OwningDepartment == department) ||
+                     (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
+                     (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
+                        t.Assignments.Any(a => a.User != null && a.User.Department == department))));
             }
             else
             {
-                task = await query.FirstOrDefaultAsync(t => t.Id == id && t.AssigneeId == userId);
+                task = await query.FirstOrDefaultAsync(t => t.Id == id && t.Assignments.Any(a => a.UserId == userId));
             }
 
             if (task == null)

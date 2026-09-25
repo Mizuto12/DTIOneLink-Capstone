@@ -1,0 +1,119 @@
+/* ==========================================================================
+   Main Task Details (OPD directive rollup view)
+   Scoped under .mtd. Reuses .glass-card / .task-table / .progress-* /
+   .status-badge classes already defined in tasks-index.css — this file
+   only styles the parts unique to this page.
+   ========================================================================== */
+.mtd {
+    --mtd-primary: #001e65;
+    --mtd-secondary: #5c5f61;
+    --mtd-surface: #ffffff;
+    --mtd-surface-low: #eff4ff;
+    --mtd-outline-variant: #c5c5d2;
+    --mtd-on-surface: #0b1c30;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: 'Hanken Grotesk', sans-serif;
+    color: var(--mtd-on-surface);
+}
+
+.mtd *, .mtd *::before, .mtd *::after { box-sizing: border-box; }
+
+.mtd-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--mtd-secondary);
+    margin-bottom: 16px;
+}
+
+.mtd-breadcrumb a {
+    color: var(--mtd-secondary);
+    text-decoration: none;
+}
+.mtd-breadcrumb a:hover { color: var(--mtd-primary); }
+
+.mtd-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.mtd-eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--mtd-primary);
+    margin-bottom: 4px;
+}
+
+.mtd-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--mtd-on-surface);
+}
+
+.mtd-desc {
+    font-size: 14px;
+    color: var(--mtd-secondary);
+    max-width: 640px;
+    margin: 0;
+}
+
+.mtd-header-actions { flex-shrink: 0; }
+
+.mtd-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.mtd-summary-card {
+    background: var(--mtd-surface);
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mtd-summary-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--mtd-secondary);
+}
+
+.mtd-note {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--mtd-secondary);
+    background: var(--mtd-surface-low);
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0 0 24px;
+}
+/* "Stop repeating" (OPD only) inside the Repeats card */
+.mtd-stop-repeat {
+    margin-top: 8px;
+    padding: 6px 12px;
+    border: 1px solid #ba1a1a;
+    border-radius: 9999px;
+    background: #ffffff;
+    color: #ba1a1a;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.mtd-stop-repeat:hover { background: #ffdad6; }

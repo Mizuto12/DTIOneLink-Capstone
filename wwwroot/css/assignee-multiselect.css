@@ -188,3 +188,11 @@
     font-size: 13px;
     color: var(--as-outline);
 }
+
+/* Applied by parent-task-department-filter.js when a Parent Main Task is
+   selected on Create — hides assignees outside that task's department.
+   Kept separate from the [hidden] attribute the search box uses, so the
+   two filters don't fight over the same DOM property. */
+.assignee-select-option.department-filtered-out {
+    display: none !important;
+}

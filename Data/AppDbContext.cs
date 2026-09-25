@@ -65,6 +65,44 @@ modelBuilder.Entity<Notification>()
 
 modelBuilder.Entity<Notification>()
     .HasIndex(n => new { n.RecipientUserId, n.IsRead });
+        // TaskItem already has a cascading FK to Users via AssigneeId — a second
+    // path to the same table would hit the familiar "multiple cascade paths"
+    // error. Restrict here; the creator record outlives nothing.
+    modelBuilder.Entity<TaskItem>()
+        .HasOne(t => t.CreatedBy)
+        .WithMany()
+        .HasForeignKey(t => t.CreatedByUserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // Self-referencing FK (main task <-> subtasks). SQL Server rejects
+    // cascade here outright — a row can't cascade-delete into itself — so
+    // Restrict is required, not just conventional: deleting a main task
+    // with subtasks must fail (or be handled explicitly in code) rather
+    // than silently deleting or orphaning its children.
+    modelBuilder.Entity<TaskItem>()
+        .HasOne(t => t.ParentTask)
+        .WithMany(t => t.Subtasks)
+        .HasForeignKey(t => t.ParentTaskId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // AssigneeId is now nullable (a Main Task has no individual assignee).
+    // Configured explicitly, switching from the previous Cascade to
+    // Restrict — deleting a User should no longer silently delete every
+    // task ever assigned to them; Cascade only existed because AssigneeId
+    // used to be a required, non-nullable FK.
+    modelBuilder.Entity<TaskItem>()
+        .HasOne(t => t.Assignee)
+        .WithMany()
+        .HasForeignKey(t => t.AssigneeId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // Third FK from TaskItem to Users (after Assignee, CreatedBy) — same
+    // multiple-cascade-paths constraint as those two, so Restrict here too.
+    modelBuilder.Entity<TaskItem>()
+        .HasOne(t => t.ResponsibleAdmin)
+        .WithMany()
+        .HasForeignKey(t => t.ResponsibleAdminUserId)
+        .OnDelete(DeleteBehavior.Restrict);
 
     // ── Multi-employee task assignment ───────────────────────────
     // TaskAssignment.TaskId keeps its default cascade from TaskItem (that's

@@ -50,5 +50,7 @@ public TaskSubmission? RelatedSubmission { get; set; }
         public const string ProofSubmitted = "proof-submitted";
         public const string Validated = "validated";
         public const string Commented = "commented";
+        public const string Assigned = "assigned";
+        public const string Removed = "removed";
     }
 }

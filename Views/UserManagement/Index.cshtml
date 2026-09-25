@@ -1,8 +1,39 @@
 @using DTIOneLink.Helpers
 @model IEnumerable<DTIOneLink.Models.UserItem>
 @{
-    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "User Management";
+    // Only the OPD can change someone's role or division (checked again in the controller).
+    var canChangeStanding = Context.Session.GetString("UserRole") == "SuperAdmin";
+    var currentUserId = Context.Session.GetInt32("UserId");
+
+    // Values typed before a failed save, so the form doesn't come back empty.
+    var formEmail = TempData["FormEmail"] as string;
+    var formFullName = TempData["FormFullName"] as string;
+    var formDepartment = TempData["FormDepartment"] as string;
+    var formRole = TempData["FormRole"] as string;
+    var emailError = TempData["EmailError"] as string;
+    var nameError = TempData["NameError"] as string;
+    var highlightUserId = TempData["HighlightUserId"] as int?;
+    var openTasks = ViewData["OpenTasks"] as Dictionary<int, int> ?? new();
+
+    // Short names used on the division buttons.
+    var divisionShort = new Dictionary<string, string>
+    {
+        ["Business Development Division"] = "BDD",
+        ["Consumer Protection Division"] = "CPD",
+        ["Financial and Administrative Unit"] = "FAU",
+    };
+
+    // Plain-language meaning of each role, shown on the role choices.
+    var roleHelp = new Dictionary<string, (string Title, string Help)>
+    {
+        ["Employee"] = ("Employee", "Works on the tasks given to them."),
+        ["Admin"] = ("Admin (Division Chief)", "Assigns tasks to the employees of their division."),
+        ["SuperAdmin"] = ("Super Admin (OPD)", "Gives tasks to all divisions and manages accounts."),
+    };
 }
 
 @section Styles {
@@ -11,6 +42,12 @@
 
 <!-- ── Page Header ─────────────────────────────────────── -->
 <div class="um-page-header">
+    <div>
+        <h2 class="um-heading">User Management</h2>
+        <p class="um-page-sub">
+            Add staff accounts@(canChangeStanding ? " and change a person's role or division" : "").
+        </p>
+    </div>
 </div>
 
 <!-- ── Two-pane layout ────────────────────────────────── -->
@@ -22,7 +59,7 @@
             <div class="um-section-icon">
                 <span class="material-symbols-outlined">person_add</span>
             </div>
-            <h3 class="um-section-title">Add Microsoft Account</h3>
+            <h3 class="um-section-title">Add a New Account</h3>
         </div>
 
         <form id="addUserForm" asp-controller="UserManagement" asp-action="Create" method="post">
@@ -39,55 +76,60 @@
 
             <!-- Official Outlook -->
             <div class="um-field-group">
-                <label class="um-label">Official Outlook</label>
+                <label class="um-label" for="newUserEmail">Official Outlook Email</label>
                 <div class="um-input-wrap">
                     <span class="material-symbols-outlined um-input-icon">mail</span>
-                    <input class="um-input" name="Email" type="email"
-                           placeholder="official.user@outlook.com" required />
+                    <input class="um-input@(emailError != null ? " um-input-invalid" : "")" name="Email" type="email" id="newUserEmail"
+                           value="@formEmail" placeholder="official.user@outlook.com" required />
                 </div>
+                <p class="um-field-error" id="newUserEmailError" hidden="@(emailError == null)">@emailError</p>
             </div>
 
             <!-- Full Name -->
             <div class="um-field-group">
-                <label class="um-label">Full Name</label>
+                <label class="um-label" for="newUserFullName">Full Name</label>
                 <div class="um-input-wrap">
                     <span class="material-symbols-outlined um-input-icon">badge</span>
-                    <input class="um-input" name="FullName" type="text"
-                           placeholder="Juan Dela Cruz" required />
+                    <input class="um-input@(nameError != null ? " um-input-invalid" : "")" name="FullName" type="text" id="newUserFullName"
+                           value="@formFullName" placeholder="Juan Dela Cruz" required />
                 </div>
-            </div>
-
-            <!-- Department -->
-            <div class="um-field-group">
-                <label class="um-label">Division</label>
-                <select class="um-select" name="Department">
-                    <option value="">Select Division</option>
-                    <option value="Office of the Provincial Director">Office of the Provincial Director</option>
-                    <option value="Business Development Division">Business Development Division</option>
-                    <option value="Consumer Protection Division">Consumer Protection Division</option>
-                    <option value="Financial and Administrative Unit">Financial and Administrative Unit</option>
-                </select>
+                <p class="um-field-error" id="newUserFullNameError" hidden="@(nameError == null)">@nameError</p>
             </div>
 
             <!-- Role -->
             <div class="um-field-group">
-                <label class="um-label">Role</label>
-                <select class="um-select" name="Role">
+                <label class="um-label" for="newUserRole">Role</label>
+                <select class="um-select um-role-select" name="Role" id="newUserRole" data-help="newUserRoleHelp" required>
                     <option value="">Select Role</option>
-                    <option value="SuperAdmin">Super Admin</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Employee">Employee</option>
+                    @foreach (var role in roleHelp.Keys)
+                    {
+                        <option value="@role" data-help="@roleHelp[role].Help" selected="@(role == formRole)">@roleHelp[role].Title</option>
+                    }
+                </select>
+                <p class="um-role-help" id="newUserRoleHelp"></p>
+            </div>
+
+            <!-- Division -->
+            <div class="um-field-group">
+                <label class="um-label" for="newUserDepartment">Division</label>
+                <select class="um-select" name="Department" id="newUserDepartment" required>
+                    <option value="">Select Division</option>
+                    @foreach (var division in DTIOneLink.Controllers.UserManagementController.Divisions)
+                    {
+                        <option value="@division" selected="@(division == formDepartment)">@division</option>
+                    }
                 </select>
             </div>
+
+            <p class="um-default-password-note">
+                <span class="material-symbols-outlined">key</span>
+                <span>They will sign in with this email and the default password <strong>dtionelink2026</strong>.</span>
+            </p>
 
             <button class="um-btn-save" type="submit" id="saveBtn">
                 SAVE ACCOUNT
                 <span class="material-symbols-outlined">check_circle</span>
             </button>
-
-            <p class="um-default-password-note">
-                New accounts use the default password: <strong>dtionelink2026</strong>
-            </p>
         </form>
     </section>
 
@@ -96,7 +138,7 @@
         <div class="um-table-header">
             <div class="um-table-title-row">
                 <span class="material-symbols-outlined">groups</span>
-                <h3 class="um-section-title">Administrative Directory</h3>
+                <h3 class="um-section-title">All Accounts</h3>
             </div>
             <div class="um-total-badge">
                 <span class="um-total-label">Total:</span>
@@ -104,11 +146,30 @@
             </div>
         </div>
 
+        @if (TempData["DirectoryMessage"] is string directoryMessage)
+        {
+            <p class="um-form-success um-directory-banner">
+                <span class="material-symbols-outlined">check_circle</span>
+                <span>@directoryMessage</span>
+            </p>
+        }
+        @if (TempData["DirectoryError"] is string directoryError)
+        {
+            <p class="um-form-error um-directory-banner">
+                <span class="material-symbols-outlined">error</span>
+                <span>@directoryError</span>
+            </p>
+        }
+
         <!-- Search bar -->
         <div class="um-search-bar">
             <span class="material-symbols-outlined um-search-icon">search</span>
-            <input type="text" class="um-search-input" id="userSearchInput"
-                   placeholder="Search by name or email..." />
+            <input type="search" class="um-search-input" id="userSearchInput"
+                   placeholder="Search by name, email, division or role"
+                   aria-label="Search accounts" />
+            <button type="button" class="um-search-clear" id="userSearchClear" hidden aria-label="Clear search">
+                <span class="material-symbols-outlined">close</span>
+            </button>
         </div>
 
         <div class="um-table-scroll">
@@ -120,6 +181,10 @@
                         <th>Division</th>
                         <th>Role</th>
                         <th>Status</th>
+                        @if (canChangeStanding)
+                        {
+                            <th>Action</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
@@ -128,7 +193,11 @@
                         foreach (var user in Model)
                         {var initials = DisplayHelpers.GetInitials(user.FullName, user.Username);
                             var isActive = string.Equals(user.Status, "active", StringComparison.OrdinalIgnoreCase);
-                            <tr class="um-row@(isActive ? "" : " um-row-disabled")">
+                            <tr class="um-row@(isActive ? "" : " um-row-disabled")@(user.Id == highlightUserId ? " um-row-highlight" : "")"
+                                data-user-id="@user.Id"
+                                data-name="@user.FullName" data-email="@user.Email"
+                                data-role="@user.Role" data-department="@user.Department" data-active="@(isActive ? "1" : "0")"
+                                data-search="@($"{user.FullName} {user.Email} {user.Department} {DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)}".ToLowerInvariant())">
                                 <td>
                                     <div class="um-name-cell">
                                         <div class="um-avatar um-av-blue">@initials</div>
@@ -137,24 +206,55 @@
                                 </td>
                                 <td class="um-td-muted">@user.Email</td>
                                 <td><span class="um-division-badge">@user.Department</span></td>
-                                <td class="um-td-role">@user.Role</td>
+                                <td class="um-td-role">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</td>
                                 <td>
                                     <div class="um-status-badge @(isActive ? "um-status-active" : "um-status-disabled")">
                                         <span class="um-status-dot@(isActive ? " um-dot-pulse" : "")"></span>
                                         <span>@(isActive ? "Active" : "Disabled")</span>
                                     </div>
                                 </td>
+                                @if (canChangeStanding)
+                                {
+                                    <td>
+                                        @if (user.Id != currentUserId)
+                                        {
+                                            <button type="button" class="um-btn-change"
+                                                    data-user-id="@user.Id"
+                                                    data-user-name="@user.FullName"
+                                                    data-user-role="@user.Role"
+                                                    data-user-department="@user.Department"
+                                                    data-open-tasks="@(openTasks.TryGetValue(user.Id, out var open) ? open : 0)"
+                                                    aria-label="Change role or division of @user.FullName">
+                                                <span class="material-symbols-outlined">manage_accounts</span>
+                                                Change Role
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="um-td-muted">You</span>
+                                        }
+                                    </td>
+                                }
                             </tr>
                         }
+                    <tr id="userNoMatch" hidden>
+                        <td colspan="@(canChangeStanding ? 6 : 5)" class="um-empty-row">
+                            <div class="um-empty-state">
+                                <span class="material-symbols-outlined um-empty-icon">search_off</span>
+                                <p class="um-empty-text">No accounts match your search</p>
+                                <p class="um-empty-sub">Check the spelling, or clear the search to see everyone.</p>
+                            </div>
+                        </td>
+                    </tr>
                     }
                     else
                     {
                         <tr>
-                            <td colspan="5" class="um-empty-row">
+                            <td colspan="@(canChangeStanding ? 6 : 5)" class="um-empty-row">
                                 <div class="um-empty-state">
                                     <span class="material-symbols-outlined um-empty-icon">person_off</span>
                                     <p class="um-empty-text">No users found</p>
-                                    <p class="um-empty-sub">Add a Microsoft account to get started.</p>
+                                    <p class="um-empty-sub">Use "Add a New Account" to get started.</p>
                                 </div>
                             </td>
                         </tr>
@@ -165,20 +265,81 @@
 
         <!-- Pagination -->
         <div class="um-pagination-bar">
-            <span class="um-pagination-info" id="paginationInfo">Showing @(Math.Min(Model?.Count() ?? 0, 5)) of @(Model?.Count() ?? 0) entries</span>
-            <div class="um-pagination-btns" id="paginationBtns">
-                <button class="um-page-nav" disabled>
-                    <span class="material-symbols-outlined">chevron_left</span>
-                </button>
-                <button class="um-page-btn um-page-active">1</button>
-                <button class="um-page-nav">
-                    <span class="material-symbols-outlined">chevron_right</span>
-                </button>
-            </div>
+            <span class="um-pagination-info" id="paginationInfo" aria-live="polite"></span>
+            <div class="um-pagination-btns" id="paginationBtns"></div>
         </div>
     </section>
 
 </div>
+
+@if (canChangeStanding)
+{
+    <!-- Change role / division (OPD only) -->
+    <dialog id="changeStandingDialog" class="um-dialog" aria-labelledby="csTitle">
+        <form asp-controller="UserManagement" asp-action="ChangeStanding" method="post" id="csForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="csUserId" />
+            <!-- Filled in from the division buttons (or OPD for a Super Admin). -->
+            <input type="hidden" name="department" id="csDepartment" />
+
+            <div class="um-dialog-head">
+                <h3 class="um-section-title" id="csTitle">Change Role or Division</h3>
+                <button type="button" class="um-dialog-close" id="csClose" aria-label="Close">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="um-dialog-person">
+                <div class="um-avatar um-av-blue" id="csInitials"></div>
+                <div>
+                    <p class="um-dialog-name" id="csUserName"></p>
+                    <p class="um-dialog-current">Currently: <strong id="csCurrent"></strong></p>
+                </div>
+            </div>
+
+            <div class="um-field-group">
+                <label class="um-label" for="csRole">Step 1 · Role</label>
+                <select class="um-select um-role-select" name="role" id="csRole" data-help="csRoleHelp" required>
+                    @foreach (var role in roleHelp.Keys)
+                    {
+                        <option value="@role" data-help="@roleHelp[role].Help">@roleHelp[role].Title</option>
+                    }
+                </select>
+                <p class="um-role-help" id="csRoleHelp"></p>
+            </div>
+
+            <div class="um-field-group">
+                <label class="um-label" for="csDivision">Step 2 · Division</label>
+                <select class="um-select" id="csDivision" required>
+                    @foreach (var division in DTIOneLink.Controllers.UserManagementController.Divisions)
+                    {
+                        <option value="@division">@division</option>
+                    }
+                </select>
+            </div>
+            <p class="um-dialog-opd-note" id="csOpdNote" hidden>
+                <span class="material-symbols-outlined">info</span>
+                <span>A Super Admin is always in the <strong>Office of the Provincial Director</strong>.</span>
+            </p>
+
+            <!-- Before -> After, and anything worth knowing before saving -->
+            <div class="um-dialog-preview" id="csPreview" hidden>
+                <div class="um-preview-row">
+                    <span class="um-preview-box" id="csBefore"></span>
+                    <span class="material-symbols-outlined um-preview-arrow">arrow_forward</span>
+                    <span class="um-preview-box um-preview-after" id="csAfter"></span>
+                </div>
+                <ul class="um-dialog-warnings" id="csWarnings"></ul>
+            </div>
+            <p class="um-dialog-hint" id="csHint">Choose a new role or division above.</p>
+
+            <div class="um-dialog-actions">
+                <button type="button" class="um-btn-cancel" id="csCancel">Cancel</button>
+                <button type="submit" class="um-btn-save" id="csSave" disabled>Save changes</button>
+            </div>
+        </form>
+    </dialog>
+}
 
 @section Scripts {
     <script src="~/js/user-management.js" asp-append-version="true"></script>

@@ -1,11 +1,24 @@
-@model IEnumerable<DTIOneLink.Models.TaskItem>
+@model DTIOneLink.Models.TaskIndexViewModel
 @{
     Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
         ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
         : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Task Management";
-}
 
+    // Workflow indicator tiles, in the order work moves through the system.
+    var workflowTiles = new[]
+    {
+        (Key: "pending", Label: "To Do", Icon: "radio_button_unchecked", Css: "tile-todo"),
+        (Key: "in-progress", Label: "In Progress", Icon: "autorenew", Css: "tile-progress"),
+        (Key: "for-review", Label: "For Review", Icon: "fact_check", Css: "tile-review"),
+        (Key: "returned-for-correction", Label: "Returned", Icon: "undo", Css: "tile-returned"),
+        (Key: "overdue", Label: "Overdue", Icon: "warning", Css: "tile-overdue"),
+        (Key: "completed", Label: "Completed", Icon: "check_circle", Css: "tile-completed"),
+    };
+
+    var firstShown = Model.TotalCount == 0 ? 0 : (Model.Page - 1) * DTIOneLink.Models.TaskIndexViewModel.PageSize + 1;
+    var lastShown = Math.Min(Model.Page * DTIOneLink.Models.TaskIndexViewModel.PageSize, Model.TotalCount);
+}
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
 }
@@ -27,38 +40,124 @@
     <div class="page-header-text">
     </div>
     <div class="page-actions">
-        <a asp-controller="Tasks" asp-action="Create" class="btn-primary-pill">
-            <span class="material-symbols-outlined">add</span>
-            CREATE TASK
-        </a>
-        <button class="btn-outline-pill">
-            <span class="material-symbols-outlined">filter_list</span>
-            FILTER
-        </button>
+        @* Only the OPD creates tasks; Admins assign employees via Edit. *@
+        @if (Model.IsOfficeWide)
+        {
+            <a asp-controller="Tasks" asp-action="Create" class="btn-primary-pill">
+                <span class="material-symbols-outlined">add</span>
+                CREATE TASK
+            </a>
+        }
     </div>
 </div>
+
+<!-- ── Workflow indicators: click a tile to show only that status ── -->
+<nav class="workflow-tiles" aria-label="Filter by workflow status">
+    <a class="workflow-tile tile-all @(Model.Status == "all" ? "is-active" : "")"
+       asp-action="Index" asp-all-route-data='Model.RouteValues(status: "all")'
+       aria-current="@(Model.Status == "all" ? "true" : null)">
+        <span class="material-symbols-outlined">list</span>
+        <span class="tile-count">@Model.StatusCounts.GetValueOrDefault("all")</span>
+        <span class="tile-label">All Tasks</span>
+    </a>
+    @foreach (var tile in workflowTiles)
+    {
+        var active = Model.Status == tile.Key;
+        <a class="workflow-tile @tile.Css @(active ? "is-active" : "")"
+           asp-action="Index" asp-all-route-data="Model.RouteValues(status: tile.Key)"
+           aria-current="@(active ? "true" : null)">
+            <span class="material-symbols-outlined">@tile.Icon</span>
+            <span class="tile-count">@Model.StatusCounts.GetValueOrDefault(tile.Key)</span>
+            <span class="tile-label">@tile.Label</span>
+        </a>
+    }
+</nav>
 
 <!-- ── Task List Card ──────────────────────────────────── -->
 <div class="glass-card">
 
-    <!-- Toolbar -->
-    <div class="card-toolbar">
-        <div class="search-wrap">
-            <span class="material-symbols-outlined search-icon">search</span>
-            <input type="text" class="search-input"
-                   placeholder="Search tasks, assignees, or employee names..." />
-        </div>
-        <div class="toolbar-filters">
-            <div class="filter-chip">
-                <span>Status: All</span>
-                <span class="material-symbols-outlined chip-icon">expand_more</span>
+    <!-- Toolbar: plain GET form, so filters survive refresh and can be bookmarked.
+         Dropdowns apply as soon as they change; search applies on Enter. -->
+    <form method="get" asp-action="Index" class="task-filter-form" id="taskFilterForm" role="search">
+        <div class="card-toolbar">
+            <div class="search-wrap">
+                <span class="material-symbols-outlined search-icon">search</span>
+                <input type="search" name="q" value="@Model.Search" maxlength="100" class="search-input"
+                       placeholder="Search tasks, assignees, or employee names..." aria-label="Search tasks" />
             </div>
-            <div class="filter-chip">
-                <span>Sort: Newest</span>
-                <span class="material-symbols-outlined chip-icon">sort</span>
+            <div class="toolbar-filters">
+                <label class="filter-select">
+                    <span class="filter-select-label">Sort</span>
+                    <select name="sort" data-autosubmit>
+                        <option value="newest" selected="@(Model.Sort == "newest")">Newest</option>
+                        <option value="due-asc" selected="@(Model.Sort == "due-asc")">Due date</option>
+                        <option value="priority-desc" selected="@(Model.Sort == "priority-desc")">Priority</option>
+                    </select>
+                </label>
             </div>
         </div>
-    </div>
+
+        <!-- Status is chosen only with the workflow tiles above (no dropdown,
+             so there's one control per filter). This hidden field keeps the
+             chosen tile when another filter changes or a search is run. -->
+        @if (Model.Status != "all")
+        {
+            <input type="hidden" name="status" value="@Model.Status" />
+        }
+
+        <!-- The remaining filters from the proposal, always visible -->
+        <div class="filter-row">
+            <label class="filter-select">
+                <span class="filter-select-label">Priority</span>
+                <select name="priority" data-autosubmit>
+                    <option value="all" selected="@(Model.Priority == "all")">All</option>
+                    <option value="high" selected="@(Model.Priority == "high")">High</option>
+                    <option value="medium" selected="@(Model.Priority == "medium")">Medium</option>
+                    <option value="low" selected="@(Model.Priority == "low")">Low</option>
+                </select>
+            </label>
+            @if (Model.IsOfficeWide)
+            {
+                <label class="filter-select">
+                    <span class="filter-select-label">Division</span>
+                    <select name="department" data-autosubmit>
+                        <option value="" selected="@(Model.Department == null)">All</option>
+                        @foreach (var dept in Model.Departments)
+                        {
+                            <option value="@dept" selected="@(Model.Department == dept)">@dept</option>
+                        }
+                    </select>
+                </label>
+            }
+            <label class="filter-select">
+                <span class="filter-select-label">Employee</span>
+                <select name="employeeId" data-autosubmit>
+                    <option value="" selected="@(!Model.EmployeeId.HasValue)">All</option>
+                    @foreach (var emp in Model.Employees)
+                    {
+                        <option value="@emp.Id" selected="@(Model.EmployeeId == emp.Id)">@emp.FullName</option>
+                    }
+                </select>
+            </label>
+            <label class="filter-select">
+                <span class="filter-select-label">Due Date</span>
+                <select name="due" data-autosubmit>
+                    <option value="all" selected="@(Model.Due == "all")">Any</option>
+                    <option value="today" selected="@(Model.Due == "today")">Today</option>
+                    <option value="next7" selected="@(Model.Due == "next7")">Next 7 days</option>
+                    <option value="this-month" selected="@(Model.Due == "this-month")">This month</option>
+                </select>
+            </label>
+            @if (Model.HasActiveFilters)
+            {
+                <a asp-action="Index" class="clear-filters">
+                    <span class="material-symbols-outlined">close</span>
+                    Clear all filters
+                </a>
+            }
+        </div>
+        <noscript><button type="submit" class="btn-outline-pill">Apply</button></noscript>
+    </form>
 
     <!-- Table -->
     <div class="table-scroll">
@@ -75,13 +174,15 @@
                 </tr>
             </thead>
             <tbody>
-                @if (Model != null && Model.Any())
+                @if (Model.Tasks.Any())
                 {
                     var index = 0;
-                    foreach (var task in Model)
+                    foreach (var task in Model.Tasks)
                     {
                         index++;
-                        var assigneeName = task.Assignee?.FullName ?? "Unassigned";
+                        var assigneeName = task.TaskLevel == "main"
+                            ? $"OPD Directive — {task.OwningDepartment}"
+                            : (task.Assignee?.FullName ?? "Unassigned");
                         var initials = !string.IsNullOrWhiteSpace(assigneeName) && assigneeName != "Unassigned"
                         ? string.Concat(assigneeName.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
                         : "?";
@@ -132,6 +233,12 @@
                                 <span class="status-badge @statusBadgeClass">@displayLabel</span>
                             </td>
                             <td class="td-last">
+                                @if (task.TaskLevel == "main")
+                                {
+                                    <a asp-controller="Tasks" asp-action="MainTaskDetails" asp-route-id="@task.Id" class="more-btn" aria-label="View main task details">
+                                        <span class="material-symbols-outlined">visibility</span>
+                                    </a>
+                                }
                                 <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="more-btn" aria-label="Edit task">
                                     <span class="material-symbols-outlined">edit</span>
                                 </a>
@@ -155,8 +262,16 @@
                         <td colspan="7" class="empty-state">
                             <div class="empty-state-content">
                                 <span class="material-symbols-outlined empty-icon">assignment</span>
-                                <p class="empty-text">No tasks yet</p>
-                                <p class="empty-sub">Create a task to get started.</p>
+                                @if (Model.HasActiveFilters)
+                                {
+                                    <p class="empty-text">No tasks match these filters</p>
+                                    <p class="empty-sub"><a asp-action="Index">Clear all filters</a> to see every task.</p>
+                                }
+                                else
+                                {
+                                    <p class="empty-text">No tasks yet</p>
+                                    <p class="empty-sub">Create a task to get started.</p>
+                                }
                             </div>
                         </td>
                     </tr>
@@ -168,24 +283,37 @@
     <!-- Pagination -->
     <div class="pagination-bar">
         <span class="pagination-info">
-            @if (Model != null && Model.Any())
+            @if (Model.TotalCount > 0)
             {
-                @:Showing @Model.Count() task@(Model.Count() != 1 ? "s" : "")
+                @:Showing @firstShown–@lastShown of @Model.TotalCount task@(Model.TotalCount != 1 ? "s" : "")
             }
             else
             {
                 @:No tasks to display
             }
         </span>
-        <div class="pagination-btns">
-            <button class="page-btn page-nav">
-                <span class="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button class="page-btn page-active">1</button>
-            <button class="page-btn page-nav">
-                <span class="material-symbols-outlined">chevron_right</span>
-            </button>
-        </div>
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="pagination-btns" aria-label="Task list pages">
+                @if (Model.Page > 1)
+                {
+                    <a class="page-btn page-nav" asp-action="Index" asp-all-route-data="Model.RouteValues(page: Model.Page - 1)" aria-label="Previous page">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </a>
+                }
+                @for (var p = Math.Max(1, Model.Page - 2); p <= Math.Min(Model.TotalPages, Model.Page + 2); p++)
+                {
+                    <a class="page-btn @(p == Model.Page ? "page-active" : "")" asp-action="Index"
+                       asp-all-route-data="Model.RouteValues(page: p)" aria-current="@(p == Model.Page ? "page" : null)">@p</a>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <a class="page-btn page-nav" asp-action="Index" asp-all-route-data="Model.RouteValues(page: Model.Page + 1)" aria-label="Next page">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </a>
+                }
+            </nav>
+        }
     </div>
 </div>
 

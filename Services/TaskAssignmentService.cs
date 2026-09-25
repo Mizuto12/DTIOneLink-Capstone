@@ -162,5 +162,85 @@ namespace DTIOneLink.Services
             var primary = task.Assignments.FirstOrDefault(a => a.IsPrimaryAssignee) ?? task.Assignments.First();
             task.AssigneeId = primary.UserId;
         }
+
+        // Recomputes a Main Task's own Status/Progress purely from its child
+        // subtasks' Status/Progress — the same rollup pattern as
+        // RecalculateOverallStatus above, one level higher (subtask -> main
+        // task instead of assignment -> task). Every subtask under a main
+        // task is treated as required; there's no "optional subtask" concept
+        // in this model. Call with mainTask.Subtasks already loaded. Only
+        // ever meaningful for TaskLevel == Main — a standalone task
+        // (TaskLevel == Subtask, ParentTaskId == null) never reaches this
+        // and keeps using the assignment-based rollup exclusively.
+        public void RecalculateMainTaskFromSubtasks(TaskItem mainTask)
+        {
+            if (mainTask.TaskLevel != TaskLevels.Main)
+            {
+                return; // safety guard — never meant to run on anything else
+            }
+
+            var subtasks = mainTask.Subtasks;
+            if (subtasks == null || subtasks.Count == 0)
+            {
+                return; // no subtasks yet — leave Status/Progress untouched
+            }
+
+            var statuses = subtasks.Select(s => TaskWorkflow.Normalize(s.Status)).ToList();
+
+            if (statuses.All(s => s == TaskWorkflow.Completed))
+            {
+                mainTask.Status = TaskWorkflow.Completed;
+                mainTask.Progress = 100;
+            }
+            else if (statuses.All(s => s == TaskWorkflow.ForReview || s == TaskWorkflow.Completed))
+            {
+                // "All required subtasks completed or validated" — every
+                // subtask has at least been submitted for review (or fully
+                // validated), so the directive as a whole is ready for OPD
+                // to review, even if not every subtask is individually
+                // signed off yet.
+                mainTask.Status = TaskWorkflow.ForReview;
+                mainTask.Progress = (int)Math.Round(subtasks.Average(s => s.Progress));
+            }
+            else
+            {
+                mainTask.Status = statuses.Any(s => s != TaskWorkflow.Pending)
+                    ? TaskWorkflow.InProgress
+                    : TaskWorkflow.Pending;
+                mainTask.Progress = (int)Math.Round(subtasks.Average(s => s.Progress));
+            }
+        }
+
+        // Called after any subtask's own RecalculateOverallStatus, so a
+        // change to one subtask's status/progress propagates up to its
+        // parent Main Task in the same save. No-op for a standalone task
+        // (ParentTaskId == null) — this is what keeps existing standalone
+        // tasks behaving exactly as before.
+        public async Task PropagateToParentMainTaskAsync(TaskItem subtask)
+        {
+            if (!subtask.ParentTaskId.HasValue)
+            {
+                return;
+            }
+
+            await RecalculateMainTaskAsync(subtask.ParentTaskId.Value);
+        }
+
+        // Recomputes a Main Task from its subtasks as currently stored — also
+        // used after a subtask is deleted, when there's no subtask left to
+        // pass in. Caller saves.
+        public async Task RecalculateMainTaskAsync(int mainTaskId)
+        {
+            var mainTask = await _context.TaskItems
+                .Include(t => t.Subtasks)
+                .FirstOrDefaultAsync(t => t.Id == mainTaskId && t.TaskLevel == TaskLevels.Main);
+
+            if (mainTask == null)
+            {
+                return; // shouldn't happen — the parent was verified to exist and be Main at subtask-creation time
+            }
+
+            RecalculateMainTaskFromSubtasks(mainTask);
+        }
     }
 }

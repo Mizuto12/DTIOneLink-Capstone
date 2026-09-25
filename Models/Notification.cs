@@ -9,7 +9,10 @@ namespace DTIOneLink.Models
     System,
     Record,
     DueSoon,
-    Overdue
+    Overdue,
+    Completed,
+    // Stored as an int, so new values must only ever be appended.
+    RecordDisposalDue
     }
 
     public class Notification
@@ -35,6 +38,7 @@ namespace DTIOneLink.Models
         public int? RelatedRecordId { get; set; }
 
         public bool IsRead { get; set; } = false;
+        public bool IsDismissed { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

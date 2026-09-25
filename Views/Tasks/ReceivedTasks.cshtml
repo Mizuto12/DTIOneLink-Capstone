@@ -1,0 +1,89 @@
+@model IEnumerable<DTIOneLink.Models.TaskReceivedListItemViewModel>
+@{
+    Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : "~/Views/Admin/AdminLayout.cshtml";
+    ViewData["Title"] = "Received Tasks";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
+}
+
+<div class="page-header">
+    <div class="page-header-text">
+        <h2 class="page-title">Received Tasks</h2>
+        <p class="page-sub">OPD directives issued to your department.</p>
+    </div>
+</div>
+
+<div class="glass-card">
+    <div class="table-scroll">
+        <table class="task-table">
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Description</th>
+                    <th>Due Date</th>
+                    <th>Priority</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Assignees</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var t in Model)
+                    {
+                        var priorityBadgeClass = t.Priority?.ToLower() switch
+                        {
+                            "high" => "badge-high",
+                            "medium" => "badge-medium",
+                            "low" => "badge-low",
+                            _ => "badge-medium"
+                        };
+                        var displayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(t.Status, t.DueDate);
+                        var displayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(t.Status, t.DueDate);
+                        var statusBadgeClass = displayStatus switch
+                        {
+                            "in-progress" => "status-progress",
+                            "for-review" => "status-progress",
+                            "returned-for-correction" => "status-pending",
+                            "completed" => "status-complete",
+                            "overdue" => "status-overdue",
+                            _ => "status-pending"
+                        };
+                        var assigneeText = t.AssigneeNames.Any() ? string.Join(", ", t.AssigneeNames) : "Unassigned";
+                        <tr class="task-row">
+                            <td class="td-first"><span class="td-muted">@t.TaskName</span></td>
+                            <td><span class="td-muted">@t.Description</span></td>
+                            <td><span class="td-date">@t.DueDate.ToString("MMM dd, yyyy")</span></td>
+                            <td><span class="badge @priorityBadgeClass">@t.Priority</span></td>
+                            <td><span class="td-muted">@t.Department</span></td>
+                            <td><span class="status-badge @statusBadgeClass">@displayLabel</span></td>
+                            <td><span class="td-muted">@assigneeText</span></td>
+                            <td class="td-last">
+                                <a asp-controller="Tasks" asp-action="MainTaskDetails" asp-route-id="@t.Id" class="more-btn" aria-label="View main task details">
+                                    <span class="material-symbols-outlined">visibility</span>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-content">
+                                <span class="material-symbols-outlined empty-icon">assignment</span>
+                                <p class="empty-text">No tasks received yet</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -33,6 +33,9 @@ namespace DTIOneLink.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsDismissed")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
@@ -188,11 +191,14 @@ namespace DTIOneLink.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AssigneeId")
+                    b.Property<int?>("AssigneeId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -201,6 +207,12 @@ namespace DTIOneLink.Migrations
                     b.Property<DateTime>("DueDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("OwningDepartment")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ParentTaskId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -208,7 +220,18 @@ namespace DTIOneLink.Migrations
                     b.Property<int>("Progress")
                         .HasColumnType("int");
 
+                    b.Property<string>("Recurrence")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("ResponsibleAdminUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TaskLevel")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -216,9 +239,18 @@ namespace DTIOneLink.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("TaskType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssigneeId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ParentTaskId");
+
+                    b.HasIndex("ResponsibleAdminUserId");
 
                     b.ToTable("TaskItems");
                 });
@@ -454,10 +486,30 @@ namespace DTIOneLink.Migrations
                     b.HasOne("DTIOneLink.Models.User", "Assignee")
                         .WithMany()
                         .HasForeignKey("AssigneeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DTIOneLink.Models.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DTIOneLink.Models.TaskItem", "ParentTask")
+                        .WithMany("Subtasks")
+                        .HasForeignKey("ParentTaskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DTIOneLink.Models.User", "ResponsibleAdmin")
+                        .WithMany()
+                        .HasForeignKey("ResponsibleAdminUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Assignee");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ParentTask");
+
+                    b.Navigation("ResponsibleAdmin");
                 });
 
             modelBuilder.Entity("DTIOneLink.Models.TaskSubmission", b =>
@@ -493,6 +545,8 @@ namespace DTIOneLink.Migrations
                     b.Navigation("Comments");
 
                     b.Navigation("Submissions");
+
+                    b.Navigation("Subtasks");
                 });
 #pragma warning restore 612, 618
         }

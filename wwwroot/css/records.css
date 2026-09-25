@@ -378,3 +378,60 @@
   }
   .records-page .commit-btn { width: 100%; }
 }
+
+/* ---------- Search / filter toolbar (Recent Submissions) ---------- */
+.records-page .records-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.records-page .records-toolbar .field { flex: 0 1 170px; min-width: 140px; }
+.records-page .records-toolbar .toolbar-search { flex: 1 1 240px; }
+
+.records-page .records-toolbar .toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .records-page .records-toolbar .field,
+  .records-page .records-toolbar .toolbar-actions { flex: 1 1 100%; }
+  .records-page .records-toolbar .toolbar-actions .btn { flex: 1; justify-content: center; }
+}
+
+/* ---------- "Other / Specify" text boxes (hidden until chosen) ---------- */
+.records-page .field .other-input { margin-top: 8px; }
+.records-page .field .other-input[hidden] { display: none; }
+
+/* Keep the row's inputs lined up at the top when a field grows to show
+   its "specify" box; the Save button stays at the bottom. */
+.records-page .form-row-actions > .field { align-self: start; }
+
+/* ---------- Retention reminder colours (as DTI asked) ----------
+   Yellow: retention ends within 6 months. Red: retention has ended.
+   Reminder only — nothing is disposed of by the system. */
+.records-page tbody tr.retention-due-soon td { background: #fef3c7; }
+.records-page tbody tr.retention-ended td { background: #fee2e2; }
+.records-page tbody tr.retention-ended td:first-child { color: #b91c1c; }
+
+.records-page .retention-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+.records-page .retention-legend[hidden] { display: none; }
+.records-page .retention-legend .legend-item { display: inline-flex; align-items: center; gap: 8px; }
+.records-page .retention-legend .legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.records-page .retention-legend .legend-swatch.due-soon { background: #fcd34d; }
+.records-page .retention-legend .legend-swatch.ended { background: #f87171; }

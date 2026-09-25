@@ -62,6 +62,15 @@
         return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
     }
 
+    // Same conditions EmployeeController.Delete enforces: the viewer holds
+    // an assignment, the WHOLE task is Completed (not just their own part),
+    // and it isn't an OPD main task. The server re-checks all of this.
+    bool CanDelete(DTIOneLink.Models.TaskItem t) =>
+        currentUserId.HasValue
+        && t.Assignments.Any(a => a.UserId == currentUserId.Value)
+        && string.Equals(t.Status, "completed", StringComparison.OrdinalIgnoreCase)
+        && t.TaskLevel != DTIOneLink.Services.TaskLevels.Main;
+
     string FormatDueDate(DateTime dueDate)
     {
         var today = DateTime.UtcNow.Date;
@@ -79,20 +88,26 @@
 }
 
 <div class="task-management">
+    @if (TempData["SuccessMessage"] is string tmSuccess)
+    {
+        <div class="tm-alert success" role="status">
+            <span class="material-symbols-outlined">check_circle</span>
+            <span>@tmSuccess</span>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] is string tmError)
+    {
+        <div class="tm-alert error" role="alert">
+            <span class="material-symbols-outlined">error</span>
+            <span>@tmError</span>
+        </div>
+    }
     <div class="workspace-header">
         <div class="header-actions">
             <button type="button" class="btn btn-secondary" data-action="filter">
                 <span class="material-symbols-outlined">filter_list</span>
                 Filter
             </button>
-            @if (isElevated)
-            {
-                <button type="button" class="btn btn-primary" data-action="new-task"
-                        data-url="@Url.Action("Create", "Tasks")">
-                    <span class="material-symbols-outlined">add</span>
-                    New Task
-                </button>
-            }
         </div>
     </div>
 
@@ -283,9 +298,43 @@
                     <h3 class="column-title">Completed</h3>
                     <span class="column-count">@completedTasks.Count</span>
                 </div>
-                <button type="button" class="column-menu-btn">
-                    <span class="material-symbols-outlined">more_horiz</span>
-                </button>
+                @{
+                    // Only tasks the server will actually delete (see CanDelete);
+                    // shared tasks still waiting on other assignees are excluded.
+                    var deletableCompletedCount = completedTasks.Count(CanDelete);
+                    var keptCompletedCount = completedTasks.Count - deletableCompletedCount;
+                }
+                <div class="column-menu">
+                    <button type="button" class="column-menu-btn" id="completedMenuBtn"
+                            aria-haspopup="true" aria-expanded="false" aria-controls="completedMenu"
+                            title="More options" aria-label="Completed column options">
+                        <span class="material-symbols-outlined">more_horiz</span>
+                    </button>
+                    <div class="column-menu-panel" id="completedMenu" role="menu" hidden>
+                        @if (deletableCompletedCount > 0)
+                        {
+                            <form asp-controller="Employee" asp-action="DeleteAllCompleted" method="post"
+                                  class="delete-all-form" data-count="@deletableCompletedCount">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="column-menu-item danger" role="menuitem">
+                                    <span class="material-symbols-outlined">delete_sweep</span>
+                                    Delete all completed tasks (@deletableCompletedCount)
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <p class="column-menu-note">No completed tasks can be deleted right now.</p>
+                        }
+                        @if (keptCompletedCount > 0)
+                        {
+                            <p class="column-menu-note">
+                                @keptCompletedCount @(keptCompletedCount == 1 ? "task" : "tasks") will be kept —
+                                for example, shared tasks still waiting on other assignees.
+                            </p>
+                        }
+                    </div>
+                </div>
             </div>
 
             @if (!completedTasks.Any())
@@ -300,7 +349,21 @@
                          role="link" tabindex="0" aria-label="Open @task.TaskName">
                         <div class="task-card-top">
                             <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                            <span class="material-symbols-outlined task-complete-icon" data-weight="fill">check_circle</span>
+                            <div class="task-card-top-actions">
+                                @if (CanDelete(task))
+                                {
+                                    <form asp-controller="Employee" asp-action="Delete" method="post"
+                                          class="task-delete-form" data-task-name="@task.TaskName">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@task.Id" />
+                                        <button type="submit" class="task-delete-btn"
+                                                title="Delete task" aria-label="Delete @task.TaskName">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    </form>
+                                }
+                                <span class="material-symbols-outlined task-complete-icon" data-weight="fill">check_circle</span>
+                            </div>
                         </div>
                         <h4 class="task-title">@task.TaskName</h4>
                         <div class="task-footer">

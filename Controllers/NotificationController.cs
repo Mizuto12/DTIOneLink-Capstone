@@ -8,10 +8,17 @@ namespace DTIOneLink.Controllers
     public class NotificationsController : Controller
     {
         private readonly NotificationService _notifications;
+        private readonly RecordRetentionReminder _retentionReminder;
+        private readonly ILogger<NotificationsController> _logger;
 
-        public NotificationsController(NotificationService notifications)
+        public NotificationsController(
+            NotificationService notifications,
+            RecordRetentionReminder retentionReminder,
+            ILogger<NotificationsController> logger)
         {
             _notifications = notifications;
+            _retentionReminder = retentionReminder;
+            _logger = logger;
         }
 
         private int CurrentUserId => HttpContext.Session.GetInt32("UserId") ?? 0;
@@ -21,13 +28,26 @@ namespace DTIOneLink.Controllers
         [HttpGet]
         public async Task<IActionResult> List()
         {
+            // Create any record-disposal reminders due for this user before
+            // listing, so they appear on the next page view rather than
+            // waiting for the hourly background run. Only this user's own
+            // records are checked. A failure here must never break the bell.
+            try
+            {
+                await _retentionReminder.SendDueRemindersAsync(CurrentUserId, HttpContext.RequestAborted);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Record retention check failed for user {UserId}.", CurrentUserId);
+            }
+
             var items = await _notifications.GetForUserAsync(CurrentUserId, take: 30);
             return Json(items.Select(n => new
             {
                 id = n.Id,
                 type = n.Type.ToString().ToLower(),
                 text = n.Message,
-                time = n.CreatedAt,
+                time = DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc),
                 unread = !n.IsRead,
                 link = n.Link
             }));

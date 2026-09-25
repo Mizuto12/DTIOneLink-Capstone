@@ -1,0 +1,224 @@
+@model DTIOneLink.Models.TaskItem
+@{
+    Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : "~/Views/Admin/AdminLayout.cshtml";
+    ViewData["Title"] = "Main Task Details";
+    var isOpd = Context.Session.GetString("UserRole") == "SuperAdmin";
+
+    var task = Model;
+    var taskCode = $"TASK-{task.Id:D4}";
+    var displayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(task.Status, task.DueDate);
+    var displayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(task.Status, task.DueDate);
+
+    var subtasks = task.Subtasks?.OrderBy(s => s.DueDate).ToList() ?? new List<DTIOneLink.Models.TaskItem>();
+
+    string StatusBadgeClass(string ds) => ds switch
+    {
+        "in-progress" => "status-progress",
+        "for-review" => "status-progress",
+        "returned-for-correction" => "status-pending",
+        "completed" => "status-complete",
+        "overdue" => "status-overdue",
+        _ => "status-pending"
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/main-task-details.css" asp-append-version="true" />
+}
+
+<div class="mtd">
+    @if (TempData["SuccessMessage"] is string mtdSuccess)
+    {
+        <div class="success-banner">
+            <span class="material-symbols-outlined">check_circle</span>
+            <span>@mtdSuccess</span>
+        </div>
+    }
+    <nav class="mtd-breadcrumb">
+        <a asp-controller="Tasks" asp-action="Index">Task Management</a>
+        <span>/</span>
+        <span>@taskCode</span>
+    </nav>
+
+    <div class="mtd-header">
+        <div>
+            <span class="mtd-eyebrow">Main Task — @task.OwningDepartment</span>
+            <h2 class="mtd-title">@task.TaskName</h2>
+            @if (!string.IsNullOrWhiteSpace(task.Description))
+            {
+                <p class="mtd-desc">@task.Description</p>
+            }
+        </div>
+        <div class="mtd-header-actions">
+            <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="et-btn et-btn-outline">
+                <span class="material-symbols-outlined">edit</span>
+                Edit
+            </a>
+        </div>
+    </div>
+
+    <div class="mtd-summary-grid">
+        <div class="mtd-summary-card">
+            <span class="mtd-summary-label">Overall Status</span>
+            <span class="status-badge @StatusBadgeClass(displayStatus)">@displayLabel</span>
+        </div>
+        <div class="mtd-summary-card">
+            <span class="mtd-summary-label">Overall Progress</span>
+            <div class="progress-cell">
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: @(task.Progress)%;"></div>
+                </div>
+                <span class="progress-pct">@task.Progress%</span>
+            </div>
+        </div>
+        <div class="mtd-summary-card">
+            <span class="mtd-summary-label">Due Date</span>
+            <span>@task.DueDate.ToString("MMM d, yyyy")</span>
+        </div>
+        <div class="mtd-summary-card">
+            <span class="mtd-summary-label">Responsible Admin</span>
+            <span>@(task.ResponsibleAdmin?.FullName ?? "Unassigned")</span>
+        </div>
+        <div class="mtd-summary-card">
+            <span class="mtd-summary-label">Created By</span>
+            <span>@(task.CreatedBy?.FullName ?? "Unknown")</span>
+        </div>
+        @if (task.Recurrence != null)
+        {
+            <div class="mtd-summary-card">
+                <span class="mtd-summary-label">Repeats</span>
+                <span>@DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
+                @if (isOpd)
+                {
+                    <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post"
+                          onsubmit="return confirm('Stop repeating this task? No more copies will be sent out. Copies already sent are not affected.');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="mtd-stop-repeat">Stop repeating</button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+
+    <p class="mtd-note">
+        Overall status/progress is calculated from the subtasks below — it
+        only reaches For Review once every subtask has been submitted for
+        review or completed, and only becomes Completed once every subtask
+        is individually completed.
+    </p>
+
+    @if (!subtasks.Any() && task.Assignments != null && task.Assignments.Any())
+    {
+        <div class="glass-card">
+            <div class="card-toolbar">
+                <h3 style="margin:0;">Assigned Employees (@task.Assignments.Count)</h3>
+            </div>
+            <div class="table-scroll">
+                <table class="task-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Progress</th>
+                            <th>Status</th>
+                            <th>Assigned By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in task.Assignments.OrderByDescending(x => x.IsPrimaryAssignee).ThenBy(x => x.User?.FullName))
+                        {
+                            var aDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(a.Status, task.DueDate);
+                            var aDisplayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(a.Status, task.DueDate);
+                            <tr class="task-row">
+                                <td class="td-first">@(a.User?.FullName ?? "Unknown")@(a.IsPrimaryAssignee ? " (Primary)" : "")</td>
+                                <td>
+                                    <div class="progress-cell">
+                                        <div class="progress-track">
+                                            <div class="progress-fill" style="width: @(a.Progress)%;"></div>
+                                        </div>
+                                        <span class="progress-pct">@a.Progress%</span>
+                                    </div>
+                                </td>
+                                <td><span class="status-badge @StatusBadgeClass(aDisplayStatus)">@aDisplayLabel</span></td>
+                                <td><span class="td-muted">@(a.AssignedBy?.FullName ?? "Unknown")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="glass-card">
+        <div class="card-toolbar">
+            <h3 style="margin:0;">Subtasks (@subtasks.Count)</h3>
+        </div>
+        <div class="table-scroll">
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th>Subtask</th>
+                        <th>Assignees</th>
+                        <th>Assigned By</th>
+                        <th>Due Date</th>
+                        <th>Progress</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (subtasks.Any())
+                    {
+                        foreach (var sub in subtasks)
+                        {
+                            var subDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(sub.Status, sub.DueDate);
+                            var subDisplayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(sub.Status, sub.DueDate);
+                            var assigneeNames = sub.Assignments != null && sub.Assignments.Any()
+                                ? string.Join(", ", sub.Assignments.Select(a => a.User?.FullName ?? "Unknown"))
+                                : "Unassigned";
+                            // Distinct, since two assignees on the same subtask are often
+                            // added by the same Admin in one Edit save.
+                            var assignedByNames = sub.Assignments != null && sub.Assignments.Any()
+                                ? string.Join(", ", sub.Assignments.Select(a => a.AssignedBy?.FullName ?? "Unknown").Distinct())
+                                : "—";
+                            <tr class="task-row">
+                                <td class="td-first">@sub.TaskName</td>
+                                <td><span class="td-muted">@assigneeNames</span></td>
+                                <td><span class="td-muted">@assignedByNames</span></td>
+                                <td><span class="td-date">@sub.DueDate.ToString("MMM dd, yyyy")</span></td>
+                                <td>
+                                    <div class="progress-cell">
+                                        <div class="progress-track">
+                                            <div class="progress-fill" style="width: @(sub.Progress)%;"></div>
+                                        </div>
+                                        <span class="progress-pct">@sub.Progress%</span>
+                                    </div>
+                                </td>
+                                <td><span class="status-badge @StatusBadgeClass(subDisplayStatus)">@subDisplayLabel</span></td>
+                                <td class="td-last">
+                                    <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@sub.Id" class="more-btn" aria-label="Edit subtask">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <div class="empty-state-content">
+                                    <span class="material-symbols-outlined empty-icon">assignment</span>
+                                    <p class="empty-text">No subtasks yet</p>
+                                    <p class="empty-sub">Click Edit above to assign employees to this directive directly.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

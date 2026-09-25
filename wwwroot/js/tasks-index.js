@@ -29,15 +29,28 @@
             });
         }
 
-        // ── Pagination ─────────────────────────────────────
-        document.querySelectorAll(".page-btn:not(.page-nav)").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                document.querySelectorAll(".page-btn").forEach(function (b) {
-                    b.classList.remove("page-active");
+        // ── Filters ────────────────────────────────────────
+        // The toolbar is a plain GET form; dropdowns apply as soon as they
+        // change (search applies on Enter). Changing a filter always goes
+        // back to page 1, since the form doesn't carry a page value.
+        var filterForm = document.getElementById("taskFilterForm");
+        if (filterForm) {
+            filterForm.querySelectorAll("select[data-autosubmit]").forEach(function (select) {
+                select.addEventListener("change", function () {
+                    filterForm.submit();
                 });
-                btn.classList.add("page-active");
             });
-        });
+
+            // Don't put empty / default values in the URL.
+            filterForm.addEventListener("formdata", function (event) {
+                var defaults = { q: "", status: "all", priority: "all", sort: "newest", due: "all", department: "", employeeId: "" };
+                Object.keys(defaults).forEach(function (key) {
+                    if (event.formData.get(key) === defaults[key]) {
+                        event.formData.delete(key);
+                    }
+                });
+            });
+        }
 
         // ── Animate mini bars on load ──────────────────────
         document.querySelectorAll(".mini-bar, .progress-fill").forEach(function (bar) {

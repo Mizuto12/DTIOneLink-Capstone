@@ -1,6 +1,8 @@
 @model DTIOneLink.Models.TaskSubmission
 @{
-    Layout = "~/Views/Admin/AdminLayout.cshtml";
+    Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Review Submission";
     var task = Model.Task!;
 }

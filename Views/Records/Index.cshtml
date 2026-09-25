@@ -1,8 +1,10 @@
 @{
     var userRole = Context.Session.GetString("UserRole");
-    Layout = userRole == "Admin"
-        ? "~/Views/Admin/AdminLayout.cshtml"
-        : "~/Views/Employee/EmployeeLayout.cshtml";
+    Layout = userRole == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : userRole == "Admin"
+            ? "~/Views/Admin/AdminLayout.cshtml"
+            : "~/Views/Employee/EmployeeLayout.cshtml";
     ViewData["Title"] = "Records Management";
 }
 
@@ -40,6 +42,7 @@
     </div>
 
     <form id="new-entry-form">
+      @Html.AntiForgeryToken()
       <div class="form-grid">
         <div class="field">
           <label for="code">Code</label>
@@ -51,11 +54,16 @@
         </div>
         <div class="field">
           <label for="medium">Medium</label>
-          <select id="medium" name="medium" required>
-            <option value="" disabled selected>Physical/Paper</option>
-            <option value="Physical">Physical</option>
-            <option value="Digital">Digital</option>
+          <select id="medium" name="medium" required data-other-input="medium-other">
+            <option value="" disabled selected>Select medium</option>
+            <option value="Hard Copy">Hard Copy</option>
+            <option value="Electronic">Electronic</option>
+            <option value="Hard Copy/Electronic">Hard Copy/Electronic</option>
+            <option value="__other__">Other / Specify</option>
           </select>
+          <input id="medium-other" name="mediumOther" type="text" class="other-input" maxlength="50"
+                 placeholder="Type the medium" aria-label="Specify medium"
+                 pattern=".*\S.*" title="Please type a value." hidden>
         </div>
         <div class="field">
           <label for="location">Location</label>
@@ -70,21 +78,34 @@
         </div>
         <div class="field">
           <label for="filing">Filing System</label>
-          <select id="filing" name="filing" required>
-            <option value="" disabled selected>Alphabetical</option>
-            <option value="Numerical">Numerical</option>
+          <select id="filing" name="filing" required data-other-input="filing-other">
+            <option value="" disabled selected>Select filing system</option>
+            <option value="Alphabetical/Numerical">Alphabetical/Numerical</option>
             <option value="Chronological">Chronological</option>
-            <option value="Alphabetical">Alphabetical</option>
+            <option value="Per Transaction">Per Transaction</option>
+            <option value="Per Activity/Project">Per Activity/Project</option>
+            <option value="Per Batch">Per Batch</option>
+            <option value="Per Bureau/Office/FG">Per Bureau/Office/FG</option>
+            <option value="Per Location">Per Location</option>
+            <option value="__other__">Other / Specify</option>
           </select>
+          <input id="filing-other" name="filingOther" type="text" class="other-input" maxlength="50"
+                 placeholder="Type the filing system" aria-label="Specify filing system"
+                 pattern=".*\S.*" title="Please type a value." hidden>
         </div>
         <div class="field">
           <label for="access">Access Control</label>
-          <select id="access" name="access" required>
-            <option value="" disabled selected>Public</option>
-            <option value="Public">Public</option>
-            <option value="Restricted">Restricted</option>
+          <select id="access" name="access" required data-other-input="access-other">
+            <option value="" disabled selected>Select access control</option>
             <option value="Confidential">Confidential</option>
+            <option value="Public Record">Public Record</option>
+            <option value="Exclusive">Exclusive</option>
+            <option value="DTI Only">DTI Only</option>
+            <option value="__other__">Other / Specify</option>
           </select>
+          <input id="access-other" name="accessOther" type="text" class="other-input" maxlength="50"
+                 placeholder="e.g. Public upon request" aria-label="Specify access control"
+                 pattern=".*\S.*" title="Please type a value." hidden>
         </div>
         <button class="commit-btn" type="submit">
           <span class="material-symbols-outlined">save</span> Save Entry
@@ -112,6 +133,53 @@
       <span class="badge" id="entry-count-badge">Showing 0 of 0 entries</span>
     </div>
 
+    <!-- Search / filter toolbar — filtering happens on the server -->
+    <form class="records-toolbar" id="records-filter" role="search" autocomplete="off">
+      <div class="field toolbar-search">
+        <label for="filter-q">Search</label>
+        <input id="filter-q" name="q" type="search" maxlength="100" placeholder="Code, title, location, or period">
+      </div>
+      <div class="field">
+        <label for="filter-medium">Medium</label>
+        <select id="filter-medium" name="medium">
+          <option value="">All</option>
+          <option value="Hard Copy">Hard Copy</option>
+          <option value="Electronic">Electronic</option>
+          <option value="Hard Copy/Electronic">Hard Copy/Electronic</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-access">Access Control</label>
+        <select id="filter-access" name="access">
+          <option value="">All</option>
+          <option value="Confidential">Confidential</option>
+          <option value="Public Record">Public Record</option>
+          <option value="Exclusive">Exclusive</option>
+          <option value="DTI Only">DTI Only</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      @if (ViewBag.CanManageRecords == true)
+      {
+        <div class="field">
+          <label for="filter-retention">Retention</label>
+          <select id="filter-retention" name="retention">
+            <option value="">All</option>
+            <option value="overdue">Retention ended (red)</option>
+            <option value="due-soon">Ends within 6 months (yellow)</option>
+            <option value="not-computed">No end date</option>
+          </select>
+        </div>
+      }
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" type="submit">
+          <span class="material-symbols-outlined">search</span> Search
+        </button>
+        <button class="btn btn-outline" type="reset">Clear</button>
+      </div>
+    </form>
+
     <div class="table-wrapper">
       <table>
         <thead>
@@ -133,6 +201,12 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Shown only when a row is highlighted: explains the reminder colours. -->
+    <p class="retention-legend" id="retention-legend" hidden>
+      <span class="legend-item"><span class="legend-swatch due-soon"></span> Retention ends within 6 months</span>
+      <span class="legend-item"><span class="legend-swatch ended"></span> Retention period has ended — review for disposal</span>
+    </p>
 
     <!-- Pagination -->
     <div class="pagination">

@@ -11,6 +11,7 @@
     var assignmentSummaries = ViewBag.AssignmentSummaries as List<DTIOneLink.Models.TaskAssignmentSummaryViewModel>
         ?? new List<DTIOneLink.Models.TaskAssignmentSummaryViewModel>();
     var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
+    var isAssignmentOnly = ViewBag.IsAssignmentOnly as bool? ?? false;
 }
 
 @section Styles {
@@ -44,6 +45,13 @@
         </div>
     </div>
 
+    @if (isAssignmentOnly)
+    {
+        <p class="et-overview-note" style="margin-bottom:16px;">
+            This task was issued by OPD (SuperAdmin) — you can only manage who's assigned to it. Task name, due date, priority, and description are locked.
+        </p>
+    }
+
     <form id="editTaskForm" asp-controller="Tasks" asp-action="Edit" method="post">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="Id" />
@@ -61,7 +69,7 @@
                         <label asp-for="TaskName" class="et-label">
                             Task Name <span class="et-required">*</span>
                         </label>
-                        <input asp-for="TaskName" class="et-input" />
+                        <input asp-for="TaskName" class="et-input" readonly="@(isAssignmentOnly ? "readonly" : null)" />
                         <span asp-validation-for="TaskName" class="et-error-text"></span>
                     </div>
 
@@ -106,7 +114,7 @@
                     <!-- Due Date -->
                     <div class="et-field">
                         <label asp-for="DueDate" class="et-label">Due Date</label>
-                        <input asp-for="DueDate" type="date" class="et-input" />
+                        <input asp-for="DueDate" type="date" class="et-input" readonly="@(isAssignmentOnly ? "readonly" : null)" />
                         <span asp-validation-for="DueDate" class="et-error-text"></span>
                     </div>
 
@@ -115,35 +123,38 @@
                         <label class="et-label">Priority</label>
                         <div class="et-priority-options">
                             <label class="et-priority-pill low">
-                                <input id="priorityLow" type="radio" name="Priority" value="low" checked="@(Model.Priority == "low" ? "checked" : null)" />
+                                <input id="priorityLow" type="radio" name="Priority" value="low" checked="@(Model.Priority == "low" ? "checked" : null)" disabled="@(isAssignmentOnly ? "disabled" : null)" />
                                 <span>Low</span>
                             </label>
                             <label class="et-priority-pill medium">
-                                <input id="priorityMedium" type="radio" name="Priority" value="medium" checked="@(Model.Priority == "medium" ? "checked" : null)" />
+                                <input id="priorityMedium" type="radio" name="Priority" value="medium" checked="@(Model.Priority == "medium" ? "checked" : null)" disabled="@(isAssignmentOnly ? "disabled" : null)" />
                                 <span>Medium</span>
                             </label>
                             <label class="et-priority-pill high">
-                                <input id="priorityHigh" type="radio" name="Priority" value="high" checked="@(Model.Priority == "high" ? "checked" : null)" />
+                                <input id="priorityHigh" type="radio" name="Priority" value="high" checked="@(Model.Priority == "high" ? "checked" : null)" disabled="@(isAssignmentOnly ? "disabled" : null)" />
                                 <span>High</span>
                             </label>
                         </div>
                         <span asp-validation-for="Priority" class="et-error-text"></span>
 
-                        <!-- Rule-based suggestion — never auto-applied. Admin/Supervisor must
-                             click "Use this" to accept it, or just pick a radio button directly
-                             to override it. -->
-                        <div id="prioritySuggestionBox" class="et-suggestion-box">
-                            <span id="prioritySuggestionText" class="et-suggestion-text">@ViewBag.SuggestedReason</span>
-                            <button type="button" id="applyPrioritySuggestion" data-priority="@ViewBag.SuggestedPriority" class="et-suggestion-apply">
-                                Use this
-                            </button>
-                        </div>
+                        @if (!isAssignmentOnly)
+                        {
+                            <!-- Rule-based suggestion — never auto-applied. Admin/Supervisor must
+                                 click "Use this" to accept it, or just pick a radio button directly
+                                 to override it. -->
+                            <div id="prioritySuggestionBox" class="et-suggestion-box">
+                                <span id="prioritySuggestionText" class="et-suggestion-text">@ViewBag.SuggestedReason</span>
+                                <button type="button" id="applyPrioritySuggestion" data-priority="@ViewBag.SuggestedPriority" class="et-suggestion-apply">
+                                    Use this
+                                </button>
+                            </div>
+                        }
                     </div>
 
                     <!-- Description -->
                     <div class="et-field et-field-full">
                         <label asp-for="Description" class="et-label">Task Description</label>
-                        <textarea asp-for="Description" rows="6" class="et-textarea"></textarea>
+                        <textarea asp-for="Description" rows="6" class="et-textarea" readonly="@(isAssignmentOnly ? "readonly" : null)"></textarea>
                         <span asp-validation-for="Description" class="et-error-text"></span>
                     </div>
                 </div>

@@ -49,6 +49,17 @@
             return input ? input.value : "";
         }
 
+        function formatTime(value) {
+            var d = new Date(value);
+            if (isNaN(d.getTime())) return "";
+            var mins = Math.floor((Date.now() - d.getTime()) / 60000);
+            if (mins < 1) return "Just now";
+            if (mins < 60) return mins + " min ago";
+            var hrs = Math.floor(mins / 60);
+            if (hrs < 24) return hrs + " hr ago";
+            return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        }
+
         function unreadCount() {
             return notifications.filter(function (n) { return n.unread; }).length;
         }
@@ -89,7 +100,7 @@
 
             var time = document.createElement("span");
             time.className = "notif-time";
-            time.textContent = n.time;
+            time.textContent = formatTime(n.time);
             body.appendChild(time);
 
             var dismissBtn = document.createElement("button");
@@ -257,6 +268,7 @@
         });
 
         renderNotifications(); // empty state immediately
+        setInterval(loadNotifications, 60000); // refresh every minute
         loadNotifications();   // then fill in from the database
 
         // ── Profile dropdown (unchanged) ───────────────────

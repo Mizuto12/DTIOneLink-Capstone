@@ -1,14 +1,13 @@
 @model DTIOneLink.Models.TaskCreateViewModel
 @{
-    Layout = "~/Views/Admin/AdminLayout.cshtml"; 
+    Layout = Context.Session.GetString("UserRole") == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Create Task";
-    var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
 }
-
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/assignee-multiselect.css" asp-append-version="true" />
 }
 
 <!-- ── Validation Summary ────────────────────────────── -->
@@ -130,42 +129,83 @@
                     <span asp-validation-for="TaskName" class="field-error"></span>
                 </div>
 
-                               <!-- Assignees + Due Date -->
-                <div class="field-row">
+                <!-- Description -->
+                <div class="field-group">
+                    <label class="field-label" for="description">TASK DESCRIPTION <span class="required-star">*</span></label>
+                    <textarea class="pill-input" id="description" asp-for="Description" rows="4"
+                              placeholder="Describe the task scope, objectives, and any specific requirements..."></textarea>
+                    <span asp-validation-for="Description" class="field-error"></span>
+                </div>
+
+                               @if (ViewBag.CanCreateMainTask == true)
+                {
+                    <!-- Task Type -->
                     <div class="field-group">
-                        <label class="field-label" id="assigneeLabel">ASSIGNEES <span class="required-star">*</span></label>
-                        <div class="assignee-select@(hasAssigneeError ? " assignee-select-invalid" : "")" data-assignee-select>
-                            <button type="button"
-                                    class="assignee-select-trigger"
-                                    id="assigneeTrigger"
-                                    data-assignee-trigger
-                                    aria-haspopup="true"
-                                    aria-expanded="false"
-                                    aria-labelledby="assigneeLabel assigneeTrigger">
-                                <span class="assignee-select-label is-placeholder" data-assignee-label>Select assignees</span>
-                                <span class="material-symbols-outlined assignee-select-chevron">expand_more</span>
-                            </button>
-                            <div class="assignee-select-panel" data-assignee-panel role="group" aria-label="Employees" hidden>
-                                <div class="assignee-select-search-wrap">
-                                    <span class="material-symbols-outlined assignee-select-search-icon">search</span>
-                                    <input type="text" class="assignee-select-search" data-assignee-search
-                                           placeholder="Search employees..." aria-label="Search employees" />
-                                </div>
-                                <div class="assignee-select-options">
-                                    @foreach (var emp in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Employees)
-                                    {
-                                        <label class="assignee-select-option" data-assignee-option
-                                               data-name="@emp.Text.ToLowerInvariant()" data-display-name="@emp.Text">
-                                            <input type="checkbox" name="AssigneeIds" value="@emp.Value" />
-                                            <span>@emp.Text</span>
-                                        </label>
-                                    }
-                                </div>
-                                <p class="assignee-select-empty" data-assignee-empty hidden>No employees found</p>
-                            </div>
+                        <label class="field-label" for="taskType">TASK TYPE <span class="required-star">*</span></label>
+                        <div class="select-wrap">
+                            <select class="pill-input" id="taskType" asp-for="TaskType">
+                                <option value="">Select task type</option>
+                                <option value="direct-admin">Direct Admin Task — assigned straight to one Admin</option>
+                                <option value="department-directive">Department Directive — sent to the department</option>
+                            </select>
+                            <span class="material-symbols-outlined select-icon">expand_more</span>
                         </div>
-                        <span asp-validation-for="AssigneeIds" class="field-error"></span>
+                        <span asp-validation-for="TaskType" class="field-error"></span>
                     </div>
+
+                    <!-- Target Department -->
+                    <div class="field-group">
+                        <label class="field-label" for="targetDepartment">TARGET DEPARTMENT <span class="required-star">*</span></label>
+                        <div class="select-wrap">
+                            <select class="pill-input" id="targetDepartment" asp-for="OwningDepartment">
+                                <option value="">Select department</option>
+                                @foreach (var dept in (string[])ViewBag.TargetDepartments)
+                                {
+                                    <option value="@dept">@dept</option>
+                                }
+                            </select>
+                            <span class="material-symbols-outlined select-icon">expand_more</span>
+                        </div>
+                        <span asp-validation-for="OwningDepartment" class="field-error"></span>
+                    </div>
+
+                    <!-- Responsible Admin — every active Admin is rendered here once,
+                         tagged with their own department; responsible-admin-lookup.js
+                         hides the ones that don't match the selected Target Department.
+                         No network call, so the list can never come back empty due to a
+                         failed fetch. -->
+                    <div class="field-group">
+                        <label class="field-label" for="responsibleAdmin">RESPONSIBLE ADMIN <span class="required-star">*</span></label>
+                        <div class="select-wrap">
+                            <select class="pill-input" id="responsibleAdmin" asp-for="ResponsibleAdminUserId" data-responsible-admin-select>
+                                <option value="">Select responsible Admin</option>
+                                @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
+                                {
+                                    <option value="@admin.Id" data-department="@admin.Department">@admin.FullName (@admin.Department)</option>
+                                }
+                            </select>
+                            <span class="material-symbols-outlined select-icon">expand_more</span>
+                        </div>
+                        <p class="modal-sub" style="margin-top:4px;">Division Chief or Supervisor for the selected department.</p>
+                        <span asp-validation-for="ResponsibleAdminUserId" class="field-error"></span>
+                    </div>
+
+                    <!-- Subtasks — optional, plain-text breakdown. Only applies to a
+                         Department Directive; hidden via JS for Direct Admin Task and
+                         ignored server-side if submitted anyway (see TasksController). -->
+                    <div class="field-group" id="subtasksFieldGroup">
+                        <label class="field-label">SUBTASKS</label>
+                        <div id="subtaskList" class="subtask-list"></div>
+                        <button type="button" id="addSubtaskBtn" class="subtask-add-btn">
+                            <span class="material-symbols-outlined">add</span>
+                            Add subtask
+                        </button>
+                        <p class="modal-sub" style="margin-top:4px;">Optional — break this down now, or add subtasks later.</p>
+                    </div>
+                }
+
+                                             <!-- Due Date -->
+                <div class="field-row">
                     <div class="field-group">
                         <label class="field-label" for="dueDate">DUE DATE <span class="required-star">*</span></label>
                         <div class="select-wrap">
@@ -173,6 +213,21 @@
                             <span class="material-symbols-outlined select-icon">calendar_today</span>
                         </div>
                         <span asp-validation-for="DueDate" class="field-error"></span>
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label" for="recurrence">REPEAT</label>
+                        <div class="select-wrap">
+                            <select class="pill-input" id="recurrence" asp-for="Recurrence">
+                                <option value="">Does not repeat</option>
+                                <option value="daily">Every day</option>
+                                <option value="weekly">Every week</option>
+                                <option value="monthly">Every month</option>
+                                <option value="quarterly">Every quarter</option>
+                            </select>
+                            <span class="material-symbols-outlined select-icon">expand_more</span>
+                        </div>
+                        <p class="modal-sub" style="margin-top:4px;">On each due date, a new copy is sent out the same way as this task.</p>
+                        <span asp-validation-for="Recurrence" class="field-error"></span>
                     </div>
                 </div>
                 <!-- Priority -->
@@ -204,13 +259,6 @@
                     <span asp-validation-for="Priority" class="field-error"></span>
                 </div>
 
-                <!-- Description -->
-                <div class="field-group">
-                    <label class="field-label" for="description">TASK DESCRIPTION <span class="required-star">*</span></label>
-                    <textarea class="pill-input" id="description" asp-for="Description" rows="4"
-                              placeholder="Describe the task scope, objectives, and any specific requirements..."></textarea>
-                    <span asp-validation-for="Description" class="field-error"></span>
-                </div>
 
             </form>
         </div>
@@ -229,6 +277,21 @@
 </div>
 
 @section Scripts {
-    <script src="~/js/assignee-multiselect.js" asp-append-version="true"></script>
+    <script src="~/js/responsible-admin-lookup.js" asp-append-version="true"></script>
+    <script src="~/js/subtask-list.js" asp-append-version="true"></script>
     <script src="~/js/tasks-create.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var taskTypeSelect = document.getElementById('taskType');
+            var subtasksGroup = document.getElementById('subtasksFieldGroup');
+            if (!taskTypeSelect || !subtasksGroup) return;
+
+            function syncSubtaskVisibility() {
+                subtasksGroup.style.display = taskTypeSelect.value === 'direct-admin' ? 'none' : '';
+            }
+
+            taskTypeSelect.addEventListener('change', syncSubtaskVisibility);
+            syncSubtaskVisibility();
+        })();
+    </script>
 }
