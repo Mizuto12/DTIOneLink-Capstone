@@ -378,3 +378,37 @@
     padding-top: 8px;
     border-top: 1px solid var(--et-outline-variant);
 }
+/* ── Current assignees (kept, with their own progress) ───── */
+.edit-task .et-current-assignees { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.edit-task .et-current-assignee {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid #c5c6d2;
+    border-radius: 10px;
+    background: #f7f9ff;
+}
+.edit-task .et-ca-name { font-weight: 700; flex: 1; }
+.edit-task .et-ca-progress { font-size: 13px; color: #5f6368; }
+.edit-task .et-ca-remove {
+    border: 1px solid #ba1a1a;
+    background: #ffffff;
+    color: #ba1a1a;
+    border-radius: 9999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.edit-task .et-ca-locked {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f7a3d;
+    background: #dcfce7;
+    border-radius: 9999px;
+    padding: 4px 10px;
+}
+.edit-task .et-current-assignee.is-removing { opacity: 0.6; background: #fff1f0; }
+.edit-task .et-current-assignee.is-removing .et-ca-name { text-decoration: line-through; }
+.edit-task .et-ca-note { margin: 0 0 8px; font-size: 13px; color: #5f6368; }

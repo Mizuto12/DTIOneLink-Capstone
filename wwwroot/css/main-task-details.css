@@ -117,3 +117,20 @@
     cursor: pointer;
 }
 .mtd-stop-repeat:hover { background: #ffdad6; }
+
+/* Per-person Review link (OPD, Direct Admin / Whole Office tasks) */
+.mtd-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    background: #001e65;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.mtd-review-btn:hover { background: #2b428b; }
+.mtd-review-btn .material-symbols-outlined { font-size: 16px; }

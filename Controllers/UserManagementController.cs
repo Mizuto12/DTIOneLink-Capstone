@@ -45,6 +45,28 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
                 Status = reader.GetBoolean(6) ? "active" : "disabled"
             });
         }
+        await reader.CloseAsync();
+
+        // Unfinished tasks per person (same rule as ChangeStanding's message),
+        // so the Change Role pop-up can warn before saving.
+        const string openWorkSql = @"
+            SELECT u.Id, COUNT(t.Id)
+            FROM dbo.Users u
+            JOIN dbo.TaskItems t ON t.Status <> 'completed'
+             AND (t.ResponsibleAdminUserId = u.Id
+                  OR EXISTS (SELECT 1 FROM dbo.TaskAssignments a
+                             WHERE a.TaskId = t.Id AND a.UserId = u.Id AND a.Status <> 'completed'))
+            GROUP BY u.Id";
+        var openTasks = new Dictionary<int, int>();
+        using (var openCmd = new SqlCommand(openWorkSql, conn))
+        using (var openReader = await openCmd.ExecuteReaderAsync())
+        {
+            while (await openReader.ReadAsync())
+            {
+                openTasks[openReader.GetInt32(0)] = openReader.GetInt32(1);
+            }
+        }
+        ViewData["OpenTasks"] = openTasks;
 
         return View(users);
     }
@@ -216,6 +238,75 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             + (openWork > 0
                 ? $" They still have {openWork} unfinished task(s) from before — reassign them if needed."
                 : "");
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Who may deactivate/reactivate whom. Super Admin: anyone but
+    // themselves. Admin (Division Chief): only Employees of their own
+    // division. Used by the view (buttons) and SetActive (enforcement).
+    public static bool CanSetActive(string? actorRole, string? actorDepartment, int? actorId,
+        int targetId, string? targetRole, string? targetDepartment)
+    {
+        if (actorId == null || actorId == targetId) return false;
+        if (string.Equals(actorRole, "SuperAdmin", StringComparison.OrdinalIgnoreCase)) return true;
+        return string.Equals(actorRole, "Admin", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(targetRole, "Employee", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(actorDepartment)
+            && string.Equals(targetDepartment, actorDepartment, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Deactivate (active = false) or reactivate (active = true) an account.
+    // A deactivated person can't sign in, and anyone already signed in is
+    // signed out on their next page (see Program.cs). Nothing is deleted:
+    // their tasks, records and history stay.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetActive(int id, bool active)
+    {
+        var actorRole = HttpContext.Session.GetString("UserRole");
+        var actorDepartment = HttpContext.Session.GetString("UserDepartment");
+        var actorId = HttpContext.Session.GetInt32("UserId");
+
+        using var conn = db.GetConnection();
+        await conn.OpenAsync();
+
+        string fullName, targetRole, targetDepartment;
+        using (var find = new SqlCommand("SELECT FullName, Role, Department FROM dbo.Users WHERE Id = @Id", conn))
+        {
+            find.Parameters.AddWithValue("@Id", id);
+            using var reader = await find.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                TempData["DirectoryError"] = "That account no longer exists.";
+                return RedirectToAction(nameof(Index));
+            }
+            fullName = reader.GetString(0);
+            targetRole = reader.GetString(1);
+            targetDepartment = reader.IsDBNull(2) ? "" : reader.GetString(2);
+        }
+
+        if (!CanSetActive(actorRole, actorDepartment, actorId, id, targetRole, targetDepartment))
+        {
+            TempData["DirectoryError"] = actorId == id
+                ? "You can't deactivate your own account."
+                : "You can only deactivate or reactivate employees of your own division.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        using (var update = new SqlCommand("UPDATE dbo.Users SET IsActive = @Active WHERE Id = @Id", conn))
+        {
+            update.Parameters.AddWithValue("@Active", active);
+            update.Parameters.AddWithValue("@Id", id);
+            await update.ExecuteNonQueryAsync();
+        }
+
+        logger.LogInformation("User {UserId} {Action} by {ActorRole} {ActorId}.",
+            id, active ? "reactivated" : "deactivated", actorRole, actorId);
+
+        TempData["HighlightUserId"] = id;
+        TempData["DirectoryMessage"] = active
+            ? $"{fullName}'s account is active again. They can sign in with their usual password."
+            : $"{fullName}'s account is deactivated. They can no longer sign in. Their tasks and records are kept.";
         return RedirectToAction(nameof(Index));
     }
 

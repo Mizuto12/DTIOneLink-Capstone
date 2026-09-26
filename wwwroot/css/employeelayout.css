@@ -398,3 +398,13 @@ body {
     .sidebar-nav  { flex-direction: row; overflow-x: auto; }
     .main-content { margin-left: 0; }
 }
+
+/* Signed-in person's initials in the top bar (same look as User Management) */
+.avatar-initials {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    color: #001e65;
+    line-height: 1;
+}
+.user-avatar-lg .avatar-initials { font-size: 17px; }

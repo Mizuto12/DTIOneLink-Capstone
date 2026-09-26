@@ -24,6 +24,8 @@
             <p class="sa-card__label">In Progress</p>
             <p class="sa-card__value sa-card__value--inprogress">@Model.InProgressCount</p>
         </div>
+        <div class="sa-card"><p class="sa-card__label">For Review</p><p class="sa-card__value">@Model.ForReviewCount</p></div>
+        <div class="sa-card"><p class="sa-card__label">Returned</p><p class="sa-card__value">@Model.ReturnedForCorrectionCount</p></div>
         <div class="sa-card">
             <p class="sa-card__label">Completed</p>
             <p class="sa-card__value sa-card__value--completed">@Model.CompletedCount</p>
@@ -32,6 +34,7 @@
             <p class="sa-card__label">Overdue</p>
             <p class="sa-card__value sa-card__value--overdue">@Model.OverdueCount</p>
         </div>
+        <div class="sa-card"><p class="sa-card__label">At Risk</p><p class="sa-card__value sa-card__value--risk">@Model.AtRiskCount</p></div>
     </section>
 
     <!-- ── Status Distribution ───────────────────────────── -->
@@ -46,11 +49,15 @@
             <div class="sa-status-bar">
                 <div class="sa-status-bar__segment--todo" style="width:@(Model.TodoPercent)%;" title="To Do @Model.TodoPercent%"></div>
                 <div class="sa-status-bar__segment--inprogress" style="width:@(Model.InProgressPercent)%;" title="In Progress @Model.InProgressPercent%"></div>
+                <div class="sa-status-bar__segment--review" style="width:@(Model.ForReviewPercent)%;" title="For Review @Model.ForReviewPercent%"></div>
+                <div class="sa-status-bar__segment--returned" style="width:@(Model.ReturnedForCorrectionPercent)%;" title="Returned @Model.ReturnedForCorrectionPercent%"></div>
                 <div class="sa-status-bar__segment--completed" style="width:@(Model.CompletedPercent)%;" title="Completed @Model.CompletedPercent%"></div>
             </div>
             <div class="sa-status-legend">
                 <span><span class="sa-status-legend__dot sa-status-legend__dot--todo"></span>To Do — @Model.TodoCount (@Model.TodoPercent%)</span>
                 <span><span class="sa-status-legend__dot sa-status-legend__dot--inprogress"></span>In Progress — @Model.InProgressCount (@Model.InProgressPercent%)</span>
+                <span><span class="sa-status-legend__dot sa-status-legend__dot--review"></span>For Review — @Model.ForReviewCount (@Model.ForReviewPercent%)</span>
+                <span><span class="sa-status-legend__dot sa-status-legend__dot--returned"></span>Returned — @Model.ReturnedForCorrectionCount (@Model.ReturnedForCorrectionPercent%)</span>
                 <span><span class="sa-status-legend__dot sa-status-legend__dot--completed"></span>Completed — @Model.CompletedCount (@Model.CompletedPercent%)</span>
                 <span class="sa-status-legend__efficiency">Overall Efficiency: @Model.OverallEfficiencyPercent%</span>
             </div>
@@ -60,7 +67,7 @@
     <!-- ── Overdue Tasks ─────────────────────────────────── -->
     <section class="sa-section">
         <h4 class="sa-section__title">Overdue Tasks (@Model.OverdueCount)</h4>
-        @if (!Model.OverdueTasks.Any())
+        @if (!Model.OverdueItems.Any())
         {
             <div class="sa-empty-state">Nothing overdue.</div>
         }
@@ -76,11 +83,11 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var t in Model.OverdueTasks)
+                    @foreach (var t in Model.OverdueItems)
                     {
                         <tr>
                             <td>@t.TaskName</td>
-                            <td class="td--muted">@(t.Assignee?.FullName ?? "Unassigned")</td>
+                            <td class="td--muted">@t.AssigneeName</td>
                             <td class="td--overdue">@t.DueDate.ToString("MMM d, yyyy")</td>
                             <td>@t.Progress%</td>
                         </tr>
@@ -106,8 +113,11 @@
                         <th>Assigned</th>
                         <th>To Do</th>
                         <th>In Progress</th>
+                        <th>For Review</th>
+                        <th>Returned</th>
                         <th>Completed</th>
                         <th>Overdue</th>
+                        <th>At Risk</th>
                         <th>Efficiency</th>
                     </tr>
                 </thead>
@@ -119,8 +129,11 @@
                             <td>@w.TotalAssigned</td>
                             <td>@w.ToDo</td>
                             <td>@w.InProgress</td>
+                            <td>@w.ForReview</td>
+                            <td>@w.ReturnedForCorrection</td>
                             <td>@w.Completed</td>
                             <td class="@(w.Overdue > 0 ? "td--danger-count" : "")">@w.Overdue</td>
+                            <td class="@(w.AtRisk > 0 ? "td--risk-count" : "")">@w.AtRisk</td>
                             <td class="td--strong">@w.EfficiencyPercent%</td>
                         </tr>
                     }

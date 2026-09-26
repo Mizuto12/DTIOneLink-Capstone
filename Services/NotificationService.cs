@@ -309,14 +309,15 @@ namespace DTIOneLink.Services
         public async Task NotifyOpdProofSubmittedAsync(int taskId, string taskTitle, string adminName, int submissionId)
         {
             var task = await LoadTaskWithParentAsync(taskId);
-            if (task == null || task.TaskType != TaskTypes.DirectAdmin) return;
+            if (task == null || !TaskTypes.IsAssignedByOpd(task.TaskType)) return;
+            var taskKind = task.TaskType == TaskTypes.WholeOffice ? "office-wide task" : "Direct Admin Task";
 
             foreach (var recipientId in await GetOpdRecipientIdsAsync(task))
             {
                 await CreateAsync(
                     recipientUserId: recipientId,
                     type: NotificationType.Task,
-                    message: $"{adminName} submitted proof for Direct Admin Task \"{taskTitle}\" — awaiting your review",
+                    message: $"{adminName} submitted proof for {taskKind} \"{taskTitle}\" — awaiting your review",
                     relatedTaskId: taskId,
                     link: $"/Tasks/Review/{submissionId}"
                 );
@@ -331,7 +332,7 @@ namespace DTIOneLink.Services
             var task = await LoadTaskWithParentAsync(mainTaskId);
             if (task == null
                 || task.TaskLevel != TaskLevels.Main
-                || task.TaskType == TaskTypes.DirectAdmin
+                || TaskTypes.IsAssignedByOpd(task.TaskType)
                 || task.Status != TaskWorkflow.Completed)
             {
                 return;

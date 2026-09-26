@@ -493,7 +493,7 @@ if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
     // Direct Admin Task proofs are reviewed by OPD, not a department Admin,
     // and the submitter there IS an Admin — so no department alert for those.
     var submitterName = HttpContext.Session.GetString("FullName") ?? "An employee";
-    if (task.TaskType != TaskTypes.DirectAdmin)
+    if (!TaskTypes.IsAssignedByOpd(task.TaskType))
     {
         await _notifications.NotifyAdminsProofSubmittedAsync(task.Id, task.TaskName, submitterName, submission.Id);
     }
@@ -597,7 +597,8 @@ public async Task<IActionResult> DownloadProof(int submissionId)
                 // open an out-of-department subtask directly by id.
                 var department = CurrentUserDepartment();
                 return await query.FirstOrDefaultAsync(t => t.Id == taskId &&
-                    ((t.OwningDepartment != null && t.OwningDepartment == department) ||
+                    (t.Assignments.Any(a => a.UserId == userId) ||
+                     (t.OwningDepartment != null && t.OwningDepartment == department) ||
                      (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
                      (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
                         t.Assignments.Any(a => a.User != null && a.User.Department == department))));
@@ -641,7 +642,8 @@ public async Task<IActionResult> DownloadProof(int submissionId)
                 var department = CurrentUserDepartment();
                 return await query.FirstOrDefaultAsync(s => s.Id == submissionId &&
                     s.Task != null &&
-                    ((s.Task.OwningDepartment != null && s.Task.OwningDepartment == department) ||
+                    ((s.TaskAssignment != null && s.TaskAssignment.UserId == userId) ||
+                     (s.Task.OwningDepartment != null && s.Task.OwningDepartment == department) ||
                      (s.Task.OwningDepartment == null && s.Task.ParentTask != null && s.Task.ParentTask.OwningDepartment == department) ||
                      (s.Task.OwningDepartment == null && (s.Task.ParentTask == null || s.Task.ParentTask.OwningDepartment == null) &&
                         s.TaskAssignment != null && s.TaskAssignment.User != null && s.TaskAssignment.User.Department == department)));
@@ -675,6 +677,9 @@ private IQueryable<TaskItem> AccessibleTasksQuery()
     {
         var department = CurrentUserDepartment();
         return query.Where(t =>
+            // Their own assignment, wherever the task belongs (e.g. a
+            // Whole Office task owned by the OPD).
+            t.Assignments.Any(a => a.UserId == userId) ||
             (t.OwningDepartment != null && t.OwningDepartment == department) ||
             (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
             (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&

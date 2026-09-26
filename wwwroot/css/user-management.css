@@ -111,6 +111,7 @@
 
 /* ── Hidden row for search filtering ─────────────────────── */
 .um-row-hidden { display: none; }
+.um-search-hidden { display: none; }
 
 /* ── Page header ─────────────────────────────────────────── */
 /* flex items-center justify-between mb-6 */
@@ -925,3 +926,24 @@
 }
 .um-role-help:empty { display: none; }
 .um-select:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* ── Deactivate / Reactivate ─────────────────────────────── */
+.um-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.um-actions form { margin: 0; }
+.um-btn-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: var(--surface-lowest);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.um-btn-status .material-symbols-outlined { font-size: 16px; }
+.um-btn-deactivate { border: 1px solid var(--error); color: var(--error); }
+.um-btn-deactivate:hover { background: var(--error-container); }
+.um-btn-reactivate { border: 1px solid #0f7a3d; color: #0f7a3d; }
+.um-btn-reactivate:hover { background: #dcfce7; }

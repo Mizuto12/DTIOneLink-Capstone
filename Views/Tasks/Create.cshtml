@@ -147,14 +147,18 @@
                                 <option value="">Select task type</option>
                                 <option value="direct-admin">Direct Admin Task — assigned straight to one Admin</option>
                                 <option value="department-directive">Department Directive — sent to the department</option>
+                                <option value="whole-office">Whole Office — everyone submits (e.g. Monthly CSF Report)</option>
                             </select>
                             <span class="material-symbols-outlined select-icon">expand_more</span>
                         </div>
                         <span asp-validation-for="TaskType" class="field-error"></span>
+                        <p class="modal-sub" id="wholeOfficeNote" style="margin-top:4px;" hidden>
+                            Every active Division Chief and employee (@ViewBag.WholeOfficeCount people) gets this task and submits their own. You review each submission.
+                        </p>
                     </div>
 
                     <!-- Target Department -->
-                    <div class="field-group">
+                    <div class="field-group" id="targetDepartmentGroup">
                         <label class="field-label" for="targetDepartment">TARGET DEPARTMENT <span class="required-star">*</span></label>
                         <div class="select-wrap">
                             <select class="pill-input" id="targetDepartment" asp-for="OwningDepartment">
@@ -174,7 +178,7 @@
                          hides the ones that don't match the selected Target Department.
                          No network call, so the list can never come back empty due to a
                          failed fetch. -->
-                    <div class="field-group">
+                    <div class="field-group" id="responsibleAdminGroup">
                         <label class="field-label" for="responsibleAdmin">RESPONSIBLE ADMIN <span class="required-star">*</span></label>
                         <div class="select-wrap">
                             <select class="pill-input" id="responsibleAdmin" asp-for="ResponsibleAdminUserId" data-responsible-admin-select>
@@ -286,8 +290,18 @@
             var subtasksGroup = document.getElementById('subtasksFieldGroup');
             if (!taskTypeSelect || !subtasksGroup) return;
 
+            // Direct Admin: no subtasks. Whole Office: no division, Responsible
+            // Admin or subtasks (it goes to everyone).
             function syncSubtaskVisibility() {
-                subtasksGroup.style.display = taskTypeSelect.value === 'direct-admin' ? 'none' : '';
+                var type = taskTypeSelect.value;
+                var wholeOffice = type === 'whole-office';
+                subtasksGroup.style.display = type === 'direct-admin' || wholeOffice ? 'none' : '';
+                ['targetDepartmentGroup', 'responsibleAdminGroup'].forEach(function (id) {
+                    var group = document.getElementById(id);
+                    if (group) group.style.display = wholeOffice ? 'none' : '';
+                });
+                var note = document.getElementById('wholeOfficeNote');
+                if (note) note.hidden = !wholeOffice;
             }
 
             taskTypeSelect.addEventListener('change', syncSubtaskVisibility);

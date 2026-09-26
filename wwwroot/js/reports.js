@@ -22,7 +22,9 @@
   function getFilteredReports() {
     return reports.filter(r => {
       const matchesCategory = currentFilter === 'All Categories' || r.category === currentFilter;
-      const matchesSearch = searchTerm === '' || r.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = term === '' ||
+        [r.title, r.owner, r.id, r.tag].some(v => (v || '').toLowerCase().includes(term));
       return matchesCategory && matchesSearch;
     });
   }
@@ -185,4 +187,14 @@
   };
 
   render();
+
+  // ---------- Load real data from the server ----------
+  // ReportsController.Data returns only what this user is allowed to see.
+  fetch('/Reports/Data', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+    .then(res => res.ok ? res.json() : Promise.reject(res.status))
+    .then(data => window.ReportsPage.setReports(Array.isArray(data) ? data : []))
+    .catch(() => {
+      reportListEl.innerHTML = '';
+      reportListEl.appendChild(renderEmptyState('Reports could not be loaded. Please refresh the page.'));
+    });
 })();

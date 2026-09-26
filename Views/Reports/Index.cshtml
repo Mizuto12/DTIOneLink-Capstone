@@ -1,8 +1,10 @@
 @{
     var userRole = Context.Session.GetString("UserRole");
-    Layout = userRole == "Admin"
-        ? "~/Views/Admin/AdminLayout.cshtml"
-        : "~/Views/Employee/employeelayout.cshtml";
+    Layout = userRole == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : userRole == "Admin"
+            ? "~/Views/Admin/AdminLayout.cshtml"
+            : "~/Views/Employee/employeelayout.cshtml";
     ViewData["Title"] = "Reports";
 }
 

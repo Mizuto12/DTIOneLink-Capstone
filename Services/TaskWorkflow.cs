@@ -45,6 +45,37 @@
             public static string DisplayStatus(string? status, DateTime dueDate) =>
                 IsOverdue(status, dueDate) ? "overdue" : Normalize(status);
 
+            // Delay-risk indicator (rule-based: time used vs. progress made).
+            // Returns null when no badge applies: completed, already overdue
+            // (the status itself says so), or waiting for review.
+            public static (bool AtRisk, string Reason)? DelayRisk(string? status, int progress, DateTime createdAt, DateTime dueDate)
+            {
+                var current = Normalize(status);
+                if (current == Completed || current == ForReview || IsOverdue(status, dueDate))
+                {
+                    return null;
+                }
+
+                var today = DateTime.UtcNow.Date;
+                var start = createdAt.Date;
+                var totalDays = Math.Max(1, (dueDate.Date - start).Days);
+                var usedDays = Math.Clamp((today - start).Days, 0, totalDays);
+                var daysLeft = (dueDate.Date - today).Days;
+                var timeUsedPct = usedDays * 100 / totalDays;
+
+                var dueSoon = daysLeft <= 3;
+                var atRisk =
+                    (usedDays >= 2 && timeUsedPct - progress >= 25) ||
+                    (dueSoon && progress < 50) ||
+                    (dueSoon && current == ReturnedForCorrection);
+
+                var when = daysLeft == 0 ? "Due today" : daysLeft == 1 ? "Due tomorrow" : $"Due in {daysLeft} days";
+                var reason = dueSoon
+                    ? $"{when}, progress {progress}%."
+                    : $"{usedDays} of {totalDays} days used, progress {progress}%.";
+                return (atRisk, reason);
+            }
+
             public static string DisplayLabel(string? status, DateTime dueDate) =>
                 DisplayStatus(status, dueDate) switch
                 {

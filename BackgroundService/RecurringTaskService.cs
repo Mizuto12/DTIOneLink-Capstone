@@ -79,9 +79,10 @@ namespace DTIOneLink.Services
                 .Include(t => t.Subtasks)
                 .FirstOrDefaultAsync(t => t.Id == taskId, stoppingToken);
 
+            var isWholeOffice = previous?.TaskType == TaskTypes.WholeOffice;
             if (previous?.Recurrence == null || !TaskRecurrence.IsValid(previous.Recurrence)
                 || previous.TaskType == null || previous.OwningDepartment == null
-                || previous.ResponsibleAdminUserId == null)
+                || (previous.ResponsibleAdminUserId == null && !isWholeOffice))
             {
                 return;
             }
@@ -89,8 +90,10 @@ namespace DTIOneLink.Services
             // Same rule as creating a task: the responsible Admin must still be
             // an active Admin of that department. If not, keep waiting (and
             // say why in the log) until the OPD fixes it or stops the repeat.
-            var adminStillValid = await db.Users.AnyAsync(u =>
-                u.Id == previous.ResponsibleAdminUserId.Value && u.IsActive &&
+            // (A Whole Office copy has no Responsible Admin; it simply goes to
+            // everyone who is active when the copy is sent out.)
+            var adminStillValid = isWholeOffice || await db.Users.AnyAsync(u =>
+                u.Id == previous.ResponsibleAdminUserId!.Value && u.IsActive &&
                 u.Role == "Admin" && u.Department == previous.OwningDepartment, stoppingToken);
             if (!adminStillValid)
             {
@@ -101,7 +104,7 @@ namespace DTIOneLink.Services
             }
 
             var frequency = previous.Recurrence;
-            var subtaskNames = previous.TaskType == TaskTypes.DirectAdmin
+            var subtaskNames = TaskTypes.IsAssignedByOpd(previous.TaskType)
                 ? new List<string>()
                 : previous.Subtasks.OrderBy(s => s.Id).Select(s => s.TaskName).ToList();
 
@@ -120,7 +123,7 @@ namespace DTIOneLink.Services
                     previous.Priority,
                     previous.TaskType,
                     previous.OwningDepartment,
-                    previous.ResponsibleAdminUserId.Value,
+                    previous.ResponsibleAdminUserId,
                     subtaskNames,
                     frequency),
                 previous.CreatedByUserId,

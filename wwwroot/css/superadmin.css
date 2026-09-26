@@ -33,7 +33,7 @@
 
 .sa-cards {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 16px;
 }
 
@@ -66,6 +66,7 @@
 .sa-card__value--inprogress { color: #2563eb; }
 .sa-card__value--completed  { color: #16a34a; }
 .sa-card__value--overdue    { color: #dc2626; }
+.sa-card__value--risk       { color: #b45309; }
 
 /* ── Shared section shell ──────────────────────────────── */
 
@@ -100,6 +101,8 @@
 
 .sa-status-bar__segment--todo       { background: #9ca3af; }
 .sa-status-bar__segment--inprogress { background: #2563eb; }
+.sa-status-bar__segment--review     { background: #7c3aed; }
+.sa-status-bar__segment--returned   { background: #d97706; }
 .sa-status-bar__segment--completed  { background: #16a34a; }
 
 .sa-status-legend {
@@ -121,6 +124,8 @@
 
 .sa-status-legend__dot--todo       { background: #9ca3af; }
 .sa-status-legend__dot--inprogress { background: #2563eb; }
+.sa-status-legend__dot--review     { background: #7c3aed; }
+.sa-status-legend__dot--returned   { background: #d97706; }
 .sa-status-legend__dot--completed  { background: #16a34a; }
 
 .sa-status-legend__efficiency {
@@ -160,3 +165,4 @@
 .sa-table td--overdue   { color: #dc2626; }
 .sa-table td--strong    { font-weight: 600; }
 .sa-table td--danger-count { color: #dc2626; }
+.sa-table td--risk-count { color: #b45309; }

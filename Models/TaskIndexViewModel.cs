@@ -77,6 +77,6 @@ namespace DTIOneLink.Models
             return values;
         }
 
-        public record EmployeeOption(int Id, string FullName, string Department);
+        public record EmployeeOption(int Id, string FullName, string Department, bool IsAdmin = false);
     }
 }

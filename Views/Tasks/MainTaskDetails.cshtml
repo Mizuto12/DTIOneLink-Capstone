@@ -124,6 +124,10 @@
                             <th>Progress</th>
                             <th>Status</th>
                             <th>Assigned By</th>
+                            @if (isOpd)
+                            {
+                                <th></th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -143,6 +147,25 @@
                                 </td>
                                 <td><span class="status-badge @StatusBadgeClass(aDisplayStatus)">@aDisplayLabel</span></td>
                                 <td><span class="td-muted">@(a.AssignedBy?.FullName ?? "Unknown")</span></td>
+                                @if (isOpd)
+                                {
+                                    // Review each person as soon as they submit, without
+                                    // waiting for everyone (OPD reviews these task types).
+                                    var pending = DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType)
+                                                  && DTIOneLink.Services.TaskWorkflow.Normalize(a.Status) == DTIOneLink.Services.TaskWorkflow.ForReview
+                                        ? task.Submissions.Where(s => s.TaskAssignmentId == a.Id && s.Decision == null)
+                                                          .OrderByDescending(s => s.SubmittedAt).FirstOrDefault()
+                                        : null;
+                                    <td>
+                                        @if (pending != null)
+                                        {
+                                            <a asp-controller="Tasks" asp-action="Review" asp-route-id="@pending.Id" class="mtd-review-btn">
+                                                <span class="material-symbols-outlined">fact_check</span>
+                                                Review
+                                            </a>
+                                        }
+                                    </td>
+                                }
                             </tr>
                         }
                     </tbody>

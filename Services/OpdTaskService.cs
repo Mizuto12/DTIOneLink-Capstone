@@ -29,7 +29,7 @@ namespace DTIOneLink.Services
             string Priority,
             string TaskType,
             string OwningDepartment,
-            int ResponsibleAdminUserId,
+            int? ResponsibleAdminUserId, // null for a Whole Office task
             IReadOnlyList<string> SubtaskNames,
             string? Recurrence);
 
@@ -57,22 +57,56 @@ namespace DTIOneLink.Services
             _context.TaskItems.Add(mainTask);
             await _context.SaveChangesAsync(); // need mainTask.Id before attaching assignments/subtasks
 
+            if (mainTask.TaskType == TaskTypes.WholeOffice)
+            {
+                // Everyone currently active in the office except the OPD
+                // (Super Admin) gets their own assignment, so each person
+                // works and submits it through their normal task board.
+                var staff = await _context.Users
+                    .Where(u => u.IsActive && (u.Role == "Admin" || u.Role == "Employee"))
+                    .OrderBy(u => u.FullName)
+                    .Select(u => u.Id)
+                    .ToListAsync();
+
+                if (staff.Count > 0)
+                {
+                    _taskAssignments.AssignEmployees(mainTask, staff, createdByUserId);
+                    await _context.SaveChangesAsync();
+                }
+
+                foreach (var userId in staff)
+                {
+                    await _notifications.NotifyTaskAssignedAsync(userId, mainTask.Id, mainTask.TaskName);
+                }
+
+                if (createdByUserId.HasValue)
+                {
+                    TaskActivityLogger.Log(_context, mainTask.Id, createdByUserId.Value, "created", activityNote);
+                    TaskActivityLogger.Log(_context, mainTask.Id, createdByUserId.Value, TaskActivityType.Assigned,
+                        $"Given to the whole office ({staff.Count} people).");
+                    await _context.SaveChangesAsync();
+                }
+
+                return (mainTask, 0);
+            }
+
             if (mainTask.TaskType == TaskTypes.DirectAdmin)
             {
+                var responsibleAdminId = spec.ResponsibleAdminUserId!.Value;
                 // Assigned straight to the Responsible Admin via the
                 // existing assignment system — mirrors AssigneeId for
                 // legacy compatibility and gives the Admin a normal
                 // TaskAssignment row to work through Employee/Update
                 // and Employee/SubmitProof, same as any employee task.
                 // No subtasks are ever attached to a Direct Admin Task.
-                _taskAssignments.AssignEmployees(mainTask, new List<int> { spec.ResponsibleAdminUserId }, createdByUserId);
+                _taskAssignments.AssignEmployees(mainTask, new List<int> { responsibleAdminId }, createdByUserId);
                 await _context.SaveChangesAsync();
 
                 var responsibleAdmin = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Id == spec.ResponsibleAdminUserId);
+                    .FirstOrDefaultAsync(u => u.Id == responsibleAdminId);
                 var adminName = responsibleAdmin?.FullName ?? "the responsible Admin";
 
-                await _notifications.NotifyTaskAssignedAsync(spec.ResponsibleAdminUserId, mainTask.Id, mainTask.TaskName);
+                await _notifications.NotifyTaskAssignedAsync(responsibleAdminId, mainTask.Id, mainTask.TaskName);
 
                 if (createdByUserId.HasValue)
                 {
@@ -121,7 +155,7 @@ namespace DTIOneLink.Services
                 await _context.SaveChangesAsync();
             }
 
-            await _notifications.NotifyAdminDirectiveReceivedAsync(spec.ResponsibleAdminUserId, mainTask.Id, mainTask.TaskName);
+            await _notifications.NotifyAdminDirectiveReceivedAsync(spec.ResponsibleAdminUserId!.Value, mainTask.Id, mainTask.TaskName);
 
             return (mainTask, subtaskNames.Count);
         }

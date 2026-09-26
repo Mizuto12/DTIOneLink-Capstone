@@ -58,6 +58,11 @@ namespace DTIOneLink.Controllers
         private static readonly TimeSpan SchemaRecheckInterval = TimeSpan.FromMinutes(5);
         private static readonly object SchemaLock = new();
         private static bool _hasSystemColumns;
+        // Records.MasterlistId, from migration 20260926000000_AddRecordMasterlists.
+        // Without it the working table shows every record and Save Masterlist
+        // is refused.
+        private const string MasterlistColumn = "MasterlistId";
+        private static bool _hasMasterlistColumn;
         private static DateTime _schemaCheckedAtUtc = DateTime.MinValue;
 
         // Stand-in for "Records r" when the system columns don't exist yet:
@@ -87,7 +92,7 @@ namespace DTIOneLink.Controllers
         {
             lock (SchemaLock)
             {
-                if (_hasSystemColumns || DateTime.UtcNow - _schemaCheckedAtUtc < SchemaRecheckInterval)
+                if ((_hasSystemColumns && _hasMasterlistColumn) || DateTime.UtcNow - _schemaCheckedAtUtc < SchemaRecheckInterval)
                 {
                     return _hasSystemColumns;
                 }
@@ -113,12 +118,30 @@ namespace DTIOneLink.Controllers
                     string.Join(", ", SystemColumns.Where(c => !found.Contains(c))));
             }
 
+            var hasMasterlist = hasAll && found.Contains(MasterlistColumn);
+            if (hasAll && !hasMasterlist)
+            {
+                _logger.LogWarning(
+                    "Records.MasterlistId is missing; Save Masterlist is disabled. " +
+                    "Apply migration 20260926000000_AddRecordMasterlists to enable it.");
+            }
+
             lock (SchemaLock)
             {
                 _hasSystemColumns = hasAll;
+                _hasMasterlistColumn = hasMasterlist;
                 _schemaCheckedAtUtc = DateTime.UtcNow;
             }
             return hasAll;
+        }
+
+        private bool HasMasterlists(SqlConnection openConnection)
+        {
+            HasSystemColumns(openConnection); // refreshes both flags when due
+            lock (SchemaLock)
+            {
+                return _hasMasterlistColumn;
+            }
         }
 
         // Validates one required free-text field. Returns an error message,
@@ -353,6 +376,17 @@ WHERE ").Append(VisibilityClause);
 
             using var cmd = new SqlCommand { Connection = conn };
             AddVisibilityParameters(cmd, user);
+
+            // The working table only holds records not yet saved into a
+            // masterlist, plus the records of the masterlist the user has
+            // reopened to add to (if any). Saved ones stay in the database
+            // (for retention reminders and Reports) and live in their file.
+            if (HasMasterlists(conn))
+            {
+                sql.Append(" AND (r.MasterlistId IS NULL OR r.MasterlistId = @OpenMasterlistId)");
+                cmd.Parameters.Add("@OpenMasterlistId", SqlDbType.Int).Value =
+                    (object?)HttpContext.Session.GetInt32(OpenMasterlistSessionKey) ?? DBNull.Value;
+            }
 
             var search = q?.Trim();
             if (!string.IsNullOrEmpty(search))
@@ -616,6 +650,365 @@ WHERE ").Append(VisibilityClause);
                 // carry no connection string); the user gets a generic message.
                 _logger.LogError(ex, "Failed to save record with Code {Code} for user {UserId}.", code, user.UserId);
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // ── Masterlists ──────────────────────────────────────────────
+        // "Save Masterlist" puts every record the user has added since their
+        // last save into one DTI Masterlist of Records Excel file, keeps the
+        // file, and takes those records off the working table. Same owner-only
+        // rule as the records themselves.
+
+        private const int MaxSignatoryLength = 100;
+        private const int MasterlistHistoryLimit = 100;
+        private const string GenericMasterlistError = "Unable to save the masterlist. Please contact the administrator.";
+
+        public sealed class MasterlistRequest
+        {
+            public string? PreparedByName { get; set; }
+            public string? PreparedByPosition { get; set; }
+            public string? ReviewedByName { get; set; }
+            public string? ReviewedByPosition { get; set; }
+            public string? NotedByName { get; set; }
+            public string? NotedByPosition { get; set; }
+        }
+
+        // Signature lines may be left blank (to be written on the printout).
+        private static string? CheckSignatory(string value, string label) =>
+            value.Length > MaxSignatoryLength ? $"{label} is too long (maximum {MaxSignatoryLength} characters)."
+            : value.Any(char.IsControl) ? $"{label} contains characters that aren't allowed."
+            : null;
+
+        // The saved masterlist the user reopened with "Add Records", kept in
+        // the server-side session. While set, its records are back on the
+        // working table and Save Masterlist updates it instead of creating a
+        // new one. Losing the session just closes it — nothing is changed.
+        private const string OpenMasterlistSessionKey = "OpenMasterlistId";
+
+        // The id back only if that masterlist exists and belongs to the user.
+        private static int? OwnedMasterlistId(SqlConnection conn, SqlTransaction? transaction, RecordsUser user, int? masterlistId)
+        {
+            if (masterlistId == null)
+            {
+                return null;
+            }
+            using var cmd = new SqlCommand(@"
+SELECT COUNT(*) FROM dbo.RecordMasterlists WHERE MasterlistId = @Id AND CreatedByUserId = @UserId", conn, transaction);
+            cmd.Parameters.Add("@Id", SqlDbType.Int).Value = masterlistId.Value;
+            cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+            return (int)cmd.ExecuteScalar() > 0 ? masterlistId : null;
+        }
+
+        // POST: /Records/ReopenMasterlist?id= — "Add Records" on a saved masterlist.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ReopenMasterlist(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasMasterlists(conn) || OwnedMasterlistId(conn, null, user, id) == null)
+                {
+                    return NotFound(new { message = "That masterlist could not be found." });
+                }
+                HttpContext.Session.SetInt32(OpenMasterlistSessionKey, id);
+                return Json(new { ok = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reopen masterlist {MasterlistId} for user {UserId}.", id, user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericMasterlistError });
+            }
+        }
+
+        // POST: /Records/CloseMasterlist — "Stop Adding". The saved file is
+        // left as it was; records added meanwhile stay on the table as new.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CloseMasterlist()
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+            HttpContext.Session.Remove(OpenMasterlistSessionKey);
+            return Json(new { ok = true });
+        }
+
+        // POST: /Records/SaveMasterlist — returns { masterlistId, fileName, recordCount };
+        // the page then downloads the file from DownloadMasterlist.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SaveMasterlist([FromBody] MasterlistRequest? request)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            request ??= new MasterlistRequest();
+            var preparedBy = new RecordMasterlistExcel.Signatory(request.PreparedByName?.Trim() ?? "", request.PreparedByPosition?.Trim() ?? "");
+            var reviewedBy = new RecordMasterlistExcel.Signatory(request.ReviewedByName?.Trim() ?? "", request.ReviewedByPosition?.Trim() ?? "");
+            var notedBy = new RecordMasterlistExcel.Signatory(request.NotedByName?.Trim() ?? "", request.NotedByPosition?.Trim() ?? "");
+
+            var error = CheckSignatory(preparedBy.Name, "Prepared by name")
+                ?? CheckSignatory(preparedBy.Position, "Prepared by position")
+                ?? CheckSignatory(reviewedBy.Name, "Reviewed by name")
+                ?? CheckSignatory(reviewedBy.Position, "Reviewed by position")
+                ?? CheckSignatory(notedBy.Name, "Noted by name")
+                ?? CheckSignatory(notedBy.Position, "Noted by position");
+            if (error != null)
+            {
+                return BadRequest(new { message = error });
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasMasterlists(conn))
+                {
+                    _logger.LogError(
+                        "Refused to save a masterlist for user {UserId}: apply migration 20260926000000_AddRecordMasterlists.",
+                        user.UserId);
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericMasterlistError });
+                }
+
+                using var transaction = conn.BeginTransaction();
+
+                // A reopened masterlist (see ReopenMasterlist) is updated in
+                // place: its records plus the new ones go into a fresh file.
+                // Otherwise a new masterlist is created.
+                var openId = OwnedMasterlistId(conn, transaction, user, HttpContext.Session.GetInt32(OpenMasterlistSessionKey));
+
+                // UPDLOCK/HOLDLOCK: a record this user saves while the file is
+                // being built waits, then stays on the table for next time,
+                // instead of being marked saved without being in the file.
+                var rows = new List<(int Id, bool IsNew, RecordMasterlistExcel.Row Row)>();
+                using (var select = new SqlCommand(@"
+SELECT RecordId, Code, Title, Medium, Location, PeriodCovered, FilingSystem, AccessControl, RetentionPeriod, MasterlistId
+FROM dbo.Records WITH (UPDLOCK, HOLDLOCK)
+WHERE CreatedByUserId = @UserId AND (MasterlistId IS NULL OR MasterlistId = @OpenMasterlistId)
+ORDER BY RecordId", conn, transaction))
+                {
+                    select.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    select.Parameters.Add("@OpenMasterlistId", SqlDbType.Int).Value = (object?)openId ?? DBNull.Value;
+                    using var reader = select.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        rows.Add((reader.GetInt32(0), reader.IsDBNull(9), new RecordMasterlistExcel.Row(
+                            reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4),
+                            reader.GetString(5), reader.GetString(6), reader.GetString(7), reader.GetString(8))));
+                    }
+                }
+
+                if (!rows.Any(r => r.IsNew))
+                {
+                    return BadRequest(new
+                    {
+                        message = openId.HasValue
+                            ? "You haven't added any new records to this masterlist yet. Add a record first, or click Stop Adding."
+                            : "There are no new records to save. Add a record first."
+                    });
+                }
+
+                var nowPh = TimeZoneHelper.ToPhilippineTime(DateTime.UtcNow);
+                var fileName = $"Masterlist of Records {nowPh:yyyy-MM-dd HHmm}.xlsx";
+                var content = RecordMasterlistExcel.Build(new RecordMasterlistExcel.Sheet(
+                    user.Department, nowPh.Date, preparedBy, reviewedBy, notedBy, rows.Select(r => r.Row).ToList()));
+
+                int masterlistId;
+                // Updating keeps the same entry in Saved Masterlists; CreatedAt
+                // becomes the "last saved" time shown there.
+                var saveSql = openId.HasValue
+                    ? @"
+UPDATE dbo.RecordMasterlists
+SET RecordCount = @RecordCount, FileName = @FileName, FileContent = @FileContent, CreatedAt = SYSUTCDATETIME(),
+    PreparedByName = @PreparedByName, PreparedByPosition = @PreparedByPosition,
+    ReviewedByName = @ReviewedByName, ReviewedByPosition = @ReviewedByPosition,
+    NotedByName = @NotedByName, NotedByPosition = @NotedByPosition
+OUTPUT INSERTED.MasterlistId
+WHERE MasterlistId = @OpenMasterlistId AND CreatedByUserId = @UserId"
+                    : @"
+INSERT INTO dbo.RecordMasterlists
+  (CreatedByUserId, OwningDepartment, RecordCount, FileName, FileContent,
+   PreparedByName, PreparedByPosition, ReviewedByName, ReviewedByPosition, NotedByName, NotedByPosition)
+OUTPUT INSERTED.MasterlistId
+VALUES
+  (@UserId, @Department, @RecordCount, @FileName, @FileContent,
+   @PreparedByName, @PreparedByPosition, @ReviewedByName, @ReviewedByPosition, @NotedByName, @NotedByPosition)";
+                using (var insert = new SqlCommand(saveSql, conn, transaction))
+                {
+                    insert.Parameters.Add("@OpenMasterlistId", SqlDbType.Int).Value = (object?)openId ?? DBNull.Value;
+                    insert.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    insert.Parameters.Add("@Department", SqlDbType.NVarChar, 50).Value = (object?)user.Department ?? DBNull.Value;
+                    insert.Parameters.Add("@RecordCount", SqlDbType.Int).Value = rows.Count;
+                    insert.Parameters.Add("@FileName", SqlDbType.NVarChar, 200).Value = fileName;
+                    insert.Parameters.Add("@FileContent", SqlDbType.VarBinary, -1).Value = content;
+                    insert.Parameters.Add("@PreparedByName", SqlDbType.NVarChar, MaxSignatoryLength).Value = preparedBy.Name;
+                    insert.Parameters.Add("@PreparedByPosition", SqlDbType.NVarChar, MaxSignatoryLength).Value = preparedBy.Position;
+                    insert.Parameters.Add("@ReviewedByName", SqlDbType.NVarChar, MaxSignatoryLength).Value = reviewedBy.Name;
+                    insert.Parameters.Add("@ReviewedByPosition", SqlDbType.NVarChar, MaxSignatoryLength).Value = reviewedBy.Position;
+                    insert.Parameters.Add("@NotedByName", SqlDbType.NVarChar, MaxSignatoryLength).Value = notedBy.Name;
+                    insert.Parameters.Add("@NotedByPosition", SqlDbType.NVarChar, MaxSignatoryLength).Value = notedBy.Position;
+                    masterlistId = (int)insert.ExecuteScalar();
+                }
+
+                using (var update = new SqlCommand(@"
+UPDATE dbo.Records SET MasterlistId = @MasterlistId
+WHERE CreatedByUserId = @UserId AND MasterlistId IS NULL AND RecordId <= @MaxRecordId", conn, transaction))
+                {
+                    update.Parameters.Add("@MasterlistId", SqlDbType.Int).Value = masterlistId;
+                    update.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    update.Parameters.Add("@MaxRecordId", SqlDbType.Int).Value = rows[^1].Id;
+                    update.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+                HttpContext.Session.Remove(OpenMasterlistSessionKey);
+                return Json(new { masterlistId, fileName, recordCount = rows.Count, updated = openId.HasValue });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save a masterlist for user {UserId}.", user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericMasterlistError });
+            }
+        }
+
+        // GET: /Records/Masterlists — the user's saved masterlists (newest
+        // first) plus the signature names from the last one, to pre-fill the
+        // Save Masterlist form.
+        [HttpGet]
+        public IActionResult Masterlists()
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            var fullName = HttpContext.Session.GetString("FullName") ?? "";
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasMasterlists(conn))
+                {
+                    return Json(new { available = false, items = Array.Empty<object>(), signatories = new MasterlistRequest { PreparedByName = fullName } });
+                }
+
+                using var cmd = new SqlCommand($@"
+SELECT TOP ({MasterlistHistoryLimit}) MasterlistId, FileName, CreatedAt, RecordCount,
+       PreparedByName, PreparedByPosition, ReviewedByName, ReviewedByPosition, NotedByName, NotedByPosition
+FROM dbo.RecordMasterlists
+WHERE CreatedByUserId = @UserId
+ORDER BY CreatedAt DESC, MasterlistId DESC", conn);
+                cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+
+                // Only trusted if it is one of this user's masterlists (below).
+                var openId = HttpContext.Session.GetInt32(OpenMasterlistSessionKey);
+                object? openMasterlist = null;
+                var items = new List<object>();
+                MasterlistRequest? last = null;
+                MasterlistRequest? openSignatories = null;
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var id = reader.GetInt32(0);
+                        var signatories = new MasterlistRequest
+                        {
+                            PreparedByName = reader.GetString(4),
+                            PreparedByPosition = reader.GetString(5),
+                            ReviewedByName = reader.GetString(6),
+                            ReviewedByPosition = reader.GetString(7),
+                            NotedByName = reader.GetString(8),
+                            NotedByPosition = reader.GetString(9)
+                        };
+                        last ??= signatories;
+                        var isOpen = id == openId;
+                        if (isOpen)
+                        {
+                            openSignatories = signatories;
+                            openMasterlist = new { id, fileName = reader.GetString(1) };
+                        }
+                        var savedAt = TimeZoneHelper.ToPhilippineTime(DateTime.SpecifyKind(reader.GetDateTime(2), DateTimeKind.Utc));
+                        items.Add(new
+                        {
+                            id,
+                            fileName = reader.GetString(1),
+                            savedAt = savedAt.ToString("MMMM d, yyyy h:mm tt"),
+                            recordCount = reader.GetInt32(3),
+                            isOpen
+                        });
+                    }
+                }
+
+                return Json(new
+                {
+                    available = true,
+                    items,
+                    openMasterlist,
+                    // Updating a reopened masterlist starts from its own names.
+                    signatories = openSignatories ?? last ?? new MasterlistRequest { PreparedByName = fullName }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load masterlists for user {UserId}.", user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericLoadError });
+            }
+        }
+
+        // GET: /Records/DownloadMasterlist?id= — only the user who saved it.
+        [HttpGet]
+        public IActionResult DownloadMasterlist(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access == RecordsAccess.NotLoggedIn)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasMasterlists(conn))
+                {
+                    return NotFound();
+                }
+
+                using var cmd = new SqlCommand(@"
+SELECT FileName, FileContent FROM dbo.RecordMasterlists
+WHERE MasterlistId = @Id AND CreatedByUserId = @UserId", conn);
+                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                using var reader = cmd.ExecuteReader();
+                if (!reader.Read())
+                {
+                    return NotFound();
+                }
+
+                return File((byte[])reader[1], RecordMasterlistExcel.ContentType, reader.GetString(0));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to download masterlist {MasterlistId} for user {UserId}.", id, user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
     }

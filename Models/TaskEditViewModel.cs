@@ -22,8 +22,16 @@ namespace DTIOneLink.Models
         [StringLength(200)]
         public string TaskName { get; set; } = string.Empty;
 
+        // The people currently assigned (filled by the server for display;
+        // never trusted from the form).
         [Display(Name = "Assignees")]
         public List<int> AssigneeIds { get; set; } = new();
+
+        // What the form actually sends: people to add, and current
+        // assignees to remove. Everyone else keeps their assignment — and
+        // with it their own progress and status — untouched.
+        public List<int> AddAssigneeIds { get; set; } = new();
+        public List<int> RemoveAssigneeIds { get; set; } = new();
 
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]

@@ -107,7 +107,11 @@ namespace DTIOneLink.Controllers
                     .FirstOrDefault(d => string.Equals(d, department.Trim(), StringComparison.OrdinalIgnoreCase));
             }
 
-            var employeesQuery = _context.Users.Where(u => u.IsActive && u.Role == "Employee");
+            // SuperAdmin also sees Admins here, since Admins carry their own
+            // tasks (Direct Admin, Whole Office, and directives they lead).
+            var employeesQuery = isOfficeWide
+                ? _context.Users.Where(u => u.IsActive && (u.Role == "Employee" || u.Role == "Admin"))
+                : _context.Users.Where(u => u.IsActive && u.Role == "Employee");
             if (!isOfficeWide)
             {
                 employeesQuery = employeesQuery.Where(u => u.Department == ownDepartment);
@@ -119,7 +123,7 @@ namespace DTIOneLink.Controllers
             }
             model.Employees = await employeesQuery
                 .OrderBy(u => u.FullName)
-                .Select(u => new TaskIndexViewModel.EmployeeOption(u.Id, u.FullName, u.Department))
+                .Select(u => new TaskIndexViewModel.EmployeeOption(u.Id, u.FullName, u.Department, u.Role == "Admin"))
                 .ToListAsync();
 
             // Employee filter: only someone in the list above.
@@ -161,7 +165,11 @@ namespace DTIOneLink.Controllers
             if (model.EmployeeId.HasValue)
             {
                 var empId = model.EmployeeId.Value;
-                filtered = filtered.Where(t => t.Assignments.Any(a => a.UserId == empId));
+                // Responsible Admin covers Department Directives an Admin leads
+                // but isn't assigned to; never matches an Employee.
+                filtered = filtered.Where(t =>
+                    t.Assignments.Any(a => a.UserId == empId) ||
+                    (t.ResponsibleAdminUserId.HasValue && t.ResponsibleAdminUserId.Value == empId));
             }
 
             // Same "today" as TaskWorkflow.IsOverdue, so Overdue here always
@@ -270,7 +278,9 @@ namespace DTIOneLink.Controllers
                 .AsNoTracking()
                 .Where(t => t.TaskLevel == TaskLevels.Main &&
                     ((t.ResponsibleAdminUserId.HasValue && currentUserId.HasValue && t.ResponsibleAdminUserId.Value == currentUserId.Value)
-                     || t.OwningDepartment == department))
+                     || t.OwningDepartment == department
+                     // A Whole Office task is also "received" by each Admin it was given to.
+                     || (currentUserId.HasValue && t.Assignments.Any(a => a.UserId == currentUserId.Value))))
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
@@ -338,7 +348,17 @@ namespace DTIOneLink.Controllers
                 ModelState.AddModelError(nameof(model.TaskType), "Select a task type.");
             }
 
-            if (!TargetDepartments.IsValid(model.OwningDepartment))
+            var isWholeOffice = model.TaskType == TaskTypes.WholeOffice;
+            if (isWholeOffice)
+            {
+                // Goes to everyone, so no division or Responsible Admin —
+                // whatever the form sent for those is ignored.
+                model.OwningDepartment = WholeOfficeDepartment;
+                model.ResponsibleAdminUserId = null;
+                ModelState.Remove(nameof(model.OwningDepartment));
+                ModelState.Remove(nameof(model.ResponsibleAdminUserId));
+            }
+            else if (!TargetDepartments.IsValid(model.OwningDepartment))
             {
                 ModelState.AddModelError(nameof(model.OwningDepartment), "Select a target department.");
             }
@@ -356,7 +376,7 @@ namespace DTIOneLink.Controllers
             }
 
             var isDirect = model.TaskType == TaskTypes.DirectAdmin;
-            var (_, subtaskCount) = await _opdTasks.CreateAsync(
+            var (created, subtaskCount) = await _opdTasks.CreateAsync(
                 new OpdTaskService.NewOpdTask(
                     model.TaskName,
                     model.Description,
@@ -364,15 +384,18 @@ namespace DTIOneLink.Controllers
                     model.Priority,
                     model.TaskType!,
                     model.OwningDepartment!,
-                    model.ResponsibleAdminUserId!.Value,
-                    // A Direct Admin Task never has subtasks, whatever the client sent.
-                    isDirect ? new List<string>() : (model.SubtaskNames ?? new List<string>()),
+                    model.ResponsibleAdminUserId,
+                    // Only a Department Directive has subtasks, whatever the client sent.
+                    isDirect || isWholeOffice ? new List<string>() : (model.SubtaskNames ?? new List<string>()),
                     recurrence),
                 createdByUserId,
-                isDirect ? "OPD created this Direct Admin Task." : "OPD created this Department Directive.");
+                isWholeOffice ? "OPD gave this task to the whole office."
+                    : isDirect ? "OPD created this Direct Admin Task." : "OPD created this Department Directive.");
 
             var repeatNote = recurrence == null ? "" : $" It repeats {TaskRecurrence.Label(recurrence).ToLowerInvariant()}.";
-            TempData["SuccessMessage"] = isDirect
+            TempData["SuccessMessage"] = isWholeOffice
+                ? $"Task given to the whole office ({created.Assignments.Count} people)." + repeatNote
+                : isDirect
                 ? "Direct Admin task created and assigned." + repeatNote
                 : (subtaskCount > 0
                     ? $"Main task created with {subtaskCount} subtask(s)."
@@ -492,7 +515,7 @@ namespace DTIOneLink.Controllers
     ViewBag.CurrentStatus = task.Status;      // aggregate across all assignees
     ViewBag.CurrentProgress = task.Progress;  // aggregate across all assignees
     ViewBag.CreatedAt = task.CreatedAt;
-    ViewBag.AssignmentSummaries = BuildAssignmentSummaries(task);
+    ViewBag.AssignmentSummaries = await BuildAssignmentSummariesAsync(task);
 
     // Initial suggestion for page load, before any JS runs. Recalculated
     // live via SuggestPriority whenever the due-date field changes.
@@ -551,10 +574,25 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         return NotFound();
     }
 
-    await ValidateAssigneeIdsAsync(model.AssigneeIds, nameof(model.AssigneeIds));
+    // Current assignees stay exactly as they are (progress included) unless
+    // explicitly removed; only the newly added people are validated.
+    var currentAssigneeIds = task.Assignments.Select(a => a.UserId).ToList();
+    var removeIds = (model.RemoveAssigneeIds ?? new()).Where(currentAssigneeIds.Contains).Distinct().ToList();
+    var addIds = (model.AddAssigneeIds ?? new()).Where(id => !currentAssigneeIds.Contains(id)).Distinct().ToList();
+    var desiredAssigneeIds = currentAssigneeIds.Except(removeIds).Concat(addIds).ToList();
+
+    if (addIds.Count > 0)
+    {
+        await ValidateAssigneeIdsAsync(addIds, nameof(model.AssigneeIds));
+    }
+    if (desiredAssigneeIds.Count == 0)
+    {
+        ModelState.AddModelError(nameof(model.AssigneeIds), "At least one person must stay assigned to this task.");
+    }
 
     if (!ModelState.IsValid)
     {
+        model.AssigneeIds = currentAssigneeIds;
         await RepopulateEditContextAsync(task);
         return View(model);
     }
@@ -584,12 +622,13 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     }
 
     var changedByUserId = HttpContext.Session.GetInt32("UserId");
-    var sync = await _taskAssignments.SyncAssignmentsAsync(task, model.AssigneeIds, changedByUserId);
+    var sync = await _taskAssignments.SyncAssignmentsAsync(task, desiredAssigneeIds, changedByUserId);
 
     if (sync.BlockedRemovals.Count > 0)
     {
         ModelState.AddModelError(nameof(model.AssigneeIds),
             "Can't unassign someone who has already submitted proof for this task.");
+        model.AssigneeIds = currentAssigneeIds;
         await RepopulateEditContextAsync(task);
         return View(model);
     }
@@ -803,7 +842,7 @@ private static string? GetEffectiveDepartment(TaskItem task, TaskAssignment? ass
 // Direct Admin submission.
 private bool CanReviewSubmission(TaskSubmission submission)
 {
-    var isDirectAdminSubmission = submission.Task!.TaskType == TaskTypes.DirectAdmin;
+    var isDirectAdminSubmission = TaskTypes.IsAssignedByOpd(submission.Task!.TaskType);
 
     if (isDirectAdminSubmission)
     {
@@ -864,8 +903,15 @@ private async Task PopulateEmployeesAsync(string? requiredDepartment = null)
 // refreshes it when the department changes, while this covers initial and
 // validation-error renders. The complete list must be rendered so the
 // browser can filter it as soon as a target department is selected.
+// OwningDepartment of a Whole Office task (it belongs to the OPD).
+private const string WholeOfficeDepartment = "Office of the Provincial Director";
+
 private async Task PopulateResponsibleAdminsAsync()
 {
+    // Shown on the "Whole Office" option: how many people would get it.
+    ViewBag.WholeOfficeCount = await _context.Users
+        .CountAsync(u => u.IsActive && (u.Role == "Admin" || u.Role == "Employee"));
+
     var admins = await _context.Users
         .Where(u => u.IsActive && u.Role == "Admin")
         .OrderBy(u => u.FullName)
@@ -923,13 +969,22 @@ private async Task ValidateAssigneeIdsAsync(List<int> assigneeIds, string modelK
         ModelState.AddModelError(modelKey, "One or more selected assignees are invalid.");
     }
 }
-private List<TaskAssignmentSummaryViewModel> BuildAssignmentSummaries(TaskItem task)
+private async Task<List<TaskAssignmentSummaryViewModel>> BuildAssignmentSummariesAsync(TaskItem task)
 {
+    var assignmentIds = task.Assignments.Select(a => a.Id).ToList();
+    var submittedAssignmentIds = await _context.TaskSubmissions
+        .Where(s => s.TaskAssignmentId != null && assignmentIds.Contains(s.TaskAssignmentId.Value))
+        .Select(s => s.TaskAssignmentId!.Value)
+        .Distinct()
+        .ToListAsync();
+
     return task.Assignments
         .OrderByDescending(a => a.IsPrimaryAssignee)
         .ThenBy(a => a.User?.FullName)
         .Select(a => new TaskAssignmentSummaryViewModel
         {
+            UserId = a.UserId,
+            HasSubmitted = submittedAssignmentIds.Contains(a.Id),
             Name = a.User?.FullName ?? "Unknown",
             Status = a.Status,
             Progress = a.Progress,
@@ -947,7 +1002,7 @@ private async Task RepopulateEditContextAsync(TaskItem task)
     ViewBag.CurrentStatus = task.Status;
     ViewBag.CurrentProgress = task.Progress;
     ViewBag.CreatedAt = task.CreatedAt;
-    ViewBag.AssignmentSummaries = BuildAssignmentSummaries(task);
+    ViewBag.AssignmentSummaries = await BuildAssignmentSummariesAsync(task);
 
     var suggestion = PrioritySuggestionService.Suggest(task.DueDate);
     ViewBag.SuggestedPriority = suggestion.Priority;
@@ -977,7 +1032,8 @@ public async Task<IActionResult> Review(int id)
 
     if (!CanReviewSubmission(submission))
     {
-        return NotFound();
+        TempData["ErrorMessage"] = "You cannot review this submission. It must be reviewed by the task's authorized manager.";
+        return RedirectToAction(nameof(Index));
     }
 
     // Only the currently-pending submission on an assignee whose own
@@ -1015,7 +1071,8 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
 
     if (!CanReviewSubmission(submission))
     {
-        return NotFound();
+        TempData["ErrorMessage"] = "You cannot review this submission. It must be reviewed by the task's authorized manager.";
+        return RedirectToAction(nameof(Index));
     }
 
     var task = submission.Task;
@@ -1155,6 +1212,8 @@ public async Task<IActionResult> MainTaskDetails(int id)
         .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.AssignedBy)
         .Include(t => t.Assignments).ThenInclude(a => a.User)
         .Include(t => t.Assignments).ThenInclude(a => a.AssignedBy)
+        // Pending proofs, so the OPD can review each person of a Whole Office task.
+        .Include(t => t.Submissions)
         // This page loads the main task's assignments and its subtasks (each
         // with assignments). A single SQL query multiplies those rows.
         .AsSplitQuery()

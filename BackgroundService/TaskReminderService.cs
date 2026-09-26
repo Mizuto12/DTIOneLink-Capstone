@@ -88,6 +88,7 @@ namespace DTIOneLink.Services
             var openDirectives = await db.TaskItems
                 .Where(t => t.TaskLevel == TaskLevels.Main
                          && t.TaskType != TaskTypes.DirectAdmin
+                         && t.TaskType != TaskTypes.WholeOffice
                          && t.Status != TaskWorkflow.Completed
                          && t.OwningDepartment != null)
                 .ToListAsync(stoppingToken);

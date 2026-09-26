@@ -34,6 +34,14 @@
         </button>
     </div>
 }
+@if (TempData["ErrorMessage"] is string errorMsg)
+{
+    <div class="success-banner error-banner" role="alert">
+        <span class="material-symbols-outlined">error</span>
+        <span>@errorMsg</span>
+        <button class="success-close" onclick="this.parentElement.remove()" type="button" aria-label="Dismiss"><span class="material-symbols-outlined">close</span></button>
+    </div>
+}
 
 <!-- ── Page Header ─────────────────────────────────────── -->
 <div class="page-header">
@@ -135,7 +143,7 @@
                     <option value="" selected="@(!Model.EmployeeId.HasValue)">All</option>
                     @foreach (var emp in Model.Employees)
                     {
-                        <option value="@emp.Id" selected="@(Model.EmployeeId == emp.Id)">@emp.FullName</option>
+                        <option value="@emp.Id" selected="@(Model.EmployeeId == emp.Id)">@emp.FullName@(emp.IsAdmin ? " (Admin)" : "")</option>
                     }
                 </select>
             </label>
@@ -181,7 +189,9 @@
                     {
                         index++;
                         var assigneeName = task.TaskLevel == "main"
-                            ? $"OPD Directive — {task.OwningDepartment}"
+                            ? (task.TaskType == DTIOneLink.Services.TaskTypes.WholeOffice
+                                ? $"Whole Office ({task.Assignments.Count} people)"
+                                : $"OPD Directive — {task.OwningDepartment}")
                             : (task.Assignee?.FullName ?? "Unassigned");
                         var initials = !string.IsNullOrWhiteSpace(assigneeName) && assigneeName != "Unassigned"
                         ? string.Concat(assigneeName.Split(' ').Where(w => w.Length > 0).Take(2).Select(w => char.ToUpper(w[0])))
@@ -231,6 +241,14 @@
                             </td>
                             <td>
                                 <span class="status-badge @statusBadgeClass">@displayLabel</span>
+                                @if (DTIOneLink.Services.TaskWorkflow.DelayRisk(task.Status, task.Progress, task.CreatedAt, task.DueDate) is { } risk)
+                                {
+                                    <span class="risk-badge @(risk.AtRisk ? "risk-at-risk" : "risk-on-track")" title="@risk.Reason">
+                                        <span class="material-symbols-outlined">@(risk.AtRisk ? "warning" : "check_circle")</span>
+                                        @(risk.AtRisk ? "At risk" : "On track")
+                                    </span>
+                                    <span class="risk-reason">@risk.Reason</span>
+                                }
                             </td>
                             <td class="td-last">
                                 @if (task.TaskLevel == "main")
@@ -247,8 +265,9 @@
                                     var pendingSubmission = task.Submissions?.OrderByDescending(s => s.SubmittedAt).FirstOrDefault(s => s.Decision == null);
                                     if (pendingSubmission != null)
                                     {
-                                        <a asp-controller="Tasks" asp-action="Review" asp-route-id="@pendingSubmission.Id" class="more-btn" aria-label="Review submission">
+                                        <a asp-controller="Tasks" asp-action="Review" asp-route-id="@pendingSubmission.Id" class="review-btn" aria-label="Review submission">
                                             <span class="material-symbols-outlined">fact_check</span>
+                                            Review
                                         </a>
                                     }
                                 }

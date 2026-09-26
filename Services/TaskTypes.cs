@@ -15,7 +15,19 @@ namespace DTIOneLink.Services
         // receiving Admin assigns employees or creates subtasks afterward.
         public const string DepartmentDirective = "department-directive";
 
+        // SuperAdmin gives the Main Task to everyone in the office (every
+        // active Admin and Employee, e.g. the Monthly CSF Report). Each
+        // person gets their own TaskAssignment and submits their own proof,
+        // which the OPD reviews — same as a Direct Admin Task, just with
+        // many assignees. No Responsible Admin, no subtasks.
+        public const string WholeOffice = "whole-office";
+
         public static bool IsValid(string? taskType) =>
-            taskType == DirectAdmin || taskType == DepartmentDirective;
+            taskType == DirectAdmin || taskType == DepartmentDirective || taskType == WholeOffice;
+
+        // The OPD assigns people to these directly and reviews their
+        // submissions itself (no Division Chief in between).
+        public static bool IsAssignedByOpd(string? taskType) =>
+            taskType == DirectAdmin || taskType == WholeOffice;
     }
 }

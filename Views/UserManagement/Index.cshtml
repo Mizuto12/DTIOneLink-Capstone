@@ -8,6 +8,8 @@
     // Only the OPD can change someone's role or division (checked again in the controller).
     var canChangeStanding = Context.Session.GetString("UserRole") == "SuperAdmin";
     var currentUserId = Context.Session.GetInt32("UserId");
+    var currentRole = Context.Session.GetString("UserRole");
+    var currentDepartment = Context.Session.GetString("UserDepartment");
 
     // Values typed before a failed save, so the form doesn't come back empty.
     var formEmail = TempData["FormEmail"] as string;
@@ -45,7 +47,7 @@
     <div>
         <h2 class="um-heading">User Management</h2>
         <p class="um-page-sub">
-            Add staff accounts@(canChangeStanding ? " and change a person's role or division" : "").
+            Add staff accounts@(canChangeStanding ? ", change a person's role or division, or deactivate an account" : " and deactivate or reactivate employees of your division").
         </p>
     </div>
 </div>
@@ -181,10 +183,7 @@
                         <th>Division</th>
                         <th>Role</th>
                         <th>Status</th>
-                        @if (canChangeStanding)
-                        {
-                            <th>Action</th>
-                        }
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -210,35 +209,56 @@
                                 <td>
                                     <div class="um-status-badge @(isActive ? "um-status-active" : "um-status-disabled")">
                                         <span class="um-status-dot@(isActive ? " um-dot-pulse" : "")"></span>
-                                        <span>@(isActive ? "Active" : "Disabled")</span>
+                                        <span>@(isActive ? "Active" : "Deactivated")</span>
                                     </div>
                                 </td>
-                                @if (canChangeStanding)
-                                {
-                                    <td>
-                                        @if (user.Id != currentUserId)
-                                        {
-                                            <button type="button" class="um-btn-change"
-                                                    data-user-id="@user.Id"
-                                                    data-user-name="@user.FullName"
-                                                    data-user-role="@user.Role"
-                                                    data-user-department="@user.Department"
-                                                    data-open-tasks="@(openTasks.TryGetValue(user.Id, out var open) ? open : 0)"
-                                                    aria-label="Change role or division of @user.FullName">
-                                                <span class="material-symbols-outlined">manage_accounts</span>
-                                                Change Role
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <span class="um-td-muted">You</span>
-                                        }
-                                    </td>
-                                }
+                                <td>
+                                    @if (user.Id == currentUserId)
+                                    {
+                                        <span class="um-td-muted">You</span>
+                                    }
+                                    else
+                                    {
+                                        var userOpen = openTasks.TryGetValue(user.Id, out var open) ? open : 0;
+                                        <div class="um-actions">
+                                            @if (canChangeStanding)
+                                            {
+                                                <button type="button" class="um-btn-change"
+                                                        data-user-id="@user.Id"
+                                                        data-user-name="@user.FullName"
+                                                        data-user-role="@user.Role"
+                                                        data-user-department="@user.Department"
+                                                        data-open-tasks="@userOpen"
+                                                        aria-label="Change role or division of @user.FullName">
+                                                    <span class="material-symbols-outlined">manage_accounts</span>
+                                                    Change Role
+                                                </button>
+                                            }
+                                            @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
+                                            {
+                                                var confirmText = isActive
+                                                    ? $"Deactivate {user.FullName}'s account? They will no longer be able to sign in."
+                                                      + (userOpen > 0 ? $" They still have {userOpen} unfinished task(s); reassign them if needed." : "")
+                                                      + " Their tasks and records are kept, and you can reactivate the account later."
+                                                    : $"Reactivate {user.FullName}'s account? They will be able to sign in again.";
+                                                <form asp-controller="UserManagement" asp-action="SetActive" method="post"
+                                                      data-confirm="@confirmText" onsubmit="return confirm(this.dataset.confirm);">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <input type="hidden" name="active" value="@(isActive ? "false" : "true")" />
+                                                    <button type="submit" class="um-btn-status @(isActive ? "um-btn-deactivate" : "um-btn-reactivate")">
+                                                        <span class="material-symbols-outlined">@(isActive ? "person_off" : "person_check")</span>
+                                                        @(isActive ? "Deactivate" : "Reactivate")
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    }
+                                </td>
                             </tr>
                         }
                     <tr id="userNoMatch" hidden>
-                        <td colspan="@(canChangeStanding ? 6 : 5)" class="um-empty-row">
+                        <td colspan="6" class="um-empty-row">
                             <div class="um-empty-state">
                                 <span class="material-symbols-outlined um-empty-icon">search_off</span>
                                 <p class="um-empty-text">No accounts match your search</p>
@@ -250,7 +270,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="@(canChangeStanding ? 6 : 5)" class="um-empty-row">
+                            <td colspan="6" class="um-empty-row">
                                 <div class="um-empty-state">
                                     <span class="material-symbols-outlined um-empty-icon">person_off</span>
                                     <p class="um-empty-text">No users found</p>

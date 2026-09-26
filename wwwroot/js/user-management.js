@@ -38,9 +38,11 @@
         var table = document.getElementById("userTable");
         var totalCount = document.getElementById("totalUsersCount");
         var paginationInfo = document.getElementById("paginationInfo");
+        var searchClear = document.getElementById("userSearchClear");
+        var noMatch = document.getElementById("userNoMatch");
 
         if (searchInput && table) {
-            searchInput.addEventListener("input", function () {
+            function applySearch() {
                 var query = searchInput.value.toLowerCase().trim();
                 var tbody = table.querySelector("tbody");
                 if (!tbody) return;
@@ -49,18 +51,20 @@
                 var visibleCount = 0;
 
                 rows.forEach(function (row) {
-                    var nameCell = row.querySelector(".um-name-cell span");
-                    var emailCell = row.querySelector(".um-td-muted");
-                    var nameText = nameCell ? nameCell.textContent.toLowerCase() : "";
-                    var emailText = emailCell ? emailCell.textContent.toLowerCase() : "";
+                    var searchableText = row.dataset.search || "";
 
-                    if (query === "" || nameText.indexOf(query) !== -1 || emailText.indexOf(query) !== -1) {
-                        row.classList.remove("um-row-hidden");
+                    if (query === "" || searchableText.indexOf(query) !== -1) {
+                        row.classList.remove("um-search-hidden");
                         visibleCount++;
                     } else {
-                        row.classList.add("um-row-hidden");
+                        row.classList.add("um-search-hidden");
                     }
                 });
+
+                if (noMatch) noMatch.hidden = visibleCount !== 0 || query === "";
+                if (searchClear) searchClear.hidden = query === "";
+                currentPage = 1;
+                paginate();
 
                 // Update total badge and pagination info
                 if (totalCount) {
@@ -69,6 +73,12 @@
                 if (paginationInfo) {
                     paginationInfo.textContent = "Showing " + visibleCount + " of " + rows.length + " entries";
                 }
+            }
+            searchInput.addEventListener("input", applySearch);
+            if (searchClear) searchClear.addEventListener("click", function () {
+                searchInput.value = "";
+                applySearch();
+                searchInput.focus();
             });
         }
 
@@ -81,7 +91,8 @@
             if (!table) return [];
             var tbody = table.querySelector("tbody");
             if (!tbody) return [];
-            return Array.from(tbody.querySelectorAll("tr.um-row, tr.um-row-disabled"));
+            return Array.from(tbody.querySelectorAll("tr.um-row, tr.um-row-disabled"))
+                .filter(function (row) { return !row.classList.contains("um-search-hidden"); });
         }
 
         function paginate() {

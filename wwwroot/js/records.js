@@ -58,7 +58,7 @@ function renderRows() {
     emptyRow.className = 'empty-row';
     emptyRow.innerHTML = filtersActive
       ? `<td colspan="8" class="empty-state">No records match your search.</td>`
-      : `<td colspan="8" class="empty-state">No records yet. Fill in the form above and commit to add one.</td>`;
+      : `<td colspan="8" class="empty-state">No new records. Fill in the form above to add one.</td>`;
     tableBody.appendChild(emptyRow);
     return;
   }
@@ -162,6 +162,7 @@ function render() {
   const end = Math.min(currentPage * PAGE_SIZE, entries.length);
   const shownOnPage = entries.length === 0 ? 0 : end - start + 1;
   countBadge.textContent = `Showing ${shownOnPage} of ${entries.length} entries`;
+  updateSaveMasterlistButton();
 }
 
 prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
@@ -340,4 +341,210 @@ if (filterForm) {
   });
 }
 
+// ---------- Save Masterlist ----------
+// Saves every record on the table (all of the user's new records, whatever
+// the search shows) into one Excel masterlist, downloads it, and clears the
+// table. The records stay in the system; the file is listed under Saved
+// Masterlists so it can be downloaded again.
+const saveMasterlistBtn = document.getElementById('save-masterlist-btn');
+const masterlistDialog = document.getElementById('masterlist-dialog');
+const masterlistForm = document.getElementById('masterlist-form');
+const masterlistSummary = document.getElementById('masterlist-dialog-summary');
+const masterlistConfirmBtn = document.getElementById('masterlist-confirm-btn');
+const masterlistList = document.getElementById('masterlist-list');
+const masterlistDialogTitle = document.getElementById('masterlist-dialog-title');
+const saveMasterlistLabel = document.getElementById('save-masterlist-label');
+const openBanner = document.getElementById('open-masterlist-banner');
+const openName = document.getElementById('open-masterlist-name');
+const stopAddingBtn = document.getElementById('stop-adding-btn');
+let masterlistsAvailable = false;
+// The saved masterlist reopened with "Add Records" ({ id, fileName }), or null.
+let openMasterlist = null;
+
+// Reloads the table (clearing any search) and the saved list.
+function refreshAll() {
+  if (filterForm) filterForm.reset(); // its reset handler reloads the table
+  else loadRecords();
+  loadMasterlists();
+}
+
+// Banner and button wording for "adding to a saved masterlist" vs a new one.
+function applyOpenState() {
+  const isOpen = openMasterlist !== null;
+  if (openBanner) openBanner.hidden = !isOpen;
+  if (openName) openName.textContent = isOpen ? openMasterlist.fileName : '';
+  if (saveMasterlistLabel) saveMasterlistLabel.textContent = isOpen ? 'Update Masterlist' : 'Save Masterlist';
+}
+
+// POSTs with the anti-forgery token; throws with a readable message on failure.
+async function postAction(url) {
+  const res = await fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': getCsrfToken() } });
+  if (!res.ok) throw new Error(await readErrorMessage(res));
+  return res.json();
+}
+
+function showActionError(err) {
+  alert(err instanceof TypeError
+    ? 'Unable to reach the server. Please check your connection and try again.'
+    : err.message);
+}
+
+// Enabled when there is something to save. While a search is active the
+// table may hide some new records, so the button stays usable and the
+// server decides.
+function updateSaveMasterlistButton() {
+  if (!saveMasterlistBtn) return;
+  saveMasterlistBtn.disabled = !masterlistsAvailable || (!filtersActive && entries.length === 0);
+}
+
+function fillSignatories(values) {
+  const v = values || {};
+  masterlistForm.elements['preparedByName'].value = v.preparedByName || '';
+  masterlistForm.elements['preparedByPosition'].value = v.preparedByPosition || '';
+  masterlistForm.elements['reviewedByName'].value = v.reviewedByName || '';
+  masterlistForm.elements['reviewedByPosition'].value = v.reviewedByPosition || '';
+  masterlistForm.elements['notedByName'].value = v.notedByName || '';
+  masterlistForm.elements['notedByPosition'].value = v.notedByPosition || '';
+}
+
+function renderMasterlists(items) {
+  masterlistList.innerHTML = '';
+  if (!items.length) {
+    masterlistList.innerHTML = '<li class="masterlist-empty">No saved masterlists yet.</li>';
+    return;
+  }
+  items.forEach(item => {
+    const li = document.createElement('li');
+    const recordWord = item.recordCount === 1 ? 'record' : 'records';
+    const addButton = item.isOpen
+      ? ''
+      : `<button class="btn btn-outline" type="button" data-add-records="${item.id}">
+           <span class="material-symbols-outlined">add</span> Add Records
+         </button>`;
+    li.innerHTML = `
+      <div>
+        <div class="masterlist-name">${escapeHtml(item.fileName)}${item.isOpen ? '<span class="masterlist-open-tag">Adding records</span>' : ''}</div>
+        <div class="masterlist-meta">Last saved ${escapeHtml(item.savedAt)} · ${item.recordCount} ${recordWord}</div>
+      </div>
+      <div class="masterlist-actions">
+        ${addButton}
+        <a class="btn btn-outline" href="/Records/DownloadMasterlist?id=${encodeURIComponent(item.id)}">
+          <span class="material-symbols-outlined">download</span> Download
+        </a>
+      </div>`;
+    const add = li.querySelector('[data-add-records]');
+    if (add) add.addEventListener('click', () => reopenMasterlist(item));
+    masterlistList.appendChild(li);
+  });
+}
+
+// Loads the saved list and pre-fills the signature names from the last save.
+async function loadMasterlists() {
+  try {
+    const res = await fetch('/Records/Masterlists');
+    if (!res.ok) throw new Error('Failed to load saved masterlists');
+    const data = await res.json();
+    masterlistsAvailable = data.available === true;
+    openMasterlist = data.openMasterlist || null;
+    applyOpenState();
+    renderMasterlists(data.items || []);
+    fillSignatories(data.signatories);
+    if (saveMasterlistBtn && !masterlistsAvailable) {
+      saveMasterlistBtn.title = 'Saving masterlists is not set up yet. Please contact the administrator.';
+    }
+    updateSaveMasterlistButton();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// "Add Records": puts a saved masterlist's records back on the table so new
+// ones can be added; Update Masterlist then saves one updated file.
+async function reopenMasterlist(item) {
+  const newCount = openMasterlist ? 0 : entries.length;
+  let question = `Add records to "${item.fileName}"?\n\n` +
+    'Its saved records will be shown on the table. Add your new records, then click Update Masterlist.';
+  if (newCount > 0 || filtersActive) {
+    question += '\n\nThe new records already on your table will be added to this masterlist too.';
+  }
+  if (!confirm(question)) return;
+  try {
+    await postAction(`/Records/ReopenMasterlist?id=${encodeURIComponent(item.id)}`);
+    refreshAll();
+  } catch (err) {
+    showActionError(err);
+  }
+}
+
+if (stopAddingBtn) {
+  stopAddingBtn.addEventListener('click', async () => {
+    try {
+      await postAction('/Records/CloseMasterlist');
+      refreshAll();
+    } catch (err) {
+      showActionError(err);
+    }
+  });
+}
+
+if (saveMasterlistBtn && masterlistDialog) {
+  saveMasterlistBtn.addEventListener('click', () => {
+    const n = entries.length;
+    if (openMasterlist) {
+      masterlistDialogTitle.textContent = 'Update Masterlist';
+      masterlistSummary.textContent = `This saves "${openMasterlist.fileName}" again with your new records added, and clears the table. The old file is replaced by the updated one.`;
+      masterlistConfirmBtn.lastChild.textContent = ' Update and Download';
+    } else {
+      masterlistDialogTitle.textContent = 'Save Masterlist';
+      masterlistSummary.textContent = filtersActive
+        ? 'This saves ALL your new records (not only the ones your search shows) into an Excel file and clears the table. The records stay saved in the system.'
+        : `This saves the ${n} ${n === 1 ? 'record' : 'records'} on the table into an Excel file and clears the table. The records stay saved in the system.`;
+      masterlistConfirmBtn.lastChild.textContent = ' Save and Download';
+    }
+    masterlistDialog.showModal();
+  });
+
+  document.getElementById('masterlist-cancel-btn').addEventListener('click', () => masterlistDialog.close());
+
+  masterlistForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const original = masterlistConfirmBtn.innerHTML;
+    masterlistConfirmBtn.innerHTML = `<span class="material-symbols-outlined animate-spin">sync</span> Saving...`;
+    masterlistConfirmBtn.disabled = true;
+
+    const payload = {};
+    new FormData(masterlistForm).forEach((value, key) => { payload[key] = String(value).trim(); });
+
+    try {
+      const res = await fetch('/Records/SaveMasterlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error(await readErrorMessage(res));
+      }
+      const saved = await res.json();
+
+      masterlistDialog.close();
+      // Start the download, then show the cleared table and the new file.
+      window.location.href = `/Records/DownloadMasterlist?id=${encodeURIComponent(saved.masterlistId)}`;
+      refreshAll();
+    } catch (err) {
+      const message = err instanceof TypeError
+        ? 'Unable to reach the server. Please check your connection and try again.'
+        : err.message;
+      alert(message);
+    } finally {
+      masterlistConfirmBtn.innerHTML = original;
+      masterlistConfirmBtn.disabled = false;
+    }
+  });
+}
+
+loadMasterlists();
 loadRecords();

@@ -19,13 +19,8 @@ namespace DTIOneLink.Services
  public static class TargetDepartments
     {
         public const string BDD = "Business Development Division";
-        // TODO: no user in the Users table currently has an FAU-equivalent
-        // Department value — confirm the exact full name (e.g. "Finance
-        // and Administrative Unit" or similar) once at least one FAU user
-        // exists, and replace this placeholder. Until then, FAU will never
-        // match any real user and PopulateResponsibleAdminsAsync will
-        // correctly show zero Admins for it.
-        public const string FAU = "Finance and Administrative Unit";
+        // Must match Users.Department exactly (see User Management).
+        public const string FAU = "Financial and Administrative Unit";
         public const string CPD = "Consumer Protection Division";
         public static readonly string[] All = { BDD, FAU, CPD };
         public static bool IsValid(string? department) =>

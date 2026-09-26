@@ -127,10 +127,26 @@
           <span class="material-symbols-outlined">inventory_2</span>
         </div>
         <div>
-          <h2 class="card-title">Recent Submissions</h2>
+          <h2 class="card-title">Current Masterlist</h2>
+          <p class="card-desc">Records added since your last saved masterlist.</p>
         </div>
       </div>
-      <span class="badge" id="entry-count-badge">Showing 0 of 0 entries</span>
+      <div class="card-header-right">
+        <span class="badge" id="entry-count-badge">Showing 0 of 0 entries</span>
+        <button class="btn btn-primary" type="button" id="save-masterlist-btn" disabled>
+          <span class="material-symbols-outlined">save</span> <span id="save-masterlist-label">Save Masterlist</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Shown while adding records to a saved masterlist ("Add Records"). -->
+    <div class="open-masterlist-banner" id="open-masterlist-banner" hidden>
+      <span class="material-symbols-outlined">edit_note</span>
+      <div class="open-masterlist-text">
+        You are adding records to <strong id="open-masterlist-name"></strong>.
+        Its saved records are shown below. Add your new records, then click <strong>Update Masterlist</strong>.
+      </div>
+      <button class="btn btn-outline" type="button" id="stop-adding-btn">Stop Adding</button>
     </div>
 
     <!-- Search / filter toolbar — filtering happens on the server -->
@@ -196,7 +212,7 @@
         </thead>
         <tbody id="submissions-body">
           <tr class="empty-row" id="empty-row">
-            <td colspan="8" class="empty-state">No records yet. Fill in the form above and commit to add one.</td>
+            <td colspan="8" class="empty-state">No new records. Fill in the form above to add one.</td>
           </tr>
         </tbody>
       </table>
@@ -222,6 +238,57 @@
       <div class="pagination-status" id="pagination-status">Page 1 of 1</div>
     </div>
   </section>
+
+  <!-- Saved Masterlists Card -->
+  <section class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="icon-badge">
+          <span class="material-symbols-outlined">folder_open</span>
+        </div>
+        <div>
+          <h2 class="card-title">Saved Masterlists</h2>
+          <p class="card-desc">Excel files you have saved. Click Download to get a copy again.</p>
+        </div>
+      </div>
+    </div>
+    <ul class="masterlist-list" id="masterlist-list">
+      <li class="masterlist-empty">No saved masterlists yet.</li>
+    </ul>
+  </section>
+
+  <!-- Save Masterlist form (opened by the Save Masterlist button) -->
+  <dialog class="masterlist-dialog" id="masterlist-dialog" aria-labelledby="masterlist-dialog-title">
+    <form method="dialog" id="masterlist-form">
+      <h2 class="card-title" id="masterlist-dialog-title">Save Masterlist</h2>
+      <p class="card-desc" id="masterlist-dialog-summary"></p>
+
+      <div class="signatory-grid">
+        <div class="field">
+          <label for="ml-prepared-name">Prepared by</label>
+          <input id="ml-prepared-name" name="preparedByName" type="text" maxlength="100" placeholder="Full name">
+          <input id="ml-prepared-position" name="preparedByPosition" type="text" maxlength="100" placeholder="Position" aria-label="Prepared by position">
+        </div>
+        <div class="field">
+          <label for="ml-reviewed-name">Reviewed by</label>
+          <input id="ml-reviewed-name" name="reviewedByName" type="text" maxlength="100" placeholder="Full name">
+          <input id="ml-reviewed-position" name="reviewedByPosition" type="text" maxlength="100" placeholder="Position" aria-label="Reviewed by position">
+        </div>
+        <div class="field">
+          <label for="ml-noted-name">Noted by</label>
+          <input id="ml-noted-name" name="notedByName" type="text" maxlength="100" placeholder="Full name">
+          <input id="ml-noted-position" name="notedByPosition" type="text" maxlength="100" placeholder="Position" aria-label="Noted by position">
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn btn-outline" type="button" id="masterlist-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="masterlist-confirm-btn">
+          <span class="material-symbols-outlined">download</span> Save and Download
+        </button>
+      </div>
+    </form>
+  </dialog>
 
 </main>
 

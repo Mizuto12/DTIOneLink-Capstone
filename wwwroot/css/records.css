@@ -435,3 +435,104 @@
 }
 .records-page .retention-legend .legend-swatch.due-soon { background: #fcd34d; }
 .records-page .retention-legend .legend-swatch.ended { background: #f87171; }
+
+/* ---------- Save Masterlist ---------- */
+.records-page .card-header-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.records-page .btn:disabled { opacity: 0.5; cursor: default; }
+
+.records-page .masterlist-dialog {
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(16, 24, 40, 0.25);
+  padding: 24px;
+  width: min(760px, calc(100vw - 32px));
+  color: var(--on-surface);
+}
+
+.records-page .masterlist-dialog::backdrop { background: rgba(15, 23, 42, 0.45); }
+
+.records-page .signatory-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.records-page .signatory-grid input + input { margin-top: 8px; }
+
+.records-page .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .records-page .signatory-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Saved Masterlists ---------- */
+.records-page .masterlist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.records-page .masterlist-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  background: var(--surface-container-low);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.records-page .masterlist-list .masterlist-name { font-weight: 600; }
+.records-page .masterlist-list .masterlist-meta { color: var(--on-surface-variant); font-size: 13px; }
+.records-page .masterlist-list .btn { text-decoration: none; }
+
+.records-page .masterlist-list li.masterlist-empty {
+  background: transparent;
+  justify-content: center;
+  color: var(--on-surface-variant);
+}
+
+/* ---------- Adding to a saved masterlist ---------- */
+.records-page .open-masterlist-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #e8eefb;
+  border: 1px solid #c7d4f2;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.records-page .open-masterlist-banner[hidden] { display: none; }
+.records-page .open-masterlist-banner > .material-symbols-outlined { color: var(--primary); }
+.records-page .open-masterlist-text { flex: 1 1 260px; }
+
+.records-page .masterlist-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.records-page .masterlist-open-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: #e8eefb;
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  margin-left: 8px;
+}

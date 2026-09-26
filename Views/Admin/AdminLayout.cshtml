@@ -13,6 +13,8 @@
 
     var displayName  = string.IsNullOrWhiteSpace(sessFullName) ? "USER" : sessFullName.ToUpper();
     var readableRole = DisplayHelpers.GetReadableRole(sessRole);
+    // Same initials as the User Management list (e.g. "Bong Palitao" -> "BP").
+    var userInitials = DisplayHelpers.GetInitials(sessFullName, Context.Session.GetString("LoginUsername"));
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -64,10 +66,7 @@
                 </div>
                 <div class="avatar-wrapper">
                     <div class="user-avatar">
-                        <img src="~/images/employee.jpg"
-                            alt="Employee photo"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <span class="avatar-fallback material-symbols-outlined">person</span>
+                        <span class="avatar-initials">@userInitials</span>
                     </div>
                     <span class="material-symbols-outlined profile-chevron">expand_more</span>
                 </div>
@@ -76,10 +75,7 @@
             <div class="profile-dropdown" id="profileDropdown">
                 <div class="profile-dropdown-header">
                     <div class="user-avatar user-avatar-lg">
-                        <img src="~/images/employee.jpg"
-                            alt="Employee photo"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <span class="avatar-fallback material-symbols-outlined">person</span>
+                        <span class="avatar-initials">@userInitials</span>
                     </div>
                     <div>
                         <div class="profile-dd-name">@displayName</div>

@@ -76,6 +76,33 @@
                                         <!-- Assignees -->
                     <div class="et-field et-field-full">
                         <label class="et-label" id="assigneeLabel">Assignees</label>
+                        @if (assignmentSummaries.Any())
+                        {
+                            @* Current assignees keep their own progress. Removing is explicit,
+                               and not possible once they have submitted proof. *@
+                            <ul class="et-current-assignees">
+                                @foreach (var a in assignmentSummaries)
+                                {
+                                    var removing = Model.RemoveAssigneeIds.Contains(a.UserId);
+                                    <li class="et-current-assignee@(removing ? " is-removing" : "")" data-current-assignee>
+                                        <span class="et-ca-name">@a.Name</span>
+                                        <span class="et-ca-progress">@a.Progress% · @DTIOneLink.Services.TaskWorkflow.DisplayLabel(a.Status, Model.DueDate)</span>
+                                        @if (a.HasSubmitted)
+                                        {
+                                            <span class="et-ca-locked" title="Already submitted proof, so they stay assigned.">Submitted</span>
+                                        }
+                                        else
+                                        {
+                                            <input type="checkbox" name="RemoveAssigneeIds" value="@a.UserId" hidden
+                                                   checked="@(removing ? "checked" : null)" data-remove-input />
+                                            <button type="button" class="et-ca-remove" data-remove-toggle
+                                                    data-name="@a.Name" data-progress="@a.Progress">@(removing ? "Undo" : "Remove")</button>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                            <p class="et-ca-note">Adding someone below does not change anyone's progress above.</p>
+                        }
                         <div class="assignee-select@(hasAssigneeError ? " assignee-select-invalid" : "")" data-assignee-select>
                             <button type="button"
                                     class="assignee-select-trigger"
@@ -84,7 +111,7 @@
                                     aria-haspopup="true"
                                     aria-expanded="false"
                                     aria-labelledby="assigneeLabel assigneeTrigger">
-                                <span class="assignee-select-label is-placeholder" data-assignee-label>Select assignees</span>
+                                <span class="assignee-select-label is-placeholder" data-assignee-label>@(Model.AssigneeIds.Any() ? "Add another person" : "Select assignees")</span>
                                 <span class="material-symbols-outlined assignee-select-chevron">expand_more</span>
                             </button>
                             <div class="assignee-select-panel" data-assignee-panel role="group" aria-label="Employees" hidden>
@@ -94,13 +121,15 @@
                                            placeholder="Search employees..." aria-label="Search employees" />
                                 </div>
                                 <div class="assignee-select-options">
-                                    @foreach (var emp in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Employees)
+                                    @* People already assigned are not offered again. *@
+                                    @foreach (var emp in ((Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Employees)
+                                                         .Where(e => !Model.AssigneeIds.Contains(int.Parse(e.Value))))
                                     {
                                         var empId = int.Parse(emp.Value);
                                         <label class="assignee-select-option" data-assignee-option
                                                data-name="@emp.Text.ToLowerInvariant()" data-display-name="@emp.Text">
-                                            <input type="checkbox" name="AssigneeIds" value="@emp.Value"
-                                                   checked="@(Model.AssigneeIds.Contains(empId) ? "checked" : null)" />
+                                            <input type="checkbox" name="AddAssigneeIds" value="@emp.Value"
+                                                   checked="@(Model.AddAssigneeIds.Contains(empId) ? "checked" : null)" />
                                             <span>@emp.Text</span>
                                         </label>
                                     }
@@ -212,5 +241,24 @@
 
 @section Scripts {
     <script src="~/js/assignee-multiselect.js" asp-append-version="true"></script>
+    <script>
+        // Remove / Undo for a current assignee (their progress is lost if removed).
+        document.querySelectorAll('[data-remove-toggle]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var row = btn.closest('[data-current-assignee]');
+                var input = row.querySelector('[data-remove-input]');
+                if (!input.checked) {
+                    var msg = 'Remove ' + btn.dataset.name + ' from this task?';
+                    if (parseInt(btn.dataset.progress, 10) > 0) {
+                        msg += ' Their progress (' + btn.dataset.progress + '%) will be lost.';
+                    }
+                    if (!confirm(msg + ' This happens when you save.')) return;
+                }
+                input.checked = !input.checked;
+                row.classList.toggle('is-removing', input.checked);
+                btn.textContent = input.checked ? 'Undo' : 'Remove';
+            });
+        });
+    </script>
     <script src="~/js/task-priority-suggestion.js" asp-append-version="true"></script>
 }

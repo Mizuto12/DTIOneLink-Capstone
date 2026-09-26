@@ -4,6 +4,7 @@ using DTIOneLink.Data;
 using DTIOneLink.Models;
 using DTIOneLink.Filters;
 using DTIOneLink.Security;
+using DTIOneLink.Services;
 
 namespace DTIOneLink.Controllers
 {
@@ -76,49 +77,56 @@ namespace DTIOneLink.Controllers
         [RequirePermission(Permissions.ViewOfficeWideSummaries)]
         public async Task<IActionResult> SuperAdminDashboard()
         {
-            // Office-wide, live query — no AssigneeId filter, unlike AdminDashboard.
-            var tasks = await _context.TaskItems
-                .Include(t => t.Assignee)
-                .OrderByDescending(t => t.CreatedAt)
+            // Count TaskAssignment rows. TaskItem.AssigneeId is only the
+            // legacy/primary assignee and undercounts Whole Office work.
+            var assignments = await _context.TaskAssignments
+                .AsNoTracking()
+                .Include(a => a.Task)
+                .Include(a => a.User)
+                .OrderByDescending(a => a.Task!.CreatedAt)
                 .ToListAsync();
 
-            // Same status classification convention as _DashboardContent.cshtml:
-            // Status is free text ("pending" / "ongoing"|"in-progress" / "completed"),
-            // matched case-insensitively by keyword rather than exact value.
-            static string Norm(string? s) => (s ?? string.Empty).Trim().ToLowerInvariant();
-            static bool IsCompleted(TaskItem t) => Norm(t.Status).Contains("complet") || Norm(t.Status) == "done";
-            static bool IsInProgress(TaskItem t) => !IsCompleted(t) && (Norm(t.Status).Contains("progress") || Norm(t.Status).Contains("ongoing"));
-            static bool IsTodo(TaskItem t) => !IsCompleted(t) && !IsInProgress(t);
-
-            var today = DateTime.Today;
-            bool IsOverdue(TaskItem t) => !IsCompleted(t) && t.DueDate.Date < today;
+            var workItems = assignments.Where(a => a.Task != null && a.User != null)
+                .Select(a => new DashboardAssignmentSummary
+                {
+                    TaskName = a.Task!.TaskName, AssigneeName = a.User!.FullName,
+                    DueDate = a.Task.DueDate, Progress = a.Progress,
+                    Status = TaskWorkflow.Normalize(a.Status), CreatedAt = a.Task.CreatedAt
+                }).ToList();
+            static bool IsStatus(DashboardAssignmentSummary item, string status) => item.Status == status;
+            static bool IsOverdue(DashboardAssignmentSummary item) => TaskWorkflow.IsOverdue(item.Status, item.DueDate);
+            static bool IsAtRisk(DashboardAssignmentSummary item) =>
+                TaskWorkflow.DelayRisk(item.Status, item.Progress, item.CreatedAt, item.DueDate) is { AtRisk: true };
 
             var vm = new SuperAdminDashboardViewModel
             {
-                Tasks = tasks,
-                TodoCount = tasks.Count(IsTodo),
-                InProgressCount = tasks.Count(IsInProgress),
-                CompletedCount = tasks.Count(IsCompleted),
-                OverdueTasks = tasks.Where(IsOverdue)
-                                     .OrderBy(t => t.DueDate)
-                                     .ToList(),
+                WorkItems = workItems,
+                TodoCount = workItems.Count(i => IsStatus(i, TaskWorkflow.Pending)),
+                InProgressCount = workItems.Count(i => IsStatus(i, TaskWorkflow.InProgress)),
+                ForReviewCount = workItems.Count(i => IsStatus(i, TaskWorkflow.ForReview)),
+                ReturnedForCorrectionCount = workItems.Count(i => IsStatus(i, TaskWorkflow.ReturnedForCorrection)),
+                CompletedCount = workItems.Count(i => IsStatus(i, TaskWorkflow.Completed)),
+                OverdueItems = workItems.Where(IsOverdue).OrderBy(i => i.DueDate).ToList(),
+                AtRiskCount = workItems.Count(IsAtRisk),
             };
 
-            vm.EmployeeWorkloads = tasks
-                .Where(t => t.Assignee != null)
-                .GroupBy(t => t.Assignee)
+            vm.EmployeeWorkloads = workItems
+                .GroupBy(i => i.AssigneeName)
                 .Select(g =>
                 {
                     var total = g.Count();
-                    var completed = g.Count(IsCompleted);
+                    var completed = g.Count(i => IsStatus(i, TaskWorkflow.Completed));
                     return new EmployeeWorkloadSummary
                     {
-                        FullName = g.Key!.FullName,
+                        FullName = g.Key,
                         TotalAssigned = total,
-                        ToDo = g.Count(IsTodo),
-                        InProgress = g.Count(IsInProgress),
+                        ToDo = g.Count(i => IsStatus(i, TaskWorkflow.Pending)),
+                        InProgress = g.Count(i => IsStatus(i, TaskWorkflow.InProgress)),
+                        ForReview = g.Count(i => IsStatus(i, TaskWorkflow.ForReview)),
+                        ReturnedForCorrection = g.Count(i => IsStatus(i, TaskWorkflow.ReturnedForCorrection)),
                         Completed = completed,
                         Overdue = g.Count(IsOverdue),
+                        AtRisk = g.Count(IsAtRisk),
                         EfficiencyPercent = total == 0 ? 0 : (int)Math.Round(completed * 100.0 / total),
                     };
                 })
