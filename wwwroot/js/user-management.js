@@ -204,17 +204,19 @@
                 csDepartment.value = department;
 
                 var changed = role !== original.role || department !== original.department;
-                csSave.disabled = !changed;
+                // Not allowed while they still have unfinished work.
+                var blocked = original.openTasks > 0;
+                csSave.disabled = !changed || blocked;
                 csPreview.hidden = !changed;
-                csHint.hidden = changed;
+                csHint.hidden = changed || blocked;
                 document.getElementById("csBefore").textContent = describe(original.role, original.department);
                 document.getElementById("csAfter").textContent = describe(role, department);
 
                 csWarnings.innerHTML = "";
-                if (changed && original.openTasks > 0) {
+                if (blocked) {
                     var li = document.createElement("li");
                     li.textContent = original.name + " still has " + original.openTasks +
-                        " unfinished task(s). They stay as they are; reassign them if needed.";
+                        " unfinished task(s). Reassign or finish them before changing their role or division.";
                     csWarnings.appendChild(li);
                 }
             }

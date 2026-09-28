@@ -238,11 +238,15 @@
                                             {
                                                 var confirmText = isActive
                                                     ? $"Deactivate {user.FullName}'s account? They will no longer be able to sign in."
-                                                      + (userOpen > 0 ? $" They still have {userOpen} unfinished task(s); reassign them if needed." : "")
-                                                      + " Their tasks and records are kept, and you can reactivate the account later."
+                                                      + " Their past tasks and records are kept, and you can reactivate the account later."
                                                     : $"Reactivate {user.FullName}'s account? They will be able to sign in again.";
+                                                // Deactivation is refused while they still have unfinished work.
+                                                var blockedText = isActive && userOpen > 0
+                                                    ? $"{user.FullName}'s account can't be deactivated yet. They still have {userOpen} unfinished task(s). Reassign or finish them first."
+                                                    : null;
                                                 <form asp-controller="UserManagement" asp-action="SetActive" method="post"
-                                                      data-confirm="@confirmText" onsubmit="return confirm(this.dataset.confirm);">
+                                                      data-confirm="@confirmText" data-blocked="@blockedText"
+                                                      onsubmit="if (this.dataset.blocked) { alert(this.dataset.blocked); return false; } return confirm(this.dataset.confirm);">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@user.Id" />
                                                     <input type="hidden" name="active" value="@(isActive ? "false" : "true")" />
@@ -349,8 +353,8 @@
                     <span class="material-symbols-outlined um-preview-arrow">arrow_forward</span>
                     <span class="um-preview-box um-preview-after" id="csAfter"></span>
                 </div>
-                <ul class="um-dialog-warnings" id="csWarnings"></ul>
             </div>
+            <ul class="um-dialog-warnings" id="csWarnings"></ul>
             <p class="um-dialog-hint" id="csHint">Choose a new role or division above.</p>
 
             <div class="um-dialog-actions">

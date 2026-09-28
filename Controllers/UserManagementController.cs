@@ -211,6 +211,15 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             return RedirectToAction(nameof(Index));
         }
 
+        // Their current work belongs to their current role/division, so it
+        // must be finished or reassigned first.
+        var openWork = await CountOpenWorkAsync(conn, id);
+        if (openWork > 0)
+        {
+            TempData["DirectoryError"] = $"{fullName}'s role or division can't be changed yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
+            return RedirectToAction(nameof(Index));
+        }
+
         using (var update = new SqlCommand("UPDATE dbo.Users SET Role = @Role, Department = @Department WHERE Id = @Id", conn))
         {
             update.Parameters.AddWithValue("@Role", newRole);
@@ -222,8 +231,14 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
         logger.LogInformation("User {UserId} changed from {OldRole}/{OldDepartment} to {NewRole}/{NewDepartment} by SuperAdmin {ActorId}.",
             id, oldRole, oldDepartment, newRole, newDepartment, HttpContext.Session.GetInt32("UserId"));
 
-        // Existing tasks are left as they are; just tell the OPD if some
-        // unfinished work may need to be reassigned.
+        TempData["DirectoryMessage"] = $"{fullName} is now {RoleLabel(newRole)} in {newDepartment}.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Unfinished tasks a person is still on: assigned and not yet completed,
+    // or a directive they lead as Responsible Admin. Same rule as Index.
+    private static async Task<int> CountOpenWorkAsync(SqlConnection conn, int userId)
+    {
         const string openWorkSql = @"
             SELECT COUNT(*) FROM dbo.TaskItems t
             WHERE t.Status <> 'completed'
@@ -231,14 +246,8 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
                    OR EXISTS (SELECT 1 FROM dbo.TaskAssignments a
                               WHERE a.TaskId = t.Id AND a.UserId = @Id AND a.Status <> 'completed'))";
         using var countCmd = new SqlCommand(openWorkSql, conn);
-        countCmd.Parameters.AddWithValue("@Id", id);
-        var openWork = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
-
-        TempData["DirectoryMessage"] = $"{fullName} is now {RoleLabel(newRole)} in {newDepartment}."
-            + (openWork > 0
-                ? $" They still have {openWork} unfinished task(s) from before — reassign them if needed."
-                : "");
-        return RedirectToAction(nameof(Index));
+        countCmd.Parameters.AddWithValue("@Id", userId);
+        return Convert.ToInt32(await countCmd.ExecuteScalarAsync());
     }
 
     // Who may deactivate/reactivate whom. Super Admin: anyone but
@@ -293,6 +302,17 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             return RedirectToAction(nameof(Index));
         }
 
+        // Reactivating is always fine; deactivating would strand their work.
+        if (!active)
+        {
+            var openWork = await CountOpenWorkAsync(conn, id);
+            if (openWork > 0)
+            {
+                TempData["DirectoryError"] = $"{fullName}'s account can't be deactivated yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         using (var update = new SqlCommand("UPDATE dbo.Users SET IsActive = @Active WHERE Id = @Id", conn))
         {
             update.Parameters.AddWithValue("@Active", active);
@@ -306,7 +326,7 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
         TempData["HighlightUserId"] = id;
         TempData["DirectoryMessage"] = active
             ? $"{fullName}'s account is active again. They can sign in with their usual password."
-            : $"{fullName}'s account is deactivated. They can no longer sign in. Their tasks and records are kept.";
+            : $"{fullName}'s account is deactivated. They can no longer sign in. Their past tasks and records are kept.";
         return RedirectToAction(nameof(Index));
     }
 

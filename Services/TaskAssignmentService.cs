@@ -17,8 +17,12 @@ namespace DTIOneLink.Services
     //                                              Pending/InProgress/Returned)
     //   - otherwise                            -> task InProgress if anyone
     //                                              has started, else Pending
-    // Task Progress in the non-Completed cases is the average of the
-    // assignees' individual Progress, purely for dashboard display.
+    // Task Progress in the non-Completed cases stockpiles: each assignee's
+    // Progress is their contribution to the one shared piece of work, so
+    // they add up (capped at 100). E.g. Bong does 10%, Elijah is added to
+    // take over and does 20% -> task is 30%, not the 15% average. Whole
+    // Office tasks are the exception — everyone does their own copy, so
+    // there it stays the average.
     public class TaskAssignmentService
     {
         private readonly AppDbContext _context;
@@ -149,19 +153,24 @@ namespace DTIOneLink.Services
             else if (statuses.All(s => s == TaskWorkflow.ForReview || s == TaskWorkflow.Completed))
             {
                 task.Status = TaskWorkflow.ForReview;
-                task.Progress = (int)Math.Round(task.Assignments.Average(a => a.Progress));
+                task.Progress = CombinedProgress(task);
             }
             else
             {
                 task.Status = statuses.Any(s => s != TaskWorkflow.Pending)
                     ? TaskWorkflow.InProgress
                     : TaskWorkflow.Pending;
-                task.Progress = (int)Math.Round(task.Assignments.Average(a => a.Progress));
+                task.Progress = CombinedProgress(task);
             }
 
             var primary = task.Assignments.FirstOrDefault(a => a.IsPrimaryAssignee) ?? task.Assignments.First();
             task.AssigneeId = primary.UserId;
         }
+
+        private static int CombinedProgress(TaskItem task) =>
+            task.TaskType == TaskTypes.WholeOffice
+                ? (int)Math.Round(task.Assignments.Average(a => a.Progress))
+                : Math.Min(100, task.Assignments.Sum(a => a.Progress));
 
         // Recomputes a Main Task's own Status/Progress purely from its child
         // subtasks' Status/Progress — the same rollup pattern as
