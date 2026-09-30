@@ -75,6 +75,7 @@ jobs:
             "-source:contentPath=$publishPath" `
             "-dest:contentPath=$env:MONSTER_WEBDEPLOY_SITE,computerName=$env:MONSTER_WEBDEPLOY_URL,userName=$env:MONSTER_WEBDEPLOY_USERNAME,password=$env:MONSTER_WEBDEPLOY_PASSWORD,authType=Basic,includeAcls=False" `
             -allowUntrusted `
+            -enableRule:AppOffline `
             -enableRule:DoNotDeleteRule `
             -disableLink:AppPoolExtension `
             -disableLink:ContentExtension `
