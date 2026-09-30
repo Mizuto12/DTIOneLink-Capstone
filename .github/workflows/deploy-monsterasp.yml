@@ -1,0 +1,86 @@
+name: Deploy DTI OneLink to MonsterASP
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    env:
+      MONSTER_CONNECTION_STRING: ${{ secrets.MONSTER_CONNECTION_STRING }}
+
+    steps:
+      - name: Get source code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore packages
+        run: dotnet restore
+
+      - name: Publish application
+        shell: pwsh
+        run: dotnet publish -c Release --no-restore -o "$env:GITHUB_WORKSPACE\publish"
+
+      - name: Create production configuration
+        shell: pwsh
+        run: |
+          $config = @{
+            ConnectionStrings = @{
+              DefaultConnection = $env:MONSTER_CONNECTION_STRING
+            }
+          } | ConvertTo-Json -Depth 3
+
+          Set-Content `
+            -Path "$env:GITHUB_WORKSPACE\publish\appsettings.Production.json" `
+            -Value $config `
+            -Encoding UTF8
+
+      - name: Install Web Deploy if needed
+        shell: pwsh
+        run: |
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+
+          if (!(Test-Path $msdeploy)) {
+            choco install webdeploy -y --no-progress
+          }
+
+          if (!(Test-Path $msdeploy)) {
+            throw "Web Deploy could not be installed."
+          }
+
+      - name: Deploy to MonsterASP
+        shell: pwsh
+        env:
+          MONSTER_WEBDEPLOY_URL: ${{ secrets.MONSTER_WEBDEPLOY_URL }}
+          MONSTER_WEBDEPLOY_SITE: ${{ secrets.MONSTER_WEBDEPLOY_SITE }}
+          MONSTER_WEBDEPLOY_USERNAME: ${{ secrets.MONSTER_WEBDEPLOY_USERNAME }}
+          MONSTER_WEBDEPLOY_PASSWORD: ${{ secrets.MONSTER_WEBDEPLOY_PASSWORD }}
+        run: |
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          $publishPath = "$env:GITHUB_WORKSPACE\publish"
+
+          & $msdeploy `
+            -verb:sync `
+            "-source:contentPath=$publishPath" `
+            "-dest:contentPath=$env:MONSTER_WEBDEPLOY_SITE,computerName=$env:MONSTER_WEBDEPLOY_URL,userName=$env:MONSTER_WEBDEPLOY_USERNAME,password=$env:MONSTER_WEBDEPLOY_PASSWORD,authType=Basic,includeAcls=False" `
+            -allowUntrusted `
+            -enableRule:DoNotDeleteRule `
+            -disableLink:AppPoolExtension `
+            -disableLink:ContentExtension `
+            -disableLink:CertificateExtension `
+            -verbose
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
