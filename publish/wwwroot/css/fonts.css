@@ -1,0 +1,86 @@
+/* ==========================================================
+   Self-hosted fonts — DTI Laguna OneLink
+   Replaces the Google Fonts / Fontshare <link> tags in the
+   layout <head>. Add ONE line to your layout instead:
+     <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
+   ...and delete all the fonts.googleapis.com / fontshare.com
+   <link> tags. Everything below works fully offline.
+   ========================================================== */
+
+/* ---------- Hanken Grotesk (variable: weights 400–800) ---------- */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  src: url('/fonts/hanken-grotesk/HankenGrotesk-Variable.woff2') format('woff2-variations'),
+       url('/fonts/hanken-grotesk/HankenGrotesk-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Inter (variable: weights 400–700, optical size) ---------- */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter/Inter-Variable.woff2') format('woff2-variations'),
+       url('/fonts/inter/Inter-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Anton (single weight, used for the "DTI" wordmark) ---------- */
+@font-face {
+  font-family: 'Anton';
+  src: url('/fonts/anton/Anton-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Open Sauce Sans (used for the "OneLink" wordmark) ---------- */
+@font-face {
+  font-family: 'Open Sauce Sans';
+  src: url('/fonts/open-sauce-sans/OpenSauceSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sauce Sans';
+  src: url('/fonts/open-sauce-sans/OpenSauceSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sauce Sans';
+  src: url('/fonts/open-sauce-sans/OpenSauceSans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sauce Sans';
+  src: url('/fonts/open-sauce-sans/OpenSauceSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Material Symbols Outlined (variable icon font) ---------- */
+/* This is the SAME font your CSS already references via
+   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+   — no other CSS changes needed, just load it locally. */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  src: url('/fonts/material-symbols/MaterialSymbolsOutlined.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: block; /* icons popping in unstyled looks worse than a brief delay */
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+}

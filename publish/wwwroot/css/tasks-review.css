@@ -1,0 +1,186 @@
+/* ==========================================================================
+   Laguna Governance – Review Submission
+   Scoped under .task-review, same convention as tasks-edit.css and
+   employeetaskdetails.css, so this never touches AdminLayout's own
+   body/sidebar/topbar styling.
+   Fonts (Hanken Grotesk / Material Symbols) come from /css/fonts.css,
+   already loaded by AdminLayout.cshtml.
+   ========================================================================== */
+.task-review {
+    --tr-primary: #001e65;
+    --tr-primary-container: #1d357e;
+    --tr-primary-fixed: #dce1ff;
+    --tr-on-primary: #ffffff;
+    --tr-surface: #f8f9ff;
+    --tr-surface-container-lowest: #ffffff;
+    --tr-surface-container-low: #eff4ff;
+    --tr-surface-container: #e5eeff;
+    --tr-surface-container-highest: #d3e4fe;
+    --tr-on-surface: #0b1c30;
+    --tr-on-surface-variant: #444651;
+    --tr-outline: #757682;
+    --tr-outline-variant: #c5c5d2;
+    --tr-error: #ba1a1a;
+    --tr-error-container: #ffdad6;
+    --tr-success: #166534;
+    --tr-success-container: #dcfce7;
+    --tr-radius: 0.5rem;
+    --tr-radius-lg: 0.75rem;
+
+    width: 100%;
+    max-width: 720px;
+    box-sizing: border-box;
+    font-family: 'Hanken Grotesk', sans-serif;
+    color: var(--tr-on-surface);
+}
+
+.task-review *,
+.task-review *::before,
+.task-review *::after {
+    box-sizing: border-box;
+}
+
+.task-review h2, .task-review p, .task-review dl, .task-review dt, .task-review dd {
+    margin: 0;
+}
+
+.task-review a { color: var(--tr-primary); text-decoration: underline; }
+.task-review button { font-family: inherit; cursor: pointer; border: none; }
+
+/* --------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------- */
+.task-review .tr-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--tr-on-surface);
+    margin-bottom: 24px;
+}
+
+/* --------------------------------------------------------------------
+   Submission info card
+   -------------------------------------------------------------------- */
+.task-review .tr-card {
+    background-color: var(--tr-surface-container-lowest);
+    border: 1px solid var(--tr-surface-container-highest);
+    border-radius: var(--tr-radius-lg);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.task-review .tr-info-row {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--tr-on-surface);
+}
+
+.task-review .tr-info-row strong {
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+.task-review .tr-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    width: fit-content;
+}
+
+/* --------------------------------------------------------------------
+   Decision form
+   -------------------------------------------------------------------- */
+.task-review .tr-form {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.task-review .tr-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.task-review .tr-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tr-on-surface);
+}
+
+.task-review .tr-required {
+    color: var(--tr-error);
+}
+
+.task-review .tr-hint {
+    font-weight: 400;
+    color: var(--tr-on-surface-variant);
+}
+
+.task-review .tr-textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 12px 16px;
+    border-radius: var(--tr-radius);
+    border: 1px solid var(--tr-outline-variant);
+    background-color: var(--tr-surface);
+    color: var(--tr-on-surface);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.task-review .tr-textarea:focus {
+    border-color: var(--tr-primary);
+    box-shadow: 0 0 0 2px var(--tr-primary);
+}
+
+.task-review .tr-error-text {
+    font-size: 13px;
+    color: var(--tr-error);
+}
+
+/* --------------------------------------------------------------------
+   Actions
+   -------------------------------------------------------------------- */
+.task-review .tr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.task-review .tr-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.task-review .tr-btn-return {
+    background-color: var(--tr-surface-container-low);
+    color: var(--tr-error);
+    border: 1px solid var(--tr-error-container);
+}
+.task-review .tr-btn-return:hover {
+    background-color: var(--tr-error-container);
+}
+
+.task-review .tr-btn-approve {
+    background-color: var(--tr-primary);
+    color: var(--tr-on-primary);
+}
+.task-review .tr-btn-approve:hover {
+    background-color: var(--tr-primary-container);
+}
