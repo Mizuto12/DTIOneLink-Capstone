@@ -24,6 +24,13 @@ builder.Services.AddHostedService<TaskReminderService>();
 builder.Services.AddScoped<RecordRetentionReminder>();
 builder.Services.AddHostedService<RecordRetentionReminderService>();
 
+// ── Live updates (SignalR) ──────────────────────────────────
+// Open pages listen on /hubs/live; LiveChangeBroadcaster pushes a change
+// when the data's fingerprint moves (see live-refresh.js).
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<LiveVersionService>();
+builder.Services.AddHostedService<LiveChangeBroadcaster>();
+
 // ── Email (Brevo) and emailed codes ─────────────────────────
 // Brevo:ApiKey and Brevo:SenderEmail come from `dotnet user-secrets` locally
 // and from GitHub secrets in production — never from files in the repo.
@@ -138,10 +145,26 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Live updates are for signed-in users only: refuse the hub's connection
+// request outright rather than accepting it and dropping it afterwards.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/hubs/live")
+        && context.Session.GetInt32("UserId") == null)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return;
+    }
+    await next();
+});
+
 app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
+
+// After UseSession, so the hub can see who is signed in.
+app.MapHub<LiveHub>("/hubs/live");
 
 app.Run();

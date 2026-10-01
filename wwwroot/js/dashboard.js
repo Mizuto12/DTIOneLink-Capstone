@@ -61,8 +61,18 @@ function initLedgerViewToggle() {
     ganttBtn.setAttribute("aria-selected", "false");
   }
 
-  ganttBtn.addEventListener("click", showGantt);
-  kanbanBtn.addEventListener("click", showKanban);
+  // Remembered for this tab, so a live refresh keeps the chosen view.
+  const VIEW_KEY = "dashboard-ledger-view";
+  function remember(view) {
+    try { sessionStorage.setItem(VIEW_KEY, view); } catch (e) { /* storage blocked */ }
+  }
+
+  ganttBtn.addEventListener("click", () => { showGantt(); remember("gantt"); });
+  kanbanBtn.addEventListener("click", () => { showKanban(); remember("kanban"); });
+
+  let saved = null;
+  try { saved = sessionStorage.getItem(VIEW_KEY); } catch (e) { /* storage blocked */ }
+  if (saved === "kanban") showKanban();
 }
 
 /**

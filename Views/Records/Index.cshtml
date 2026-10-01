@@ -6,6 +6,7 @@
             ? "~/Views/Admin/AdminLayout.cshtml"
             : "~/Views/Employee/EmployeeLayout.cshtml";
     ViewData["Title"] = "Records Management";
+    ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
 }
 
 @section Styles {

@@ -4,6 +4,7 @@
         ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
         : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Main Task Details";
+    ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
     var isOpd = Context.Session.GetString("UserRole") == "SuperAdmin";
 
     var task = Model;

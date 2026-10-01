@@ -269,6 +269,8 @@
 
         renderNotifications(); // empty state immediately
         setInterval(loadNotifications, 60000); // refresh every minute
+        // live-refresh.js fires this as soon as a notification arrives.
+        document.addEventListener("live:notifications", loadNotifications);
         loadNotifications();   // then fill in from the database
 
         // ── Profile dropdown (unchanged) ───────────────────

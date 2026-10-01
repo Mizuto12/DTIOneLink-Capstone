@@ -1,6 +1,7 @@
 @model IEnumerable<DTIOneLink.Models.TaskItem>
 @{
     ViewData["Title"] = "Task Management";
+    ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
     Layout = "~/Views/Employee/EmployeeLayout.cshtml";
 
     var role = Context.Session.GetString("UserRole");

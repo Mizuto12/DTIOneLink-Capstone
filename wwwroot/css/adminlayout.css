@@ -550,3 +550,28 @@ body {
     line-height: 1;
 }
 .user-avatar-lg .avatar-initials { font-size: 17px; }
+
+/* ── Live updates: "New updates" button (live-refresh.js) ── */
+.live-refresh-banner {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1000;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-family: inherit;
+    box-shadow: 0 6px 18px rgba(0, 30, 101, 0.25);
+    cursor: pointer;
+}
+.live-refresh-banner:hover { background: var(--primary-container); }
+.live-refresh-banner:focus-visible { outline: 3px solid var(--primary-fixed-dim); outline-offset: 2px; }
+.live-refresh-banner .material-symbols-outlined { font-size: 20px; }

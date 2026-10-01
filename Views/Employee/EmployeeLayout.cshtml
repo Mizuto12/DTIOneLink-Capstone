@@ -31,7 +31,7 @@
     <link rel="stylesheet" href="~/css/adminlayout.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
+<body data-live-refresh="@(ViewData["LiveRefresh"] is true ? "" : null)">
 
     <!-- ══════════════ TOPBAR ══════════════ -->
     <header class="topbar">
@@ -155,6 +155,8 @@
     </main>
 
     <script src="~/js/adminlayout.js" asp-append-version="true"></script>
+    <script src="~/lib/microsoft-signalr/signalr.min.js" asp-append-version="true"></script>
+    <script src="~/js/live-refresh.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -1,6 +1,7 @@
 @model DTIOneLink.Models.TaskItem
 @{
     ViewData["Title"] = "Task Details";
+    ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
 
     var role = Context.Session.GetString("UserRole");
     var isElevated = role == "Admin" || role == "Supervisor" || role == "SuperAdmin";
