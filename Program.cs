@@ -58,6 +58,21 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
+// Brings the database up to date on every start, so a deploy that adds
+// columns or tables needs no manual database step. The hosted database is
+// only reachable from the host itself, so this is where it has to happen.
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Could not update the database to the latest version.");
+    }
+}
+
 // Codes are checked with a key that exists only in memory (OneTimeCodeHasher),
 // so codes from before this start can never match. Mark them used, so the
 // code page sends a fresh code instead of waiting on one that can't work.
