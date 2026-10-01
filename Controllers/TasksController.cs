@@ -506,6 +506,7 @@ namespace DTIOneLink.Controllers
     // AssigneeIds is locked in the view when this is true, and
     // re-enforced server-side in the POST action below.
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
+    ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
 
     // Read-only display context for the "Task Overview" panel — not part of
     // TaskEditViewModel on purpose (Status/Progress/CreatedAt aren't editable
@@ -574,20 +575,60 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         return NotFound();
     }
 
-    // Current assignees stay exactly as they are (progress included) unless
-    // explicitly removed; only the newly added people are validated.
+    // Nobody is removed outright. Current assignees stay as they are unless
+    // reassigned, in which case their assignment (progress included) moves
+    // to the person taking over. Only incoming people are validated.
     var currentAssigneeIds = task.Assignments.Select(a => a.UserId).ToList();
-    var removeIds = (model.RemoveAssigneeIds ?? new()).Where(currentAssigneeIds.Contains).Distinct().ToList();
     var addIds = (model.AddAssigneeIds ?? new()).Where(id => !currentAssigneeIds.Contains(id)).Distinct().ToList();
-    var desiredAssigneeIds = currentAssigneeIds.Except(removeIds).Concat(addIds).ToList();
+    var reassignments = (model.ReassignTo ?? new())
+        .Where(r => r.Value.HasValue && r.Value.Value != r.Key && currentAssigneeIds.Contains(r.Key))
+        .ToDictionary(r => r.Key, r => r.Value!.Value);
+    var desiredAssigneeIds = currentAssigneeIds.Concat(addIds).ToList();
 
-    if (addIds.Count > 0)
+    var incomingIds = addIds.Concat(reassignments.Values).ToList();
+    if (incomingIds.Count != incomingIds.Distinct().Count()
+        || reassignments.Values.Any(currentAssigneeIds.Contains))
     {
-        await ValidateAssigneeIdsAsync(addIds, nameof(model.AssigneeIds));
+        ModelState.AddModelError(nameof(model.AssigneeIds),
+            "Each person can only be picked once, and only someone not already on this task can take over.");
     }
+    else if (incomingIds.Count > 0)
+    {
+        await ValidateAssigneeIdsAsync(incomingIds, nameof(model.AssigneeIds));
+    }
+
+    foreach (var fromUserId in reassignments.Keys)
+    {
+        var assignment = task.Assignments.First(a => a.UserId == fromUserId);
+        if (!TaskAssignmentService.CanReassign(assignment))
+        {
+            ModelState.AddModelError(nameof(model.AssigneeIds),
+                $"{assignment.User?.FullName ?? "This person"}'s work is awaiting review or already approved, so it can't be reassigned.");
+        }
+    }
+
     if (desiredAssigneeIds.Count == 0)
     {
-        ModelState.AddModelError(nameof(model.AssigneeIds), "At least one person must stay assigned to this task.");
+        ModelState.AddModelError(nameof(model.AssigneeIds), "Select at least one person for this task.");
+    }
+
+    // Same rule as the GET action. Re-checked here rather than trusted from
+    // a hidden form field, so a tampered POST can't re-enable these fields —
+    // if this is an OPD-issued subtask, or a Main Task being assigned to
+    // directly, and the caller isn't office-wide, TaskName/Priority/
+    // Description are simply never written, regardless of what the client
+    // submitted. The due date is the exception: the Admin may adjust it.
+    var isAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
+
+    // An Admin may move an OPD subtask's due date, but never past the OPD's
+    // own deadline for the Main Task. Only checked when the date changes,
+    // so an older subtask already past it can still be saved as-is.
+    if (isAssignmentOnly && task.ParentTask != null
+        && model.DueDate.Date != task.DueDate.Date
+        && model.DueDate.Date > task.ParentTask.DueDate.Date)
+    {
+        ModelState.AddModelError(nameof(model.DueDate),
+            $"The due date can't be later than the OPD's deadline ({task.ParentTask.DueDate:MMM d, yyyy}).");
     }
 
     if (!ModelState.IsValid)
@@ -603,34 +644,36 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     var oldPriority = task.Priority;
     var oldAssigneeUserIds = task.Assignments.Select(a => a.UserId).ToList();
 
-    // Same rule as the GET action. Re-checked here rather than trusted from
-    // a hidden form field, so a tampered POST can't re-enable these fields —
-    // if this is an OPD-issued subtask, or a Main Task being assigned to
-    // directly, and the caller isn't office-wide, TaskName/DueDate/Priority/
-    // Description are simply never written, regardless of what the client
-    // submitted.
-    var isAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
-
     // Only the editable fields — Progress, Status, CreatedAt, Submissions
     // are untouched, same discipline as Employee.Update's comment block.
+    task.DueDate = model.DueDate;
     if (!isAssignmentOnly)
     {
         task.TaskName = model.TaskName;
-        task.DueDate = model.DueDate;
         task.Priority = model.Priority;
         task.Description = model.Description;
     }
 
     var changedByUserId = HttpContext.Session.GetInt32("UserId");
+
+    // desiredAssigneeIds only ever adds, so nothing is removed here.
     var sync = await _taskAssignments.SyncAssignmentsAsync(task, desiredAssigneeIds, changedByUserId);
 
-    if (sync.BlockedRemovals.Count > 0)
+    // Hand each reassigned person's assignment to whoever takes over. Their
+    // progress (e.g. Bong's 40%) stays on the row, so the new person
+    // continues from it, and the previous person loses access.
+    var affectedUserIds = sync.Added.Concat(reassignments.Keys).Concat(reassignments.Values).Distinct().ToList();
+    var affectedUsers = await _context.Users
+        .Where(u => affectedUserIds.Contains(u.Id))
+        .ToDictionaryAsync(u => u.Id);
+    string NameOf(int userId) => affectedUsers.TryGetValue(userId, out var u) ? u.FullName : $"User #{userId}";
+
+    var reassignedProgress = new Dictionary<int, int>();
+    foreach (var (fromUserId, toUserId) in reassignments)
     {
-        ModelState.AddModelError(nameof(model.AssigneeIds),
-            "Can't unassign someone who has already submitted proof for this task.");
-        model.AssigneeIds = currentAssigneeIds;
-        await RepopulateEditContextAsync(task);
-        return View(model);
+        var assignment = task.Assignments.First(a => a.UserId == fromUserId);
+        reassignedProgress[fromUserId] = assignment.Progress;
+        _taskAssignments.Reassign(task, assignment, affectedUsers[toUserId], changedByUserId);
     }
 
     _taskAssignments.RecalculateOverallStatus(task);
@@ -644,52 +687,43 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     // along in the same SaveChangesAsync as the assignment change itself
     // (never a separate save, so the two can't get out of sync). Old rows
     // are never touched — TaskActivity is append-only by design.
-    if ((sync.Added.Count > 0 || sync.Removed.Count > 0) && changedByUserId.HasValue)
+    if (changedByUserId.HasValue)
     {
-        var affectedUserIds = sync.Added.Concat(sync.Removed).Distinct().ToList();
-        var affectedUserNames = await _context.Users
-            .Where(u => affectedUserIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.FullName);
-
         foreach (var addedUserId in sync.Added)
         {
-            var name = affectedUserNames.TryGetValue(addedUserId, out var n) ? n : $"User #{addedUserId}";
             TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, TaskActivityType.Assigned,
-                $"Assigned {name} to this task.");
+                $"Assigned {NameOf(addedUserId)} to this task.");
         }
 
-        foreach (var removedUserId in sync.Removed)
+        foreach (var (fromUserId, toUserId) in reassignments)
         {
-            var name = affectedUserNames.TryGetValue(removedUserId, out var n) ? n : $"User #{removedUserId}";
-            TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, TaskActivityType.Removed,
-                $"Removed {name} from this task.");
+            TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, TaskActivityType.Reassigned,
+                $"Reassigned from {NameOf(fromUserId)} to {NameOf(toUserId)}. Progress carried over ({reassignedProgress[fromUserId]}%).");
+        }
+
+        if (oldDueDate.Date != task.DueDate.Date)
+        {
+            TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, TaskActivityType.Edited,
+                $"Due date changed from {oldDueDate:MMM d, yyyy} to {task.DueDate:MMM d, yyyy}.");
         }
     }
 
     await _context.SaveChangesAsync();
 
-    // new — notify only the affected employees, and only for what actually
-    // changed. Newly added assignees get one "assigned to you" notice;
-    // everyone who was already on the task before AND after this edit gets
-    // notified about due-date/priority changes (each is independent, so
-    // both can fire).
+    // Notify only the affected people, and only for what actually changed.
+    // Newly added assignees get "assigned to you"; whoever takes over gets
+    // "reassigned to you" and the previous person is told who has it now.
+    // Everyone on the task before AND after this edit gets notified about
+    // due-date/priority changes (each is independent, so both can fire).
     foreach (var newUserId in sync.Added)
     {
-        // Someone was swapped out in the same edit = reassignment.
-        // Otherwise it's a plain new assignment.
-        if (sync.Removed.Count > 0)
-        {
-            await _notifications.NotifyTaskReassignedAsync(newUserId, task.Id, task.TaskName);
-        }
-        else
-        {
-            await _notifications.NotifyTaskAssignedAsync(newUserId, task.Id, task.TaskName);
-        }
+        await _notifications.NotifyTaskAssignedAsync(newUserId, task.Id, task.TaskName);
     }
 
-    foreach (var removedUserId in sync.Removed)
+    foreach (var (fromUserId, toUserId) in reassignments)
     {
-        await _notifications.NotifyTaskRemovedAsync(removedUserId, task.Id, task.TaskName);
+        await _notifications.NotifyTaskReassignedAsync(toUserId, task.Id, task.TaskName);
+        await _notifications.NotifyTaskReassignedAwayAsync(fromUserId, task.Id, task.TaskName, NameOf(toUserId));
     }
 
     if (oldDueDate != task.DueDate)
@@ -710,8 +744,15 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
             await _notifications.NotifyAdminsOpdPriorityChangedAsync(task.Id, task.TaskName, task.Priority);
         }
     }
+    else if (oldDueDate.Date != task.DueDate.Date)
+    {
+        // An Admin moved the due date of an OPD-issued task — the OPD is told.
+        // (Returns no recipients for a task the OPD didn't issue.)
+        var adminName = HttpContext.Session.GetString("FullName") ?? "An Admin";
+        await _notifications.NotifyOpdDueDateChangedByAdminAsync(task.Id, task.TaskName, adminName, oldDueDate, task.DueDate);
+    }
 
-    var stillAssignedUserIds = oldAssigneeUserIds.Except(sync.Removed).ToList();
+    var stillAssignedUserIds = oldAssigneeUserIds.Except(reassignments.Keys).ToList();
     foreach (var userId in stillAssignedUserIds)
     {
         if (oldDueDate != task.DueDate)
@@ -971,12 +1012,14 @@ private async Task ValidateAssigneeIdsAsync(List<int> assigneeIds, string modelK
 }
 private async Task<List<TaskAssignmentSummaryViewModel>> BuildAssignmentSummariesAsync(TaskItem task)
 {
-    var assignmentIds = task.Assignments.Select(a => a.Id).ToList();
-    var submittedAssignmentIds = await _context.TaskSubmissions
-        .Where(s => s.TaskAssignmentId != null && assignmentIds.Contains(s.TaskAssignmentId.Value))
-        .Select(s => s.TaskAssignmentId!.Value)
+    var previousIds = task.Assignments
+        .Where(a => a.ReassignedFromUserId.HasValue)
+        .Select(a => a.ReassignedFromUserId!.Value)
         .Distinct()
-        .ToListAsync();
+        .ToList();
+    var previousNames = await _context.Users
+        .Where(u => previousIds.Contains(u.Id))
+        .ToDictionaryAsync(u => u.Id, u => u.FullName);
 
     return task.Assignments
         .OrderByDescending(a => a.IsPrimaryAssignee)
@@ -984,7 +1027,9 @@ private async Task<List<TaskAssignmentSummaryViewModel>> BuildAssignmentSummarie
         .Select(a => new TaskAssignmentSummaryViewModel
         {
             UserId = a.UserId,
-            HasSubmitted = submittedAssignmentIds.Contains(a.Id),
+            CanReassign = TaskAssignmentService.CanReassign(a),
+            ReassignedFromName = a.ReassignedFromUserId.HasValue
+                && previousNames.TryGetValue(a.ReassignedFromUserId.Value, out var previous) ? previous : null,
             Name = a.User?.FullName ?? "Unknown",
             Status = a.Status,
             Progress = a.Progress,
@@ -998,6 +1043,7 @@ private async Task<List<TaskAssignmentSummaryViewModel>> BuildAssignmentSummarie
 private async Task RepopulateEditContextAsync(TaskItem task)
 {
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || task.TaskLevel == TaskLevels.Main) && !IsOfficeWideTaskManager();
+    ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
     ViewBag.TaskCode = $"TASK-{task.Id:D4}";
     ViewBag.CurrentStatus = task.Status;
     ViewBag.CurrentProgress = task.Progress;
@@ -1210,8 +1256,10 @@ public async Task<IActionResult> MainTaskDetails(int id)
         .Include(t => t.ResponsibleAdmin)
         .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.User)
         .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.AssignedBy)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.ReassignedFrom)
         .Include(t => t.Assignments).ThenInclude(a => a.User)
         .Include(t => t.Assignments).ThenInclude(a => a.AssignedBy)
+        .Include(t => t.Assignments).ThenInclude(a => a.ReassignedFrom)
         // Pending proofs, so the OPD can review each person of a Whole Office task.
         .Include(t => t.Submissions)
         // This page loads the main task's assignments and its subtasks (each

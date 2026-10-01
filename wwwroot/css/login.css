@@ -407,3 +407,112 @@ html, body {
     border-color: var(--red);
     background: rgba(227, 35, 31, 0.03);
 }
+
+/* =========================================================
+   Change Password page — reuses the login card above
+   ========================================================= */
+.login-title.change-password-title {
+    font-size: clamp(30px, 3.4vw, 40px);
+}
+
+.change-password-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.change-password-form .field-group:first-of-type {
+    margin-top: 12px;
+}
+
+.change-password-note {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(28, 63, 148, 0.07);
+    border: 1px solid rgba(28, 63, 148, 0.25);
+    color: var(--navy-dark);
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.field-hint {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+.change-password-success {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.change-password-success .btn-login {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+
+.change-password-secondary-form {
+    margin: 0;
+    text-align: center;
+}
+
+.change-password-secondary {
+    display: block;
+    margin: 12px auto 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: var(--font-body);
+    font-size: clamp(11px, 1.1vw, 13px);
+    color: #2a2a2a;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.change-password-secondary:hover {
+    text-decoration: underline;
+    color: var(--navy);
+}
+
+.change-password-form .text-input.input-validation-error {
+    border-color: var(--red);
+}
+
+/* Verify Email / Enter Code / Forgot Password */
+.code-input {
+    font-size: clamp(20px, 2.2vw, 26px);
+    letter-spacing: 10px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.code-input::placeholder {
+    color: #c3cde0;
+}
+
+.code-notice {
+    margin-top: 8px;
+    text-align: center;
+    color: var(--navy-dark);
+}
+
+.account-help {
+    margin: 12px 0 0;
+    text-align: center;
+}
+
+.change-password-form .change-password-note + .field-group,
+.change-password-form .code-notice + .field-group {
+    margin-top: 12px;
+}
+
+.btn-login:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}

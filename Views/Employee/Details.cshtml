@@ -64,6 +64,12 @@
         && (myAssignmentStatus == "pending" || myAssignmentStatus == "in-progress");
     var sliderProgress = canEditProgress ? myAssignment!.Progress : task.Progress;
 
+    // An Employee on a shared task sees only their own part of it: their own
+    // name and progress, never a co-assignee's. Admins see the whole task.
+    var isEmployeeView = !isElevated && myAssignment != null;
+    var shownAssignee = isEmployeeView ? Context.Session.GetString("FullName") : task.Assignee?.FullName;
+    var shownProgress = isEmployeeView ? myAssignment!.Progress : task.Progress;
+
     // Assignees may permanently delete a task once it is fully Completed.
     // EmployeeController.Delete re-checks all of this on the server.
     var canDeleteTask = myAssignment != null
@@ -143,7 +149,7 @@
                             <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
                         </span>
                         <span class="td-badge assignee">
-                            <span class="td-badge-dot"></span> Assigned to @(task.Assignee?.FullName ?? "Unassigned")
+                            <span class="td-badge-dot"></span> Assigned to @(shownAssignee ?? "Unassigned")
                         </span>
                     </div>
                 </section>
@@ -163,7 +169,7 @@
                     </div>
                     <div>
                         <h3>Progress</h3>
-                        <p id="tdMetaProgress">@task.Progress%</p>
+                        <p id="tdMetaProgress">@shownProgress%</p>
                     </div>
                     <div>
                         <h3>Status</h3>
@@ -198,7 +204,7 @@
                     {
                         <h3>Progress</h3>
                         <div class="td-progress-track">
-                            <div class="td-progress-fill" style="width: @(task.Progress)%"></div>
+                            <div class="td-progress-fill" style="width: @(shownProgress)%"></div>
                         </div>
                     }
                 </section>
@@ -306,9 +312,9 @@
             <h3 class="td-sidebar-title">Task Overview</h3>
 
             <div class="td-overview-assignee">
-                <div class="avatar-initials-lg">@GetInitials(task.Assignee?.FullName)</div>
+                <div class="avatar-initials-lg">@GetInitials(shownAssignee)</div>
                 <div>
-                    <div class="td-overview-name">@(task.Assignee?.FullName ?? "Unassigned")</div>
+                    <div class="td-overview-name">@(shownAssignee ?? "Unassigned")</div>
                     <div class="td-overview-role">Assignee</div>
                 </div>
             </div>

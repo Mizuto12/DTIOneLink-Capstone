@@ -947,3 +947,17 @@
 .um-btn-deactivate:hover { background: var(--error-container); }
 .um-btn-reactivate { border: 1px solid #0f7a3d; color: #0f7a3d; }
 .um-btn-reactivate:hover { background: #dcfce7; }
+
+/* ── Reset Password / Edit Email ─────────────────────────── */
+.um-btn-neutral { border: 1px solid var(--primary); color: var(--primary); }
+.um-btn-neutral:hover { background: var(--surface-container); }
+
+.um-temp-password { display: flex; gap: 8px; align-items: flex-start; }
+.um-temp-password p { margin: 0 0 4px; }
+.um-temp-password-value {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    user-select: all;
+}

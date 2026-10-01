@@ -1,5 +1,6 @@
 using DTIOneLink.Data;
 using DTIOneLink.Models;
+using DTIOneLink.Services.Email;
 using Microsoft.EntityFrameworkCore;
 
 namespace DTIOneLink.Services
@@ -7,19 +8,30 @@ namespace DTIOneLink.Services
     public class NotificationService
     {
         private readonly AppDbContext _db;
+        private readonly string? _baseUrl;
 
-        public NotificationService(AppDbContext db)
+        public NotificationService(AppDbContext db, IConfiguration configuration)
         {
             _db = db;
+            // Full address of the site (e.g. https://example.com), used only
+            // to turn notification links into clickable links in emails.
+            _baseUrl = configuration["App:BaseUrl"];
         }
 
+        // emailSubject: also email this notice (only some notices are emailed,
+        // see the callers). emailMessage: email text when it must differ from
+        // the in-app text. The email is saved in the same database save as the
+        // notification, so it is sent only if the notification is kept, and
+        // only to an active account whose email address has been confirmed.
         public async Task<Notification> CreateAsync(
             int recipientUserId,
             NotificationType type,
             string message,
             int? relatedTaskId = null,
             int? relatedRecordId = null,
-            string? link = null)
+            string? link = null,
+            string? emailSubject = null,
+            string? emailMessage = null)
         {
             var notif = new Notification
             {
@@ -32,6 +44,29 @@ namespace DTIOneLink.Services
             };
 
             _db.Notifications.Add(notif);
+
+            if (emailSubject != null)
+            {
+                var recipient = await _db.Users.AsNoTracking()
+                    .Where(u => u.Id == recipientUserId && u.IsActive && u.EmailConfirmed && u.Email != "")
+                    .Select(u => new { u.Email, u.FullName })
+                    .FirstOrDefaultAsync();
+
+                if (recipient != null)
+                {
+                    var email = EmailTemplates.Notification(
+                        recipient.Email, recipient.FullName, emailSubject, emailMessage ?? message, link, _baseUrl);
+                    _db.EmailOutbox.Add(new EmailOutboxMessage
+                    {
+                        ToEmail = email.ToEmail,
+                        ToName = email.ToName,
+                        Subject = email.Subject,
+                        TextBody = email.TextBody,
+                        HtmlBody = email.HtmlBody
+                    });
+                }
+            }
+
             await _db.SaveChangesAsync();
             return notif;
         }
@@ -111,12 +146,20 @@ namespace DTIOneLink.Services
                 ? $"Record \"{code} – {shortTitle}\" reaches the end of its retention period on {dueText}. Please review it for disposal."
                 : $"Record \"{code} – {shortTitle}\" reached the end of its retention period on {dueText}. Please review it for disposal.";
 
+            // The email leaves out the record's title: records can be
+            // confidential, and email leaves the system.
+            var emailMessage = retentionDueDate.Date > today.Date
+                ? $"Record {code} reaches the end of its retention period on {dueText}. Please review it for disposal."
+                : $"Record {code} reached the end of its retention period on {dueText}. Please review it for disposal.";
+
             await CreateAsync(
                 recipientUserId: ownerUserId,
                 type: NotificationType.RecordDisposalDue,
                 message: message,
                 relatedRecordId: recordId,
-                link: "/Records");
+                link: "/Records",
+                emailSubject: "A record is due for disposal review",
+                emailMessage: emailMessage);
         }
 
         // ── Task assignment/change notices ──────────────────────────
@@ -130,7 +173,8 @@ namespace DTIOneLink.Services
                 type: NotificationType.Task,
                 message: $"You've been assigned: \"{taskTitle}\"",
                 relatedTaskId: taskId,
-                link: $"/Employee/Details/{taskId}"
+                link: $"/Employee/Details/{taskId}",
+                emailSubject: "You have a new task in DTI OneLink"
             );
         }
 
@@ -141,7 +185,8 @@ namespace DTIOneLink.Services
                 type: NotificationType.Task,
                 message: $"Task reassigned to you: \"{taskTitle}\"",
                 relatedTaskId: taskId,
-                link: $"/Employee/Details/{taskId}"
+                link: $"/Employee/Details/{taskId}",
+                emailSubject: "You have a new task in DTI OneLink"
             );
         }
 
@@ -179,7 +224,8 @@ namespace DTIOneLink.Services
                 type: NotificationType.Task,
                 message: $"Your submission for \"{taskTitle}\" was approved and marked completed.",
                 relatedTaskId: taskId,
-                link: $"/Employee/Details/{taskId}"
+                link: $"/Employee/Details/{taskId}",
+                emailSubject: "Your submission was approved"
             );
         }
 
@@ -190,7 +236,8 @@ namespace DTIOneLink.Services
                 type: NotificationType.Task,
                 message: $"Your submission for \"{taskTitle}\" was returned for correction: {remarks}",
                 relatedTaskId: taskId,
-                link: $"/Employee/Details/{taskId}"
+                link: $"/Employee/Details/{taskId}",
+                emailSubject: "Your submission was returned for correction"
             );
         }
         // ── Due-soon / overdue reminders ─────────────────────────────
@@ -225,14 +272,14 @@ namespace DTIOneLink.Services
                 link: isAdminCopy ? $"/Tasks/Edit/{taskId}" : $"/Employee/Details/{taskId}"
             );
         }
-                // The removed employee can no longer open the task (Details returns
+        // The previous assignee can no longer open the task (Details returns
         // NotFound for non-assignees), so this links to their task list instead.
-        public async Task NotifyTaskRemovedAsync(int removedUserId, int taskId, string taskTitle)
+        public async Task NotifyTaskReassignedAwayAsync(int previousUserId, int taskId, string taskTitle, string newAssigneeName)
         {
             await CreateAsync(
-                recipientUserId: removedUserId,
+                recipientUserId: previousUserId,
                 type: NotificationType.Task,
-                message: $"You've been removed from: \"{taskTitle}\"",
+                message: $"\"{taskTitle}\" was reassigned to {newAssigneeName}.",
                 relatedTaskId: taskId,
                 link: "/Employee/TaskManagement"
             );
@@ -352,6 +399,30 @@ namespace DTIOneLink.Services
             }
         }
 
+        // An Admin changed the due date of an OPD-issued task (a directive's
+        // subtask, or a Main Task they assign directly). Returns empty
+        // recipients for a non-OPD task, so nothing is sent for those.
+        public async Task NotifyOpdDueDateChangedByAdminAsync(int taskId, string taskTitle, string adminName, DateTime oldDueDate, DateTime newDueDate)
+        {
+            var task = await LoadTaskWithParentAsync(taskId);
+            if (task == null) return;
+
+            var link = task.TaskLevel == TaskLevels.Main
+                ? $"/Tasks/MainTaskDetails/{task.Id}"
+                : $"/Tasks/MainTaskDetails/{task.ParentTaskId}";
+
+            foreach (var recipientId in await GetOpdRecipientIdsAsync(task))
+            {
+                await CreateAsync(
+                    recipientUserId: recipientId,
+                    type: NotificationType.Task,
+                    message: $"{adminName} moved the due date of \"{taskTitle}\" from {oldDueDate:MMM d, yyyy} to {newDueDate:MMM d, yyyy}",
+                    relatedTaskId: taskId,
+                    link: link
+                );
+            }
+        }
+
         // Admin/Supervisor comment (escalation) on an OPD-issued task. Returns
         // empty recipients for a non-OPD task, so nothing is sent for those.
         public async Task NotifyOpdTaskCommentedAsync(int taskId, string taskTitle, string authorName)
@@ -435,7 +506,8 @@ namespace DTIOneLink.Services
                 type: NotificationType.Task,
                 message: $"New department directive from OPD: \"{taskTitle}\"",
                 relatedTaskId: taskId,
-                link: $"/Tasks/MainTaskDetails/{taskId}"
+                link: $"/Tasks/MainTaskDetails/{taskId}",
+                emailSubject: "You have a new task in DTI OneLink"
             );
         }
 

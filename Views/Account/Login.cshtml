@@ -30,9 +30,14 @@
             <section class="login-card" aria-label="Login form">
                 <h1 class="login-title"><span class="navy">Log</span><span class="accent">in</span></h1>
 
-                <form asp-controller="Account" asp-action="Login" method="post" novalidate id="loginForm" data-password="@Model.Password">
+                <form asp-controller="Account" asp-action="Login" method="post" novalidate id="loginForm">
                     @Html.AntiForgeryToken()
                     <input type="hidden" asp-for="ReturnUrl" />
+
+                    @if (TempData["LoginNotice"] is string loginNotice)
+                    {
+                        <p class="change-password-note" role="status">@loginNotice</p>
+                    }
 
                     @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty] != null)
                     {
@@ -62,7 +67,7 @@
                             </button>
                         </div>
                         <span asp-validation-for="Password" class="field-error"></span>
-                        <a href="#" class="forgot-link" id="forgotPasswordLink">Forgot Password?</a>
+                        <a asp-controller="Account" asp-action="ForgotPassword" class="forgot-link">Forgot Password?</a>
                     </div>
 
                     <button type="submit" class="btn-login">LOGIN</button>

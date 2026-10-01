@@ -15,6 +15,9 @@ jobs:
 
     env:
       MONSTER_CONNECTION_STRING: ${{ secrets.MONSTER_CONNECTION_STRING }}
+      BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+      BREVO_SENDER_EMAIL: ${{ secrets.BREVO_SENDER_EMAIL }}
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
 
     steps:
       - name: Get source code
@@ -35,9 +38,21 @@ jobs:
       - name: Create production configuration
         shell: pwsh
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:BREVO_API_KEY) -or [string]::IsNullOrWhiteSpace($env:BREVO_SENDER_EMAIL)) {
+            Write-Warning "BREVO_API_KEY or BREVO_SENDER_EMAIL is not set: emails (codes, notices) will not be sent."
+          }
+
           $config = @{
             ConnectionStrings = @{
               DefaultConnection = $env:MONSTER_CONNECTION_STRING
+            }
+            Brevo = @{
+              ApiKey = $env:BREVO_API_KEY
+              SenderEmail = $env:BREVO_SENDER_EMAIL
+              SenderName = "DTI OneLink"
+            }
+            App = @{
+              BaseUrl = $env:APP_BASE_URL
             }
           } | ConvertTo-Json -Depth 3
 

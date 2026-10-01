@@ -125,7 +125,7 @@
 
             <p class="um-default-password-note">
                 <span class="material-symbols-outlined">key</span>
-                <span>They will sign in with this email and the default password <strong>dtionelink2026</strong>.</span>
+                <span>They will sign in with this email and the default password <strong>@DTIOneLink.Security.AccountDefaults.DefaultPassword</strong>. On their first sign-in they confirm their email with a code and choose their own password.</span>
             </p>
 
             <button class="um-btn-save" type="submit" id="saveBtn">
@@ -154,6 +154,18 @@
                 <span class="material-symbols-outlined">check_circle</span>
                 <span>@directoryMessage</span>
             </p>
+        }
+        @if (TempData["TempPassword"] is string tempPassword)
+        {
+            @* Shown once only: it is not stored anywhere readable. *@
+            <div class="um-form-success um-directory-banner um-temp-password" role="status">
+                <span class="material-symbols-outlined">key</span>
+                <div>
+                    <p>Temporary password for <strong>@TempData["TempPasswordFor"]</strong>:</p>
+                    <p class="um-temp-password-value">@tempPassword</p>
+                    <p>Give it to them in person or by phone. It is shown only this once. They must choose their own password when they log in with it.</p>
+                </div>
+            </div>
         }
         @if (TempData["DirectoryError"] is string directoryError)
         {
@@ -364,6 +376,37 @@
         </form>
     </dialog>
 }
+
+<!-- Correct a mistyped email (same people you can deactivate) -->
+<dialog id="editEmailDialog" class="um-dialog" aria-labelledby="eeTitle">
+    <form asp-controller="UserManagement" asp-action="EditEmail" method="post" id="eeForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" id="eeUserId" />
+
+        <div class="um-dialog-head">
+            <h3 class="um-section-title" id="eeTitle">Edit Email</h3>
+            <button type="button" class="um-dialog-close" id="eeClose" aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <p class="um-dialog-name" id="eeUserName"></p>
+
+        <div class="um-field-group">
+            <label class="um-label" for="eeEmail">New email</label>
+            <div class="um-input-wrap">
+                <span class="material-symbols-outlined um-input-icon">mail</span>
+                <input class="um-input" name="email" type="email" id="eeEmail" required maxlength="256" />
+            </div>
+        </div>
+        <p class="um-dialog-note">They will log in with the new email and confirm it with a code at their next sign-in. They are signed out now.</p>
+
+        <div class="um-dialog-actions">
+            <button type="button" class="um-btn-cancel" id="eeCancel">Cancel</button>
+            <button type="submit" class="um-btn-save" id="eeSave">Save email</button>
+        </div>
+    </form>
+</dialog>
 
 @section Scripts {
     <script src="~/js/user-management.js" asp-append-version="true"></script>

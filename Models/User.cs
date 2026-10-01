@@ -25,5 +25,26 @@ namespace DTIOneLink.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public string Department { get; set; } = string.Empty;
+
+        // ── Account security ────────────────────────────────────
+        // True once the owner has entered a code sent to Email. Recovery
+        // codes and notification emails only go to confirmed addresses, so a
+        // mistyped email can't hand the account (or task details) to a stranger.
+        public bool EmailConfirmed { get; set; }
+
+        // Set for new accounts (default password) and after an admin reset
+        // (temporary password). The user must choose their own before going on.
+        public bool MustChangePassword { get; set; }
+
+        // Login lockout: AccountDefaults.MaxFailedLogins wrong passwords in a
+        // row locks sign-in until LockoutEndUtc.
+        public int FailedLoginCount { get; set; }
+        public DateTime? LockoutEndUtc { get; set; }
+
+        // Changes whenever the password (or email) changes. Every signed-in
+        // session holds the value it started with; Program.cs signs out any
+        // session whose value no longer matches.
+        [MaxLength(64)]
+        public string SecurityStamp { get; set; } = string.Empty;
     }
 }

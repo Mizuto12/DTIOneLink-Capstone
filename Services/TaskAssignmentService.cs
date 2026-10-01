@@ -132,6 +132,37 @@ namespace DTIOneLink.Services
             return new SyncResult(toAdd, toRemove, blocked);
         }
 
+        // Work that is awaiting review or already approved belongs to the
+        // person who submitted it, so only these can be handed over.
+        public static bool CanReassign(TaskAssignment assignment)
+        {
+            var status = TaskWorkflow.Normalize(assignment.Status);
+            return status == TaskWorkflow.Pending
+                || status == TaskWorkflow.InProgress
+                || status == TaskWorkflow.ReturnedForCorrection;
+        }
+
+        // Hands one assignee's part of the task to someone else. The same
+        // row is kept and only its owner changes, so the progress, status
+        // and submission history carry over and the new person continues
+        // from there. The previous person loses access (every access check
+        // goes through Assignments.UserId) until it is reassigned back to
+        // them. Caller validates newUserId, calls RecalculateOverallStatus
+        // and saves.
+        public void Reassign(TaskItem task, TaskAssignment assignment, User newUser, int? changedByUserId)
+        {
+            assignment.ReassignedFromUserId = assignment.UserId;
+            assignment.UserId = newUser.Id;
+            assignment.User = newUser;
+            assignment.AssignedByUserId = changedByUserId;
+            assignment.AssignedAt = DateTime.UtcNow;
+
+            if (assignment.IsPrimaryAssignee)
+            {
+                task.AssigneeId = newUser.Id;
+            }
+        }
+
         // Recomputes TaskItem.Status/Progress/AssigneeId from task.Assignments
         // (must be loaded). Call this after ANY assignment mutation —
         // Employee/Update, Employee/SubmitProof, Tasks/Review decision, or

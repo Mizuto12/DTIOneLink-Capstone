@@ -10,7 +10,7 @@ namespace DTIOneLink.Controllers;
 
 public class UserManagementController(DatabaseHelper db, ILogger<UserManagementController> logger) : Controller
 {
-    private const string DefaultPassword = "dtionelink2026";
+    private const string DefaultPassword = AccountDefaults.DefaultPassword;
 
     // The only values ChangeStanding accepts (same as the Create form).
     public static readonly string[] Divisions =
@@ -130,8 +130,10 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
 
         var passwordHash = new PasswordHasher<object>().HashPassword(null!, DefaultPassword);
         const string sql = @"INSERT INTO dbo.Users
-            (Username, PasswordHash, Role, FullName, IsActive, Email, Department, CreatedAt)
-            VALUES (@Username, @PasswordHash, @Role, @FullName, 1, @Email, @Department, @CreatedAt)";
+            (Username, PasswordHash, Role, FullName, IsActive, Email, Department, CreatedAt,
+             EmailConfirmed, MustChangePassword, SecurityStamp)
+            VALUES (@Username, @PasswordHash, @Role, @FullName, 1, @Email, @Department, @CreatedAt,
+             0, 1, @SecurityStamp)";
 
         try
         {
@@ -143,6 +145,7 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             cmd.Parameters.AddWithValue("@Email", email);
             cmd.Parameters.AddWithValue("@Department", department);
             cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+            cmd.Parameters.AddWithValue("@SecurityStamp", Guid.NewGuid().ToString("N"));
             await cmd.ExecuteNonQueryAsync();
 
             // Saved: clear the kept form values.
@@ -150,7 +153,7 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             TempData.Remove("FormFullName");
             TempData.Remove("FormDepartment");
             TempData.Remove("FormRole");
-            TempData["SuccessMessage"] = $"Account for {fullName} created. They sign in with their email and the default password: dtionelink2026.";
+            TempData["SuccessMessage"] = $"Account for {fullName} created. They sign in with their email and the default password {DefaultPassword}, then confirm their email with a code and choose their own password.";
         }
         catch (SqlException ex) when (ex.Number is 2601 or 2627)
         {
@@ -328,6 +331,163 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             ? $"{fullName}'s account is active again. They can sign in with their usual password."
             : $"{fullName}'s account is deactivated. They can no longer sign in. Their past tasks and records are kept.";
         return RedirectToAction(nameof(Index));
+    }
+
+    // For someone who forgot their password and can't use Forgot Password
+    // (email never confirmed, or email not arriving). Sets a random one-time
+    // temporary password, shown once to the admin to hand over in person —
+    // never the shared default, which everyone knows. The person must choose
+    // their own password when they next sign in, and any session they have
+    // open is signed out. Same who-may-manage-whom rule as deactivation.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(int id)
+    {
+        var actorRole = HttpContext.Session.GetString("UserRole");
+        var actorDepartment = HttpContext.Session.GetString("UserDepartment");
+        var actorId = HttpContext.Session.GetInt32("UserId");
+
+        using var conn = db.GetConnection();
+        await conn.OpenAsync();
+
+        var target = await LoadAccountAsync(conn, id);
+        if (target == null)
+        {
+            TempData["DirectoryError"] = "That account no longer exists.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (!CanSetActive(actorRole, actorDepartment, actorId, id, target.Role, target.Department))
+        {
+            TempData["DirectoryError"] = actorId == id
+                ? "To change your own password, sign out and use Forgot Password on the sign-in page."
+                : "You can only reset the password of employees of your own division.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var temporaryPassword = NewTemporaryPassword();
+        const string sql = @"UPDATE dbo.Users
+            SET PasswordHash = @Hash, MustChangePassword = 1, FailedLoginCount = 0,
+                LockoutEndUtc = NULL, SecurityStamp = @Stamp
+            WHERE Id = @Id";
+        using (var update = new SqlCommand(sql, conn))
+        {
+            update.Parameters.AddWithValue("@Hash", new PasswordHasher<object>().HashPassword(null!, temporaryPassword));
+            update.Parameters.AddWithValue("@Stamp", Guid.NewGuid().ToString("N"));
+            update.Parameters.AddWithValue("@Id", id);
+            await update.ExecuteNonQueryAsync();
+        }
+
+        logger.LogInformation("Password of user {UserId} reset to a temporary password by {ActorRole} {ActorId}.",
+            id, actorRole, actorId);
+
+        TempData["HighlightUserId"] = id;
+        TempData["TempPasswordFor"] = target.FullName;
+        TempData["TempPassword"] = temporaryPassword;
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Corrects a mistyped email. The new address must be confirmed again with
+    // a code at the person's next sign-in before any code or notice is sent
+    // to it, and they are signed out now. Their login name follows the email
+    // when it was the same as the old email.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditEmail(int id, string? email)
+    {
+        var actorRole = HttpContext.Session.GetString("UserRole");
+        var actorDepartment = HttpContext.Session.GetString("UserDepartment");
+        var actorId = HttpContext.Session.GetInt32("UserId");
+        var newEmail = (email ?? "").Trim();
+
+        using var conn = db.GetConnection();
+        await conn.OpenAsync();
+
+        var target = await LoadAccountAsync(conn, id);
+        if (target == null)
+        {
+            TempData["DirectoryError"] = "That account no longer exists.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (!CanSetActive(actorRole, actorDepartment, actorId, id, target.Role, target.Department))
+        {
+            TempData["DirectoryError"] = actorId == id
+                ? "You can't change your own email here."
+                : "You can only change the email of employees of your own division.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (newEmail.Length == 0 || newEmail.Length > 256 || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(newEmail))
+        {
+            TempData["DirectoryError"] = "Please enter a valid email address.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (string.Equals(newEmail, target.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["DirectoryMessage"] = $"{target.FullName}'s email is already {newEmail}. Nothing was changed.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        using (var dup = new SqlCommand(
+            "SELECT TOP 1 FullName FROM dbo.Users WHERE Id <> @Id AND (Email = @Email OR Username = @Email)", conn))
+        {
+            dup.Parameters.AddWithValue("@Id", id);
+            dup.Parameters.AddWithValue("@Email", newEmail);
+            if (await dup.ExecuteScalarAsync() is string owner)
+            {
+                TempData["DirectoryError"] = $"This email is already used by {owner}.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        const string sql = @"UPDATE dbo.Users
+            SET Email = @Email,
+                Username = CASE WHEN Username = @OldEmail THEN @Email ELSE Username END,
+                EmailConfirmed = 0, SecurityStamp = @Stamp
+            WHERE Id = @Id;
+            UPDATE dbo.OneTimeCodes SET ConsumedAtUtc = SYSUTCDATETIME()
+            WHERE UserId = @Id AND ConsumedAtUtc IS NULL;";
+        using (var update = new SqlCommand(sql, conn))
+        {
+            update.Parameters.AddWithValue("@Email", newEmail);
+            update.Parameters.AddWithValue("@OldEmail", target.Email);
+            update.Parameters.AddWithValue("@Stamp", Guid.NewGuid().ToString("N"));
+            update.Parameters.AddWithValue("@Id", id);
+            await update.ExecuteNonQueryAsync();
+        }
+
+        logger.LogInformation("Email of user {UserId} changed by {ActorRole} {ActorId}.", id, actorRole, actorId);
+
+        TempData["HighlightUserId"] = id;
+        TempData["DirectoryMessage"] = $"{target.FullName}'s email is now {newEmail}. They log in with it and confirm it with a code at their next sign-in.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private record AccountInfo(string FullName, string Role, string Department, string Email);
+
+    private static async Task<AccountInfo?> LoadAccountAsync(SqlConnection conn, int id)
+    {
+        using var find = new SqlCommand("SELECT FullName, Role, Department, Email FROM dbo.Users WHERE Id = @Id", conn);
+        find.Parameters.AddWithValue("@Id", id);
+        using var reader = await find.ExecuteReaderAsync();
+        if (!await reader.ReadAsync()) return null;
+        return new AccountInfo(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.IsDBNull(2) ? "" : reader.GetString(2),
+            reader.IsDBNull(3) ? "" : reader.GetString(3));
+    }
+
+    // 12 random characters in groups of four, e.g. "Kp7m-Qx4r-9tWz".
+    // Look-alike characters (0/O, 1/l/I) are left out so it can be read aloud
+    // or copied from paper without mistakes.
+    private static string NewTemporaryPassword()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        var chars = new char[14];
+        for (var i = 0; i < chars.Length; i++)
+        {
+            chars[i] = i is 4 or 9 ? '-' : alphabet[System.Security.Cryptography.RandomNumberGenerator.GetInt32(alphabet.Length)];
+        }
+        return new string(chars);
     }
 
     public static string RoleLabel(string? role) => role switch

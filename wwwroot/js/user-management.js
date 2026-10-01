@@ -326,3 +326,35 @@
     document.head.appendChild(style);
 
 })();
+
+// ── Edit Email dialog ─────────────────────────────────────
+(function () {
+    document.addEventListener("DOMContentLoaded", function () {
+        var dialog = document.getElementById("editEmailDialog");
+        if (!dialog) return;
+        var emailInput = document.getElementById("eeEmail");
+
+        document.querySelectorAll(".um-btn-edit-email").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                document.getElementById("eeUserId").value = btn.dataset.userId;
+                document.getElementById("eeUserName").textContent = btn.dataset.userName;
+                emailInput.value = btn.dataset.userEmail || "";
+                dialog.showModal();
+                emailInput.focus();
+                emailInput.select();
+            });
+        });
+
+        function closeDialog() { dialog.close(); }
+        document.getElementById("eeCancel").addEventListener("click", closeDialog);
+        document.getElementById("eeClose").addEventListener("click", closeDialog);
+        dialog.addEventListener("click", function (e) {
+            if (e.target === dialog) closeDialog();
+        });
+        document.getElementById("eeForm").addEventListener("submit", function () {
+            var save = document.getElementById("eeSave");
+            save.disabled = true;
+            save.textContent = "Saving...";
+        });
+    });
+})();

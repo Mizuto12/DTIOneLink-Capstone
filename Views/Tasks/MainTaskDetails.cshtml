@@ -136,7 +136,13 @@
                             var aDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(a.Status, task.DueDate);
                             var aDisplayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(a.Status, task.DueDate);
                             <tr class="task-row">
-                                <td class="td-first">@(a.User?.FullName ?? "Unknown")@(a.IsPrimaryAssignee ? " (Primary)" : "")</td>
+                                <td class="td-first">
+                                    @(a.User?.FullName ?? "Unknown")@(a.IsPrimaryAssignee ? " (Primary)" : "")
+                                    @if (a.ReassignedFrom != null)
+                                    {
+                                        <br /><span class="td-muted">Took over from @a.ReassignedFrom.FullName</span>
+                                    }
+                                </td>
                                 <td>
                                     <div class="progress-cell">
                                         <div class="progress-track">
@@ -199,7 +205,8 @@
                             var subDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(sub.Status, sub.DueDate);
                             var subDisplayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(sub.Status, sub.DueDate);
                             var assigneeNames = sub.Assignments != null && sub.Assignments.Any()
-                                ? string.Join(", ", sub.Assignments.Select(a => a.User?.FullName ?? "Unknown"))
+                                ? string.Join(", ", sub.Assignments.Select(a => (a.User?.FullName ?? "Unknown")
+                                    + (a.ReassignedFrom != null ? $" (took over from {a.ReassignedFrom.FullName})" : "")))
                                 : "Unassigned";
                             // Distinct, since two assignees on the same subtask are often
                             // added by the same Admin in one Edit save.

@@ -8,12 +8,7 @@
         var usernameInput = document.querySelector("[name='Username']");
         var passwordInput = document.querySelector("[name='Password']");
         var loginButton = document.querySelector(".btn-login");
-        var forgotLink = document.getElementById("forgotPasswordLink");
         var togglePasswordBtn = document.getElementById("togglePassword");
-
-        if (form && passwordInput && form.dataset.password) {
-            passwordInput.value = form.dataset.password;
-        }
 
         if (form) {
             form.addEventListener("submit", function (e) {
@@ -37,13 +32,6 @@
                 if (errorSpan) errorSpan.textContent = "";
             });
         });
-
-        if (forgotLink) {
-            forgotLink.addEventListener("click", function (e) {
-                e.preventDefault();
-                window.alert("Please contact the DTI Laguna Provincial Office system administrator to reset your password.");
-            });
-        }
 
         if (togglePasswordBtn && passwordInput) {
             togglePasswordBtn.addEventListener("click", function () {

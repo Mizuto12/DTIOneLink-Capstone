@@ -1,0 +1,35 @@
+@* Shared page for the login-card screens (verify email, set password,
+   forgot password, change password): same logo, bars and card as Login. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - DTI Laguna Provincial Office</title>
+
+    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
+</head>
+<body>
+
+    <main class="login-page">
+        <div class="canvas">
+
+            <!-- Decorative full-width navy bars -->
+            <div class="bar bar-top"></div>
+            <div class="bar bar-bottom"></div>
+
+            <div class="logo">
+                <img src="~/images/dti-logo.png" alt="DTI Laguna Provincial Office logo" />
+            </div>
+
+            <section class="login-card" aria-label="@ViewData["Title"]">
+                @RenderBody()
+            </section>
+
+        </div>
+    </main>
+
+    <script src="~/js/account-forms.js" asp-append-version="true"></script>
+</body>
+</html>

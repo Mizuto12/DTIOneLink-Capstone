@@ -25,6 +25,20 @@
 @{
     var tasks = Model?.ToList() ?? new List<DTIOneLink.Models.TaskItem>();
 
+    // ---- Employee view: only their own part of each task ---------------
+    // The controller already limits an Employee to tasks they are assigned
+    // to. On a shared task they still only see their own name, status and
+    // progress, never a co-assignee's. Admins/SuperAdmin see the whole task.
+    var viewerRole = Context.Session.GetString("UserRole");
+    var viewerId = Context.Session.GetInt32("UserId");
+    var isEmployeeView = string.Equals(viewerRole, "Employee", StringComparison.OrdinalIgnoreCase);
+
+    DTIOneLink.Models.TaskAssignment? MyAssignment(DTIOneLink.Models.TaskItem t) =>
+        isEmployeeView ? t.Assignments?.FirstOrDefault(a => a.UserId == viewerId) : null;
+    string? StatusOf(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.Status ?? t.Status;
+    int ProgressOf(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.Progress ?? t.Progress;
+    string? AssigneeName(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.User?.FullName ?? t.Assignee?.FullName;
+
     // ---- Status / priority normalization ---------------------------------
     // Status/Priority are free-text strings in the model (defaults are
     // lowercase: "pending", "medium"), so match case-insensitively and by
@@ -32,8 +46,8 @@
     string NormalizeStatus(string? status) => (status ?? string.Empty).Trim().ToLowerInvariant();
     string NormalizePriority(string? priority) => (priority ?? string.Empty).Trim().ToLowerInvariant();
 
-    bool IsCompleted(DTIOneLink.Models.TaskItem t) => NormalizeStatus(t.Status).Contains("complet") || NormalizeStatus(t.Status) == "done";
-    bool IsInProgress(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && (NormalizeStatus(t.Status).Contains("progress") || NormalizeStatus(t.Status).Contains("ongoing"));
+    bool IsCompleted(DTIOneLink.Models.TaskItem t) => NormalizeStatus(StatusOf(t)).Contains("complet") || NormalizeStatus(StatusOf(t)) == "done";
+    bool IsInProgress(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && (NormalizeStatus(StatusOf(t)).Contains("progress") || NormalizeStatus(StatusOf(t)).Contains("ongoing"));
     bool IsTodo(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && !IsInProgress(t);
 
     string TitleCase(string? s) => string.IsNullOrWhiteSpace(s) ? "" : char.ToUpper(s.Trim()[0]) + s.Trim().Substring(1).ToLowerInvariant();
@@ -57,8 +71,9 @@
     var performerAvatarColors = new[] { "performer-avatar", "performer-avatar--alt", "performer-avatar--secondary" };
     var performerMetricColors = new[] { "performer-metric--tertiary", "performer-metric--primary", "performer-metric--secondary" };
 
+    // Ranks co-workers, so it is not shown to Employees.
     var topPerformers = tasks
-        .Where(t => t.Assignee != null)
+        .Where(t => !isEmployeeView && t.Assignee != null)
         .GroupBy(t => t.Assignee)
         .Select(g => new { Assignee = g.Key, Total = g.Count(), Completed = g.Count(t => IsCompleted(t)) })
         .Select(p => new { p.Assignee, p.Total, p.Completed, Efficiency = p.Total > 0 ? (int)Math.Round(p.Completed * 100.0 / p.Total) : 0 })
@@ -153,16 +168,16 @@
                             <div class="gantt-row" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
                                  role="link" tabindex="0" aria-label="Open @task.TaskName">
                                 <div class="gantt-row__assignee">
-                                    <div class="@avatarClass">@Initials(task.Assignee?.FullName)</div>
+                                    <div class="@avatarClass">@Initials(AssigneeName(task))</div>
                                     <div>
                                         <p class="gantt-row__name">@task.TaskName</p>
-                                        <p class="gantt-row__task">@(task.Assignee?.FullName ?? "Unassigned")</p>
+                                        <p class="gantt-row__task">@(AssigneeName(task) ?? "Unassigned")</p>
                                     </div>
                                 </div>
                                 <div class="gantt-row__track">
                                     <div class="gantt-bar @GanttBarClass(task)"
                                          style="left:@leftPct.ToString("0.##")%; width:@widthPct.ToString("0.##")%;"
-                                         title="@GanttBarLabel(task) &middot; @task.Progress% progress">
+                                         title="@GanttBarLabel(task) &middot; @ProgressOf(task)% progress">
                                         <span>@GanttBarLabel(task)</span>
                                     </div>
                                 </div>
@@ -199,11 +214,11 @@
                                     <h5 class="kanban-card__title">@task.TaskName</h5>
                                     <p class="kanban-card__desc">@task.Description</p>
                                     <div class="progress-track">
-                                        <div class="progress-fill" style="width:@task.Progress%;"></div>
+                                        <div class="progress-fill" style="width:@ProgressOf(task)%;"></div>
                                     </div>
                                     <div class="kanban-card__footer">
-                                        <div class="avatar-badge avatar-badge--alt">@Initials(task.Assignee?.FullName)</div>
-                                        <span class="kanban-card__assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                        <div class="avatar-badge avatar-badge--alt">@Initials(AssigneeName(task))</div>
+                                        <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
                                     </div>
                                 </div>
                             }
@@ -233,11 +248,11 @@
                                     <h5 class="kanban-card__title">@task.TaskName</h5>
                                     <p class="kanban-card__desc">@task.Description</p>
                                     <div class="progress-track">
-                                        <div class="progress-fill" style="width:@task.Progress%;"></div>
+                                        <div class="progress-fill" style="width:@ProgressOf(task)%;"></div>
                                     </div>
                                     <div class="kanban-card__footer">
-                                        <div class="avatar-badge">@Initials(task.Assignee?.FullName)</div>
-                                        <span class="kanban-card__assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                        <div class="avatar-badge">@Initials(AssigneeName(task))</div>
+                                        <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
                                     </div>
                                 </div>
                             }
@@ -267,8 +282,8 @@
                                     <h5 class="kanban-card__title kanban-card__title--done">@task.TaskName</h5>
                                     <p class="kanban-card__desc">@task.Description</p>
                                     <div class="kanban-card__footer">
-                                        <div class="avatar-badge avatar-badge--alt">@Initials(task.Assignee?.FullName)</div>
-                                        <span class="kanban-card__assignee-name">@(task.Assignee?.FullName ?? "Unassigned")</span>
+                                        <div class="avatar-badge avatar-badge--alt">@Initials(AssigneeName(task))</div>
+                                        <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
                                     </div>
                                 </div>
                             }
@@ -279,6 +294,8 @@
             </div>
         </section>
 
+        @if (!isEmployeeView)
+        {
         <!-- Top Performers -->
         <section class="performers">
             <div class="performers__header">
@@ -303,6 +320,7 @@
                 }
             </div>
         </section>
+        }
     </div>
 @* 
     <!-- ============================= RIGHT SIDEBAR ============================= -->

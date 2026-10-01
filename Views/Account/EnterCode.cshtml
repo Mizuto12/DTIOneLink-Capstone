@@ -1,0 +1,67 @@
+@model DTIOneLink.Models.EnterCodeViewModel
+@{
+    // Shared by first-sign-in email confirmation and Forgot Password.
+    var isReset = ViewData["IsReset"] is true;
+    var email = ViewData["Email"] as string ?? "";
+    Layout = "_AuthLayout";
+    ViewData["Title"] = isReset ? "Enter Code" : "Verify Email";
+    var minutes = (int)DTIOneLink.Security.AccountDefaults.CodeLifetime.TotalMinutes;
+}
+
+<h1 class="login-title change-password-title">
+    @if (isReset)
+    {
+        <span class="navy">Enter</span> <span class="accent">Code</span>
+    }
+    else
+    {
+        <span class="navy">Verify</span> <span class="accent">Email</span>
+    }
+</h1>
+
+<form asp-controller="Account" asp-action="@(isReset ? "ResetCode" : "VerifyEmail")" method="post" novalidate class="change-password-form account-form">
+    @Html.AntiForgeryToken()
+
+    @if (isReset)
+    {
+        @* Same wording whether or not an account exists. *@
+        <p class="change-password-note">If an account with a confirmed email matches <strong>@email</strong>, we sent a 6-digit code to it. It expires in @minutes minutes.</p>
+    }
+    else
+    {
+        <p class="change-password-note">We sent a 6-digit code to <strong>@email</strong>. Enter it to confirm this is your email. It expires in @minutes minutes.</p>
+    }
+
+    @if (TempData["CodeNotice"] is string codeNotice)
+    {
+        <p class="field-hint code-notice" role="status">@codeNotice</p>
+    }
+
+    <div class="field-group">
+        <label asp-for="Code">6-digit code</label>
+        <input asp-for="Code" class="text-input code-input" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="6" pattern="[0-9]*" placeholder="000000" autofocus />
+        <span class="field-hint">Can't find it? Check your Spam or Junk folder.</span>
+        <span asp-validation-for="Code" class="field-error"></span>
+    </div>
+
+    <button type="submit" class="btn-login">VERIFY</button>
+</form>
+
+<form asp-controller="Account" asp-action="@(isReset ? "ResendResetCode" : "ResendVerifyEmail")" method="post" class="change-password-secondary-form">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="change-password-secondary">Send a new code</button>
+</form>
+
+@if (isReset)
+{
+    <a asp-controller="Account" asp-action="Login" class="change-password-secondary">Back to login</a>
+}
+else
+{
+    <p class="field-hint account-help">Not your email address? Ask your administrator to correct it, then log in again.</p>
+    <form asp-controller="Account" asp-action="Logout" method="post" class="change-password-secondary-form">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="change-password-secondary">Log out instead</button>
+    </form>
+}

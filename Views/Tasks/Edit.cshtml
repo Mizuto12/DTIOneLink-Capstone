@@ -12,6 +12,7 @@
         ?? new List<DTIOneLink.Models.TaskAssignmentSummaryViewModel>();
     var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
     var isAssignmentOnly = ViewBag.IsAssignmentOnly as bool? ?? false;
+    var opdDueDate = ViewBag.OpdDueDate as DateTime?;
 }
 
 @section Styles {
@@ -48,7 +49,7 @@
     @if (isAssignmentOnly)
     {
         <p class="et-overview-note" style="margin-bottom:16px;">
-            This task was issued by OPD (SuperAdmin) — you can only manage who's assigned to it. Task name, due date, priority, and description are locked.
+            This task was issued by OPD (SuperAdmin) — you can manage who's assigned to it and adjust the due date. Task name, priority, and description are locked.
         </p>
     }
 
@@ -78,30 +79,50 @@
                         <label class="et-label" id="assigneeLabel">Assignees</label>
                         @if (assignmentSummaries.Any())
                         {
-                            @* Current assignees keep their own progress. Removing is explicit,
-                               and not possible once they have submitted proof. *@
+                            @* Current assignees can't be removed, only reassigned: the person
+                               taking over continues from their progress, and the previous
+                               person no longer sees the task. *@
+                            var reassignOptions = ((Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Employees)
+                                .Where(e => !Model.AssigneeIds.Contains(int.Parse(e.Value)))
+                                .ToList();
                             <ul class="et-current-assignees">
                                 @foreach (var a in assignmentSummaries)
                                 {
-                                    var removing = Model.RemoveAssigneeIds.Contains(a.UserId);
-                                    <li class="et-current-assignee@(removing ? " is-removing" : "")" data-current-assignee>
-                                        <span class="et-ca-name">@a.Name</span>
+                                    var pickedId = Model.ReassignTo.TryGetValue(a.UserId, out var picked) ? picked : null;
+                                    var reassigning = pickedId.HasValue;
+                                    <li class="et-current-assignee@(reassigning ? " is-reassigning" : "")" data-current-assignee>
+                                        <div class="et-ca-main">
+                                            <span class="et-ca-name">@a.Name</span>
+                                            @if (a.ReassignedFromName != null)
+                                            {
+                                                <span class="et-ca-from">Took over from @a.ReassignedFromName</span>
+                                            }
+                                        </div>
                                         <span class="et-ca-progress">@a.Progress% · @DTIOneLink.Services.TaskWorkflow.DisplayLabel(a.Status, Model.DueDate)</span>
-                                        @if (a.HasSubmitted)
+                                        @if (!a.CanReassign)
                                         {
-                                            <span class="et-ca-locked" title="Already submitted proof, so they stay assigned.">Submitted</span>
+                                            <span class="et-ca-locked" title="Their proof is awaiting review or already approved, so the task stays with them.">Submitted</span>
                                         }
                                         else
                                         {
-                                            <input type="checkbox" name="RemoveAssigneeIds" value="@a.UserId" hidden
-                                                   checked="@(removing ? "checked" : null)" data-remove-input />
-                                            <button type="button" class="et-ca-remove" data-remove-toggle
-                                                    data-name="@a.Name" data-progress="@a.Progress">@(removing ? "Undo" : "Remove")</button>
+                                            <button type="button" class="et-ca-reassign" data-reassign-toggle
+                                                    aria-expanded="@(reassigning ? "true" : "false")">@(reassigning ? "Undo" : "Reassign")</button>
+                                            <div class="et-ca-reassign-to" data-reassign-panel hidden="@(reassigning ? null : "hidden")">
+                                                <label class="et-ca-reassign-label" for="reassign-@a.UserId">Give @a.Name's part (@a.Progress%) to</label>
+                                                <select id="reassign-@a.UserId" name="ReassignTo[@a.UserId]" class="et-input"
+                                                        data-reassign-select required disabled="@(reassigning ? null : "disabled")">
+                                                    <option value="">Choose a person…</option>
+                                                    @foreach (var emp in reassignOptions)
+                                                    {
+                                                        <option value="@emp.Value" selected="@(pickedId?.ToString() == emp.Value ? "selected" : null)">@emp.Text</option>
+                                                    }
+                                                </select>
+                                            </div>
                                         }
                                     </li>
                                 }
                             </ul>
-                            <p class="et-ca-note">Adding someone below does not change anyone's progress above.</p>
+                            <p class="et-ca-note">Reassigning hands over the task with its progress when you save. Adding someone below keeps everyone above.</p>
                         }
                         <div class="assignee-select@(hasAssigneeError ? " assignee-select-invalid" : "")" data-assignee-select>
                             <button type="button"
@@ -143,7 +164,12 @@
                     <!-- Due Date -->
                     <div class="et-field">
                         <label asp-for="DueDate" class="et-label">Due Date</label>
-                        <input asp-for="DueDate" type="date" class="et-input" readonly="@(isAssignmentOnly ? "readonly" : null)" />
+                        <input asp-for="DueDate" type="date" class="et-input"
+                               max="@(opdDueDate?.ToString("yyyy-MM-dd"))" />
+                        @if (opdDueDate.HasValue)
+                        {
+                            <span class="et-ca-note">No later than the OPD's deadline: @opdDueDate.Value.ToString("MMM d, yyyy")</span>
+                        }
                         <span asp-validation-for="DueDate" class="et-error-text"></span>
                     </div>
 
@@ -223,7 +249,7 @@
                             @foreach (var a in assignmentSummaries)
                             {
                                 <div>
-                                    <dt>@a.Name @(a.IsPrimaryAssignee ? " (Primary)" : "")</dt>
+                                    <dt>@a.Name @(a.IsPrimaryAssignee ? " (Primary)" : "")@(a.ReassignedFromName != null ? $" — took over from {a.ReassignedFromName}" : "")</dt>
                                     <dd>@a.Status — @a.Progress%</dd>
                                 </div>
                             }
@@ -242,21 +268,21 @@
 @section Scripts {
     <script src="~/js/assignee-multiselect.js" asp-append-version="true"></script>
     <script>
-        // Remove / Undo for a current assignee (their progress is lost if removed).
-        document.querySelectorAll('[data-remove-toggle]').forEach(function (btn) {
+        // Reassign / Undo for a current assignee. The select is disabled
+        // (so not sent) unless the row is being reassigned.
+        document.querySelectorAll('[data-reassign-toggle]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var row = btn.closest('[data-current-assignee]');
-                var input = row.querySelector('[data-remove-input]');
-                if (!input.checked) {
-                    var msg = 'Remove ' + btn.dataset.name + ' from this task?';
-                    if (parseInt(btn.dataset.progress, 10) > 0) {
-                        msg += ' Their progress (' + btn.dataset.progress + '%) will be lost.';
-                    }
-                    if (!confirm(msg + ' This happens when you save.')) return;
-                }
-                input.checked = !input.checked;
-                row.classList.toggle('is-removing', input.checked);
-                btn.textContent = input.checked ? 'Undo' : 'Remove';
+                var panel = row.querySelector('[data-reassign-panel]');
+                var select = row.querySelector('[data-reassign-select]');
+                var opening = panel.hidden;
+                panel.hidden = !opening;
+                select.disabled = !opening;
+                if (!opening) select.value = '';
+                row.classList.toggle('is-reassigning', opening);
+                btn.textContent = opening ? 'Undo' : 'Reassign';
+                btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+                if (opening) select.focus();
             });
         });
     </script>

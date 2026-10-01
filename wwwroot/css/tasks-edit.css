@@ -391,16 +391,6 @@
 }
 .edit-task .et-ca-name { font-weight: 700; flex: 1; }
 .edit-task .et-ca-progress { font-size: 13px; color: #5f6368; }
-.edit-task .et-ca-remove {
-    border: 1px solid #ba1a1a;
-    background: #ffffff;
-    color: #ba1a1a;
-    border-radius: 9999px;
-    padding: 4px 12px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-}
 .edit-task .et-ca-locked {
     font-size: 12px;
     font-weight: 700;
@@ -409,6 +399,21 @@
     border-radius: 9999px;
     padding: 4px 10px;
 }
-.edit-task .et-current-assignee.is-removing { opacity: 0.6; background: #fff1f0; }
-.edit-task .et-current-assignee.is-removing .et-ca-name { text-decoration: line-through; }
+.edit-task .et-current-assignee { flex-wrap: wrap; }
+.edit-task .et-ca-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.edit-task .et-ca-from { font-size: 12px; color: #5f6368; }
+.edit-task .et-ca-reassign {
+    border: 1px solid var(--et-primary);
+    background: #ffffff;
+    color: var(--et-primary);
+    border-radius: 9999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.edit-task .et-ca-reassign-to { flex-basis: 100%; display: grid; gap: 4px; }
+.edit-task .et-ca-reassign-to[hidden] { display: none; }
+.edit-task .et-ca-reassign-label { font-size: 13px; font-weight: 600; }
+.edit-task .et-current-assignee.is-reassigning { background: #fff8e6; border-color: #e0b44a; }
 .edit-task .et-ca-note { margin: 0 0 8px; font-size: 13px; color: #5f6368; }

@@ -28,10 +28,14 @@ namespace DTIOneLink.Models
         public List<int> AssigneeIds { get; set; } = new();
 
         // What the form actually sends: people to add, and current
-        // assignees to remove. Everyone else keeps their assignment — and
-        // with it their own progress and status — untouched.
+        // assignees to hand over to someone else. Nobody is ever removed
+        // outright — a reassignment moves the person's assignment (progress,
+        // status, history) to the new person instead.
         public List<int> AddAssigneeIds { get; set; } = new();
-        public List<int> RemoveAssigneeIds { get; set; } = new();
+
+        // Current assignee's UserId -> the person taking over their part.
+        // Posted as ReassignTo[<currentUserId>] = <newUserId>.
+        public Dictionary<int, int?> ReassignTo { get; set; } = new();
 
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]

@@ -18,10 +18,34 @@ namespace DTIOneLink.Data
     public DbSet<TaskActivity> TaskActivities { get; set; }
     public DbSet<TaskComment> TaskComments { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<OneTimeCode> OneTimeCodes { get; set; }
+    public DbSet<EmailOutboxMessage> EmailOutbox { get; set; }
 
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);
+
+    // Account security columns. Defaults matter because UserManagement
+    // inserts users with raw SQL that doesn't list these columns.
+    modelBuilder.Entity<User>(u =>
+    {
+        u.Property(x => x.EmailConfirmed).HasDefaultValue(false);
+        u.Property(x => x.MustChangePassword).HasDefaultValue(false);
+        u.Property(x => x.FailedLoginCount).HasDefaultValue(0);
+        u.Property(x => x.SecurityStamp).HasDefaultValue(string.Empty);
+    });
+
+    modelBuilder.Entity<OneTimeCode>(c =>
+    {
+        c.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        c.HasIndex(x => new { x.UserId, x.Purpose, x.CreatedAtUtc });
+    });
+
+    modelBuilder.Entity<EmailOutboxMessage>(e =>
+    {
+        e.ToTable("EmailOutbox");
+        e.HasIndex(x => new { x.SentAtUtc, x.NextAttemptAtUtc });
+    });
 
     // Deleting a User should not cascade-delete their activity log
     // entries — TaskActivity already cascades from TaskItem, and
@@ -123,6 +147,12 @@ modelBuilder.Entity<Notification>()
         .HasOne(a => a.AssignedBy)
         .WithMany()
         .HasForeignKey(a => a.AssignedByUserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<TaskAssignment>()
+        .HasOne(a => a.ReassignedFrom)
+        .WithMany()
+        .HasForeignKey(a => a.ReassignedFromUserId)
         .OnDelete(DeleteBehavior.Restrict);
 
     // A submission now belongs to one assignee's TaskAssignment. Restrict

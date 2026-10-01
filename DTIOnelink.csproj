@@ -5,9 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- Prevent duplicate auto-generated assembly attributes -->
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- Must stay generated: the generated assembly info is what lets the
+         app find its `dotnet user-secrets` (the Brevo key) in Development. -->
+    <UserSecretsId>81f52bae-6fbe-464d-9092-51da00906edb</UserSecretsId>
   </PropertyGroup>
 
 

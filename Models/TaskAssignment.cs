@@ -31,6 +31,14 @@ namespace DTIOneLink.Models
         public int? AssignedByUserId { get; set; }
         public User? AssignedBy { get; set; }
 
+        // Set when this assignment was handed over from someone else (see
+        // TaskAssignmentService.Reassign). The row itself — progress, status
+        // and submission history — moves to the new person; this remembers
+        // who had it before so the UI can show "Took over from …".
+        [ForeignKey(nameof(ReassignedFrom))]
+        public int? ReassignedFromUserId { get; set; }
+        public User? ReassignedFrom { get; set; }
+
         public int Progress { get; set; } = 0;
 
         // Same string vocabulary as TaskWorkflow (pending / in-progress /
