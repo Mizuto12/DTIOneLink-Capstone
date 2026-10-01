@@ -13,6 +13,7 @@
     var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
     var isAssignmentOnly = ViewBag.IsAssignmentOnly as bool? ?? false;
     var opdDueDate = ViewBag.OpdDueDate as DateTime?;
+    var canPassOpdDueDate = ViewBag.CanPassOpdDueDate as bool? ?? false;
 }
 
 @section Styles {
@@ -165,8 +166,12 @@
                     <div class="et-field">
                         <label asp-for="DueDate" class="et-label">Due Date</label>
                         <input asp-for="DueDate" type="date" class="et-input"
-                               max="@(opdDueDate?.ToString("yyyy-MM-dd"))" />
-                        @if (opdDueDate.HasValue)
+                               max="@(canPassOpdDueDate ? null : opdDueDate?.ToString("yyyy-MM-dd"))" />
+                        @if (opdDueDate.HasValue && canPassOpdDueDate)
+                        {
+                            <span class="et-ca-note">This task is due soon or overdue, so you may set a date after the OPD's deadline (@opdDueDate.Value.ToString("MMM d, yyyy")). The OPD will be notified.</span>
+                        }
+                        else if (opdDueDate.HasValue)
                         {
                             <span class="et-ca-note">No later than the OPD's deadline: @opdDueDate.Value.ToString("MMM d, yyyy")</span>
                         }

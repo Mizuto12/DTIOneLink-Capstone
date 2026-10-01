@@ -507,6 +507,8 @@ namespace DTIOneLink.Controllers
     // re-enforced server-side in the POST action below.
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
+    // Due soon or overdue: the OPD deadline is shown but no longer a limit.
+    ViewBag.CanPassOpdDueDate = TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate);
 
     // Read-only display context for the "Task Overview" panel — not part of
     // TaskEditViewModel on purpose (Status/Progress/CreatedAt aren't editable
@@ -620,10 +622,13 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     // submitted. The due date is the exception: the Admin may adjust it.
     var isAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
 
-    // An Admin may move an OPD subtask's due date, but never past the OPD's
-    // own deadline for the Main Task. Only checked when the date changes,
-    // so an older subtask already past it can still be saved as-is.
+    // An Admin may move an OPD subtask's due date, but not past the OPD's
+    // own deadline for the Main Task — unless the subtask is due soon or
+    // already overdue, when that deadline usually leaves no room to extend
+    // (the OPD is notified of the change below). Only checked when the date
+    // changes, so an older subtask already past it can still be saved as-is.
     if (isAssignmentOnly && task.ParentTask != null
+        && !TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate)
         && model.DueDate.Date != task.DueDate.Date
         && model.DueDate.Date > task.ParentTask.DueDate.Date)
     {
@@ -1044,6 +1049,8 @@ private async Task RepopulateEditContextAsync(TaskItem task)
 {
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || task.TaskLevel == TaskLevels.Main) && !IsOfficeWideTaskManager();
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
+    // Due soon or overdue: the OPD deadline is shown but no longer a limit.
+    ViewBag.CanPassOpdDueDate = TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate);
     ViewBag.TaskCode = $"TASK-{task.Id:D4}";
     ViewBag.CurrentStatus = task.Status;
     ViewBag.CurrentProgress = task.Progress;

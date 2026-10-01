@@ -40,6 +40,15 @@
             public static bool IsOverdue(string? status, DateTime dueDate) =>
                 Normalize(status) != Completed && dueDate.Date < DateTime.UtcNow.Date;
 
+            // "Due soon" = due within this many days (today counts as 0).
+            public const int DueSoonDays = 3;
+
+            // Unfinished and due within DueSoonDays, or already overdue. An
+            // Admin may then move an OPD task's due date past the OPD's own
+            // deadline (TasksController.Edit).
+            public static bool IsDueSoonOrOverdue(string? status, DateTime dueDate) =>
+                Normalize(status) != Completed && (dueDate.Date - DateTime.UtcNow.Date).Days <= DueSoonDays;
+
             // "overdue" overlays the real status for display purposes only —
             // the stored Status column is never set to "overdue".
             public static string DisplayStatus(string? status, DateTime dueDate) =>
@@ -63,7 +72,7 @@
                 var daysLeft = (dueDate.Date - today).Days;
                 var timeUsedPct = usedDays * 100 / totalDays;
 
-                var dueSoon = daysLeft <= 3;
+                var dueSoon = daysLeft <= DueSoonDays;
                 var atRisk =
                     (usedDays >= 2 && timeUsedPct - progress >= 25) ||
                     (dueSoon && progress < 50) ||
