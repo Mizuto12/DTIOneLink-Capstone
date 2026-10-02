@@ -575,3 +575,57 @@ body {
 .live-refresh-banner:hover { background: var(--primary-container); }
 .live-refresh-banner:focus-visible { outline: 3px solid var(--primary-fixed-dim); outline-offset: 2px; }
 .live-refresh-banner .material-symbols-outlined { font-size: 20px; }
+
+/* ── Loading placeholders ("skeletons") ─────────────────────
+   Grey shapes shown while a list is still loading, so slow wifi never
+   shows "No data" for data that is on its way. Pages size them. */
+.skeleton {
+    display: block;
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #dde5f4 25%, #eef3fc 50%, #dde5f4 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton.skeleton-circle { border-radius: 50%; flex-shrink: 0; }
+.skeleton + .skeleton { margin-top: 8px; }
+.skeleton.skeleton-short { width: 40%; }
+@keyframes skeleton-shimmer {
+    from { background-position: 100% 0; }
+    to   { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+}
+
+/* Notifications panel placeholder rows */
+.notif-item.is-skeleton { cursor: default; }
+.notif-item.is-skeleton:hover { background: transparent; }
+.notif-item.is-skeleton .skeleton-circle { width: 36px; height: 36px; }
+
+/* ── "Couldn't load" message with a Try again button ───────── */
+.load-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 28px 16px;
+    color: #444651;
+    font-size: 14px;
+    text-align: center;
+}
+.load-error p { margin: 0; }
+.load-error .material-symbols-outlined { font-size: 28px; color: var(--error); }
+.load-error-retry {
+    padding: 8px 18px;
+    border: 1px solid var(--outline-variant);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.load-error-retry:hover { background: var(--surface-container-low); }
+.load-error-retry:focus-visible { outline: 3px solid var(--primary-fixed-dim); outline-offset: 2px; }

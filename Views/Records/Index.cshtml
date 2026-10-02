@@ -211,10 +211,17 @@
             <th>Retention Period</th>
           </tr>
         </thead>
-        <tbody id="submissions-body">
-          <tr class="empty-row" id="empty-row">
-            <td colspan="8" class="empty-state">No new records. Fill in the form above to add one.</td>
-          </tr>
+        <tbody id="submissions-body" aria-busy="true">
+          @* Placeholders until records.js loads the real rows. *@
+          @for (var i = 0; i < 3; i++)
+          {
+            <tr class="skeleton-row" aria-hidden="true">
+              @for (var c = 0; c < 8; c++)
+              {
+                <td><span class="skeleton"></span></td>
+              }
+            </tr>
+          }
         </tbody>
       </table>
     </div>
@@ -253,8 +260,14 @@
         </div>
       </div>
     </div>
-    <ul class="masterlist-list" id="masterlist-list">
-      <li class="masterlist-empty">No saved masterlists yet.</li>
+    <ul class="masterlist-list" id="masterlist-list" aria-busy="true">
+      @* Placeholders until records.js loads the saved list. *@
+      @for (var i = 0; i < 2; i++)
+      {
+        <li class="masterlist-skeleton" aria-hidden="true">
+          <div><span class="skeleton skeleton-title"></span><span class="skeleton skeleton-meta"></span></div>
+        </li>
+      }
     </ul>
   </section>
 

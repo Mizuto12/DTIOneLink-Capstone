@@ -13,6 +13,21 @@ let entries = [];
 let currentPage = 1;
 let filtersActive = false;
 
+// The table starts with placeholder rows (from the page); they show again
+// on every reload, so slow wifi never shows "No new records" by mistake.
+const tableSkeletonHtml = tableBody.innerHTML;
+let recordsLoading = false;
+
+// "Couldn't load" message with a Try again button (styles in adminlayout.css).
+function loadErrorHtml(what) {
+  return `
+    <div class="load-error" role="alert">
+      <span class="material-symbols-outlined">error</span>
+      <p>Couldn't load ${what}. Check your connection.</p>
+      <button type="button" class="load-error-retry">Try again</button>
+    </div>`;
+}
+
 // Basic HTML-escaping so entered text can't break table markup
 function escapeHtml(value) {
   const div = document.createElement('div');
@@ -142,6 +157,7 @@ function renderPageNumbers() {
 }
 
 function goToPage(num) {
+  if (recordsLoading) return;
   const total = totalPages();
   currentPage = Math.min(Math.max(1, num), total);
   render();
@@ -182,6 +198,11 @@ function currentFilterParams() {
 
 // Load records from the database, applying any toolbar filters
 async function loadRecords() {
+  recordsLoading = true;
+  tableBody.innerHTML = tableSkeletonHtml;
+  tableBody.setAttribute('aria-busy', 'true');
+  const legend = document.getElementById('retention-legend');
+  if (legend) legend.hidden = true;
   try {
     const params = currentFilterParams();
     filtersActive = [...params.keys()].length > 0;
@@ -191,9 +212,15 @@ async function loadRecords() {
     entries = await res.json();
     // Start on page 1 so the first-logged records show first.
     currentPage = 1;
+    recordsLoading = false;
     render();
   } catch (err) {
     console.error(err);
+    recordsLoading = false;
+    tableBody.innerHTML = `<tr class="empty-row"><td colspan="8" class="empty-state">${loadErrorHtml('records')}</td></tr>`;
+    tableBody.querySelector('.load-error-retry').addEventListener('click', loadRecords);
+  } finally {
+    tableBody.removeAttribute('aria-busy');
   }
 }
 
@@ -352,6 +379,7 @@ const masterlistForm = document.getElementById('masterlist-form');
 const masterlistSummary = document.getElementById('masterlist-dialog-summary');
 const masterlistConfirmBtn = document.getElementById('masterlist-confirm-btn');
 const masterlistList = document.getElementById('masterlist-list');
+const masterlistSkeletonHtml = masterlistList ? masterlistList.innerHTML : '';
 const masterlistDialogTitle = document.getElementById('masterlist-dialog-title');
 const saveMasterlistLabel = document.getElementById('save-masterlist-label');
 const openBanner = document.getElementById('open-masterlist-banner');
@@ -440,6 +468,8 @@ function renderMasterlists(items) {
 
 // Loads the saved list and pre-fills the signature names from the last save.
 async function loadMasterlists() {
+  masterlistList.innerHTML = masterlistSkeletonHtml;
+  masterlistList.setAttribute('aria-busy', 'true');
   try {
     const res = await fetch('/Records/Masterlists');
     if (!res.ok) throw new Error('Failed to load saved masterlists');
@@ -455,6 +485,10 @@ async function loadMasterlists() {
     updateSaveMasterlistButton();
   } catch (err) {
     console.error(err);
+    masterlistList.innerHTML = `<li class="masterlist-empty">${loadErrorHtml('saved masterlists')}</li>`;
+    masterlistList.querySelector('.load-error-retry').addEventListener('click', loadMasterlists);
+  } finally {
+    masterlistList.removeAttribute('aria-busy');
   }
 }
 

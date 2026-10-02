@@ -62,13 +62,24 @@
     </div>
 
     <!-- Report List Content -->
-    <div class="report-list" id="report-list">
-      <!-- Rows are rendered here by reports.js. Empty state shows when there's nothing yet. -->
+    <div class="report-list" id="report-list" aria-busy="true">
+      <!-- Rows are rendered here by reports.js. Until the data arrives,
+           these placeholders show instead of "No reports yet". -->
+      @for (var i = 0; i < 4; i++)
+      {
+        <div class="report-item is-skeleton" aria-hidden="true">
+          <span class="skeleton skeleton-circle"></span>
+          <div class="item-info">
+            <span class="skeleton skeleton-title"></span>
+            <span class="skeleton skeleton-short"></span>
+          </div>
+        </div>
+      }
     </div>
 
     <!-- Footer Pagination -->
     <div class="pagination-footer">
-      <span class="pagination-status" id="pagination-status">Showing 0 of 0 reports</span>
+      <span class="pagination-status" id="pagination-status">Loading reports...</span>
       <div class="pagination-controls" id="pagination-controls"></div>
     </div>
   </div>

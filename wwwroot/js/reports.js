@@ -18,6 +18,11 @@
   const filterDropdown = document.getElementById('filterDropdown');
   const searchInput = document.getElementById('report-search');
 
+  // The page starts with placeholder rows; they stay until the data arrives,
+  // so slow wifi never shows "No reports yet" for reports still loading.
+  const skeletonHtml = reportListEl.innerHTML;
+  let loaded = false;
+
   // ---------- Filtering ----------
   function getFilteredReports() {
     return reports.filter(r => {
@@ -96,6 +101,7 @@
   }
 
   function render() {
+    if (!loaded) return; // keep the placeholders (or the error) on screen
     const filtered = getFilteredReports();
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     if (currentPage > totalPages) currentPage = totalPages;
@@ -178,6 +184,7 @@
     },
     setReports(newReports) {
       reports = newReports;
+      loaded = true;
       currentPage = 1;
       render();
     },
@@ -186,15 +193,30 @@
     }
   };
 
-  render();
-
   // ---------- Load real data from the server ----------
   // ReportsController.Data returns only what this user is allowed to see.
-  fetch('/Reports/Data', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-    .then(res => res.ok ? res.json() : Promise.reject(res.status))
-    .then(data => window.ReportsPage.setReports(Array.isArray(data) ? data : []))
-    .catch(() => {
-      reportListEl.innerHTML = '';
-      reportListEl.appendChild(renderEmptyState('Reports could not be loaded. Please refresh the page.'));
-    });
+  function renderLoadError() {
+    reportListEl.innerHTML = `
+      <div class="load-error" role="alert">
+        <span class="material-symbols-outlined">error</span>
+        <p>Couldn't load reports. Check your connection.</p>
+        <button type="button" class="load-error-retry">Try again</button>
+      </div>
+    `;
+    reportListEl.querySelector('.load-error-retry').addEventListener('click', loadReports);
+    paginationStatusEl.textContent = '';
+  }
+
+  function loadReports() {
+    reportListEl.innerHTML = skeletonHtml;
+    reportListEl.setAttribute('aria-busy', 'true');
+    paginationStatusEl.textContent = 'Loading reports...';
+    fetch('/Reports/Data', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(res => res.ok ? res.json() : Promise.reject(res.status))
+      .then(data => window.ReportsPage.setReports(Array.isArray(data) ? data : []))
+      .catch(renderLoadError)
+      .finally(() => reportListEl.removeAttribute('aria-busy'));
+  }
+
+  loadReports();
 })();

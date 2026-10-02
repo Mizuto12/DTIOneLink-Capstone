@@ -44,6 +44,11 @@
         // { id, message, time, unread, link }
         var notifications = [];
 
+        // The layout starts the list with placeholder rows; they stay until the
+        // first load finishes, so slow wifi never shows "No notifications".
+        var loaded = false;
+        var skeletonHtml = notifList ? notifList.innerHTML : "";
+
         function getCsrfToken() {
             var input = document.querySelector('input[name="__RequestVerificationToken"]');
             return input ? input.value : "";
@@ -130,7 +135,7 @@
         }
 
         function renderNotifications() {
-            if (!notifList) return;
+            if (!notifList || !loaded) return;
             notifList.textContent = ""; // clears safely — no innerHTML
 
             if (notifications.length === 0) {
@@ -197,10 +202,38 @@
             }).catch(function () { /* local state already updated */ });
         }
 
+        // Shown only if the very first load fails; after that a failed
+        // refresh just keeps the list already on screen.
+        function renderLoadError() {
+            notifList.textContent = "";
+            var box = document.createElement("div");
+            box.className = "load-error";
+            var icon = document.createElement("span");
+            icon.className = "material-symbols-outlined";
+            icon.textContent = "error";
+            var p = document.createElement("p");
+            p.textContent = "Couldn't load notifications. Check your connection.";
+            var retry = document.createElement("button");
+            retry.type = "button";
+            retry.className = "load-error-retry";
+            retry.textContent = "Try again";
+            retry.addEventListener("click", function (e) {
+                e.stopPropagation();
+                notifList.innerHTML = skeletonHtml;
+                loadNotifications();
+            });
+            box.appendChild(icon);
+            box.appendChild(p);
+            box.appendChild(retry);
+            notifList.appendChild(box);
+        }
+
         function loadNotifications() {
+            if (notifList) notifList.setAttribute("aria-busy", "true");
             fetch("/Notifications/List")
-                .then(function (r) { return r.json(); })
+                .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
                 .then(function (data) {
+                    loaded = true;
                     notifications = data.map(function (n) {
                         return {
                             id: n.id,
@@ -213,7 +246,12 @@
                     renderNotifications();
                 })
                 .catch(function () {
-                    renderNotifications(); // shows the empty state on failure
+                    if (!notifList) return;
+                    if (loaded) renderNotifications();
+                    else renderLoadError();
+                })
+                .then(function () {
+                    if (notifList) notifList.removeAttribute("aria-busy");
                 });
         }
 
@@ -267,7 +305,7 @@
             }
         });
 
-        renderNotifications(); // empty state immediately
+        updateBadge();
         setInterval(loadNotifications, 60000); // refresh every minute
         // live-refresh.js fires this as soon as a notification arrives.
         document.addEventListener("live:notifications", loadNotifications);

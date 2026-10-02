@@ -66,8 +66,20 @@
                         <span>Notifications</span>
                         <button class="notif-mark-all" id="markAllRead" type="button">Mark all read</button>
                     </div>
-                    <div class="notif-panel-body" id="notifList">
-                        <!-- populated by adminlayout.js -->
+                    <div class="notif-panel-body" id="notifList" aria-busy="true">
+                        @* Placeholders until adminlayout.js loads the real list. *@
+                        <div class="notif-item is-skeleton" aria-hidden="true">
+                            <span class="skeleton skeleton-circle"></span>
+                            <div class="notif-body"><span class="skeleton"></span><span class="skeleton skeleton-short"></span></div>
+                        </div>
+                        <div class="notif-item is-skeleton" aria-hidden="true">
+                            <span class="skeleton skeleton-circle"></span>
+                            <div class="notif-body"><span class="skeleton"></span><span class="skeleton skeleton-short"></span></div>
+                        </div>
+                        <div class="notif-item is-skeleton" aria-hidden="true">
+                            <span class="skeleton skeleton-circle"></span>
+                            <div class="notif-body"><span class="skeleton"></span><span class="skeleton skeleton-short"></span></div>
+                        </div>
                     </div>
                 </div>
             </div>

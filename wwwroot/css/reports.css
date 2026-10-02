@@ -271,6 +271,12 @@
 }
 
 .reports-page .report-item:hover .item-icon { transform: scale(1.05); }
+
+/* Loading placeholder rows (see .skeleton in adminlayout.css) */
+.reports-page .report-item.is-skeleton { cursor: default; }
+.reports-page .report-item.is-skeleton:hover { background: var(--surface-container-low); box-shadow: none; }
+.reports-page .report-item.is-skeleton .skeleton-circle { width: 56px; height: 56px; }
+.reports-page .report-item.is-skeleton .skeleton-title { width: 55%; height: 16px; }
 .reports-page .item-icon .material-symbols-outlined { font-size: 28px; }
 
 .reports-page .item-icon.tone-primary { background: var(--primary); }
