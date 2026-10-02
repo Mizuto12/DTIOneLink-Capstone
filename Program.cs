@@ -200,4 +200,17 @@ app.MapControllerRoute(
 // After UseSession, so the hub can see who is signed in.
 app.MapHub<LiveHub>("/hubs/live");
 
+// For an uptime monitor (UptimeRobot) to open every few minutes. That keeps
+// the host from putting the site to sleep when nobody is using it, so the
+// hourly reminder, recurring-task and email jobs keep running. Answers "OK"
+// only when the database can be reached; otherwise 503, so the monitor
+// emails its owner. Public and reveals nothing else.
+app.MapGet("/health", async (AppDbContext db, HttpContext context, CancellationToken cancellationToken) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return await db.Database.CanConnectAsync(cancellationToken)
+        ? Results.Text("OK")
+        : Results.Text("Database unavailable", statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+
 app.Run();
