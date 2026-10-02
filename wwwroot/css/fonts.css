@@ -33,7 +33,7 @@
   src: url('/fonts/anton/Anton-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
-  font-display: swap;
+  font-display: block; /* short headings: a brief blank beats a visible font switch */
 }
 
 /* ---------- Open Sauce Sans (used for the "OneLink" wordmark) ---------- */

@@ -10,7 +10,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"]</title>
 
-    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />   
+    @* Start the login fonts downloading right away, alongside the CSS. *@
+    <link rel="preload" href="/fonts/anton/Anton-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/open-sauce-sans/OpenSauceSans-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/open-sauce-sans/OpenSauceSans-SemiBold.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
 </head>
 <body>
