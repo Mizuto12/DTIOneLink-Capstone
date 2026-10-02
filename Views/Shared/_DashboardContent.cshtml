@@ -321,6 +321,12 @@
             </div>
         </section>
         }
+
+        @* Records totals for Admins (their division) and SuperAdmin (whole office); set by DashboardController.AdminDashboard. *@
+        @if (ViewData["RecordsOverview"] is DTIOneLink.Models.RecordsOverviewViewModel recordsOverview)
+        {
+            <partial name="_RecordsOverview" model="recordsOverview" />
+        }
     </div>
 @* 
     <!-- ============================= RIGHT SIDEBAR ============================= -->

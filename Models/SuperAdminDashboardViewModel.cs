@@ -17,6 +17,8 @@ namespace DTIOneLink.Models
 
         public List<EmployeeWorkloadSummary> EmployeeWorkloads { get; set; } = new();
 
+        public RecordsOverviewViewModel RecordsOverview { get; set; } = new();
+
         public int OverallEfficiencyPercent =>
             TotalTasks == 0 ? 0 : (int)Math.Round(CompletedCount * 100.0 / TotalTasks);
 
