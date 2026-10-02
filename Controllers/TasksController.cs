@@ -174,7 +174,7 @@ namespace DTIOneLink.Controllers
 
             // Same "today" as TaskWorkflow.IsOverdue, so Overdue here always
             // matches the Overdue badge shown in the table.
-            var today = DateTime.UtcNow.Date;
+            var today = TimeZoneHelper.PhilippineToday;
             switch (model.Due)
             {
                 case "today":

@@ -46,7 +46,7 @@ namespace DTIOneLink.Services
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var notifications = scope.ServiceProvider.GetRequiredService<NotificationService>();
 
-            var today = DateTime.UtcNow.Date;
+            var today = TimeZoneHelper.PhilippineToday;
             var dueSoonCutoff = today.Add(DueSoonWindow);
 
             // Due-soon/overdue is now evaluated per assignee, not per task —

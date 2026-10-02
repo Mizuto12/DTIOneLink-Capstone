@@ -38,7 +38,7 @@
             }
 
             public static bool IsOverdue(string? status, DateTime dueDate) =>
-                Normalize(status) != Completed && dueDate.Date < DateTime.UtcNow.Date;
+                Normalize(status) != Completed && dueDate.Date < TimeZoneHelper.PhilippineToday;
 
             // "Due soon" = due within this many days (today counts as 0).
             public const int DueSoonDays = 3;
@@ -47,7 +47,7 @@
             // Admin may then move an OPD task's due date past the OPD's own
             // deadline (TasksController.Edit).
             public static bool IsDueSoonOrOverdue(string? status, DateTime dueDate) =>
-                Normalize(status) != Completed && (dueDate.Date - DateTime.UtcNow.Date).Days <= DueSoonDays;
+                Normalize(status) != Completed && (dueDate.Date - TimeZoneHelper.PhilippineToday).Days <= DueSoonDays;
 
             // "overdue" overlays the real status for display purposes only —
             // the stored Status column is never set to "overdue".
@@ -65,8 +65,8 @@
                     return null;
                 }
 
-                var today = DateTime.UtcNow.Date;
-                var start = createdAt.Date;
+                var today = TimeZoneHelper.PhilippineToday;
+                var start = TimeZoneHelper.ToPhilippineTime(createdAt).Date; // CreatedAt is stored in UTC
                 var totalDays = Math.Max(1, (dueDate.Date - start).Days);
                 var usedDays = Math.Clamp((today - start).Days, 0, totalDays);
                 var daysLeft = (dueDate.Date - today).Days;

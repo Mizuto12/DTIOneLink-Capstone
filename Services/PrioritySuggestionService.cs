@@ -10,7 +10,7 @@ namespace DTIOneLink.Services
 
         public static Suggestion Suggest(DateTime dueDate)
         {
-            var daysRemaining = (dueDate.Date - DateTime.UtcNow.Date).TotalDays;
+            var daysRemaining = (dueDate.Date - TimeZoneHelper.PhilippineToday).TotalDays;
 
             if (daysRemaining < 0)
             {

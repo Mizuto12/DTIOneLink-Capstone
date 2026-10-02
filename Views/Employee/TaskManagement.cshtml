@@ -74,7 +74,7 @@
 
     string FormatDueDate(DateTime dueDate)
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DTIOneLink.Services.TimeZoneHelper.PhilippineToday;
         if (dueDate.Date == today) return "Today";
         if (dueDate.Date == today.AddDays(1)) return "Tomorrow";
         return dueDate.ToString("MMM d");

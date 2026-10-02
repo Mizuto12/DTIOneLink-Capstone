@@ -16,7 +16,7 @@
     var taskCode = $"TASK-{task.Id:D4}";
 
     var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
-    var isOverdue = status != "completed" && task.DueDate.Date < DateTime.UtcNow.Date;
+    var isOverdue = DTIOneLink.Services.TaskWorkflow.IsOverdue(status, task.DueDate);
 
    (string CssClass, string Label) StatusInfo()
 {

@@ -21,7 +21,7 @@ namespace DTIOneLink.Models
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]
         [DataType(DataType.Date)]
-        public DateTime DueDate { get; set; } = DateTime.UtcNow.Date;
+        public DateTime DueDate { get; set; } = TimeZoneHelper.PhilippineToday;
 
         [Required(ErrorMessage = "Priority is required.")]
         public string Priority { get; set; } = "medium";

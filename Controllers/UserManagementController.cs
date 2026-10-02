@@ -144,7 +144,7 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             cmd.Parameters.AddWithValue("@FullName", fullName);
             cmd.Parameters.AddWithValue("@Email", email);
             cmd.Parameters.AddWithValue("@Department", department);
-            cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+            cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
             cmd.Parameters.AddWithValue("@SecurityStamp", Guid.NewGuid().ToString("N"));
             await cmd.ExecuteNonQueryAsync();
 

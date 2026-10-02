@@ -35,5 +35,12 @@ namespace DTIOneLink.Services
 
             return TimeZoneInfo.ConvertTimeFromUtc(utc, PhilippineTimeZone);
         }
+
+        // Today's calendar date in the office (UTC+8). Due dates are plain
+        // Philippine dates, so every "overdue / due today / due soon" check
+        // compares against this — never DateTime.UtcNow.Date, which is still
+        // yesterday here until 8 AM.
+        public static DateTime PhilippineToday => ToPhilippineTime(DateTime.UtcNow).Date;
+
     }
 }

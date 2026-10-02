@@ -47,7 +47,7 @@ namespace DTIOneLink.Services
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             // Same "today" as TaskWorkflow.IsOverdue.
-            var today = DateTime.UtcNow.Date;
+            var today = TimeZoneHelper.PhilippineToday;
 
             var dueIds = await db.TaskItems
                 .Where(t => t.TaskLevel == TaskLevels.Main && t.Recurrence != null && t.DueDate <= today)
