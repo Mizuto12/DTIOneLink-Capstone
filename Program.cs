@@ -68,15 +68,47 @@ var app = builder.Build();
 // Brings the database up to date on every start, so a deploy that adds
 // columns or tables needs no manual database step. The hosted database is
 // only reachable from the host itself, so this is where it has to happen.
+// If it fails, the error (and the migration it stopped at) is written to
+// App_Data/database-update-error.txt (not served to browsers), readable from
+// the host's file manager, and SchemaRepair adds the newest columns and tables
+// directly so the site keeps working. The file is removed after a clean update.
+//
+// Always the plain MigrateAsync(): it only moves forward. Migrating to a named
+// target would roll back any later migration already applied.
 using (var scope = app.Services.CreateScope())
 {
+    var errorFile = Path.Combine(app.Environment.ContentRootPath, "App_Data", "database-update-error.txt");
+    var database = scope.ServiceProvider.GetRequiredService<AppDbContext>().Database;
     try
     {
-        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+        await database.MigrateAsync();
+        File.Delete(errorFile);
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "Could not update the database to the latest version.");
+        string failed;
+        try { failed = (await database.GetPendingMigrationsAsync()).FirstOrDefault() ?? "(unknown)"; }
+        catch { failed = "(unknown)"; }
+
+        app.Logger.LogError(ex, "Could not apply database migration {Migration}.", failed);
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(errorFile)!);
+            await File.WriteAllTextAsync(errorFile,
+                $"{DateTime.UtcNow:u}\nFailed migration: {failed}\n\n{ex}");
+        }
+        catch { /* logging above is enough if the folder is read-only */ }
+
+        try
+        {
+            await SchemaRepair.EnsureLatestSchemaAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+            app.Logger.LogInformation("Added any missing columns and tables directly after the migration failed.");
+        }
+        catch (Exception repairEx)
+        {
+            app.Logger.LogError(repairEx, "Could not add the missing columns and tables directly.");
+            try { await File.AppendAllTextAsync(errorFile, $"\n\nDirect repair also failed:\n{repairEx}"); } catch { }
+        }
     }
 }
 
