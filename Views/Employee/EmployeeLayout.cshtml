@@ -27,7 +27,18 @@
     <title>@ViewData["Title"] - DTI Laguna OneLink</title>
         <link rel="icon" type="image/png" href="~/images/dti-logo.png" asp-append-version="true" />
     
-    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />   
+    <link rel="preload" href="/fonts/material-symbols/MaterialSymbolsOutlined.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />
+    @* Hide icons until their font is ready (see fonts.css); give up after 10s. *@
+    <script>
+        (function (root) {
+            root.classList.add("icons-loading");
+            var ready = function () { root.classList.remove("icons-loading"); };
+            if (!document.fonts || !document.fonts.load) { ready(); return; }
+            document.fonts.load("24px 'Material Symbols Outlined'").then(ready, ready);
+            setTimeout(ready, 10000);
+        })(document.documentElement);
+    </script>
     <link rel="stylesheet" href="~/css/adminlayout.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>

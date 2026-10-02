@@ -72,7 +72,17 @@
 /* ---------- Material Symbols Outlined (variable icon font) ---------- */
 /* This is the SAME font your CSS already references via
    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-   — no other CSS changes needed, just load it locally. */
+   — no other CSS changes needed, just load it locally.
+
+   The file is TRIMMED to only the icons the app uses (~75 KB instead
+   of ~4 MB) so it loads quickly on slow wifi. An icon NOT in the list
+   below will show as plain text. To add one, open this link in Chrome
+   with the new name added to the list (names in A–Z order, no spaces):
+
+     https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,analytics,arrow_back,arrow_forward,assessment,assignment,autorenew,badge,block,calendar_today,campaign,category,check_circle,chevron_left,chevron_right,close,code,dashboard,delete,delete_sweep,description,done,download,edit,edit_note,email,error,event_busy,expand_more,fact_check,filter,filter_list,folder,folder_open,group,groups,history,inbox,info,input,inventory_2,key,link,list,lock,logout,mail,manage_accounts,menu,military_tech,more_horiz,more_vert,notifications,notifications_off,password,pending,person_add,person_check,person_off,post,print,priority,radio,radio_button_unchecked,refresh,save,schedule,search,search_off,send,sort,style,sync,tab,task,task_alt,title,today,toolbar,try,tune,undo,upload,visibility,warning
+
+   ...then download the fonts.gstatic.com link it shows and save it over
+   /fonts/material-symbols/MaterialSymbolsOutlined.woff2. */
 @font-face {
   font-family: 'Material Symbols Outlined';
   src: url('/fonts/material-symbols/MaterialSymbolsOutlined.woff2') format('woff2');
@@ -83,4 +93,11 @@
 
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
+}
+
+/* While the icon font is still downloading, keep icons invisible so
+   their names ("notifications", "search"...) never show as words.
+   The layouts remove .icons-loading once the font is ready. */
+.icons-loading .material-symbols-outlined {
+  visibility: hidden;
 }
