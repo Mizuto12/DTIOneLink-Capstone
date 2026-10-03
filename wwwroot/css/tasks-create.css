@@ -104,8 +104,8 @@
 }
 
 /* ── Modal overlay ───────────────────────────────────────── */
-/* fixed inset-0 z-[100] flex items-center justify-center p-4
-   background: rgba(11,28,48,0.4) backdrop-filter: blur(4px)  */
+/* An even dim over the whole screen (top bar and sidebar included), the
+   same as the other dialogs in the app. */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -113,10 +113,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
-    background: rgba(11, 28, 48, 0.4);
-    backdrop-filter: blur(4px);
+    padding: 24px 16px;
+    background: rgba(15, 23, 42, 0.5);
 }
+
+/* The page behind doesn't scroll while the form is open. */
+html:has(.modal-overlay) { overflow: hidden; }
 
 /* ── Modal box ───────────────────────────────────────────── */
 /* bg-surface-container-lowest w-full max-w-2xl rounded-2xl
@@ -131,6 +133,10 @@
     border: 1px solid rgba(197, 197, 210, 0.5);
     overflow: hidden;
     transition: transform 0.2s ease, opacity 0.2s ease;
+    /* Header and buttons always fit; only the form in between scrolls. */
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
 }
 
 .modal.closing {
@@ -186,10 +192,10 @@
 .modal-close:hover { background: var(--surface-variant); }
 
 /* ── Modal body ──────────────────────────────────────────── */
-/* px-8 py-8 max-h-[70vh] overflow-y-auto */
 .modal-body {
     padding: 32px;
-    max-height: 70vh;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 
@@ -454,3 +460,5 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .spin { animation: spin 0.8s linear infinite; }
+/* Header and footer keep their size; the body scrolls. */
+.modal-header, .modal-footer { flex-shrink: 0; }
