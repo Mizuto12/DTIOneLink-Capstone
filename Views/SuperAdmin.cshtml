@@ -196,7 +196,7 @@
         else
         {
             <div class="sa-table-wrap">
-                <table class="sa-table">
+                <table class="sa-table sa-table--cards">
                     <thead>
                         <tr>
                             <th>Task</th>
@@ -210,19 +210,19 @@
                         @foreach (var t in Model.OverdueItems)
                         {
                             <tr>
-                                <td><a class="sa-link" asp-controller="Dashboard" asp-action="Details" asp-route-id="@t.TaskId">@t.TaskName</a></td>
-                                <td>
+                                <td class="td--task"><a class="sa-link" asp-controller="Dashboard" asp-action="Details" asp-route-id="@t.TaskId">@t.TaskName</a></td>
+                                <td data-label="Assignee">
                                     <span class="sa-person">
                                         <span class="sa-avatar">@Initials(t.AssigneeName)</span>
                                         <span>@t.AssigneeName</span>
                                     </span>
                                 </td>
-                                <td class="td--muted" title="@t.Division">@(ShortDivision(t.Division) is { Length: > 0 } s ? s : "—")</td>
-                                <td>
+                                <td class="td--muted" data-label="Division" title="@t.Division">@(ShortDivision(t.Division) is { Length: > 0 } s ? s : "—")</td>
+                                <td data-label="Due date">
                                     <span class="td--overdue">@t.DueDate.ToString("MMM d, yyyy")</span>
                                     <span class="sa-late">@DueText(t.DueDate)</span>
                                 </td>
-                                <td>
+                                <td class="td--progress" data-label="Progress">
                                     <div class="sa-kcard__progress sa-progress--table">
                                         <div class="sa-kcard__bar"><div style="width:@(t.Progress)%;"></div></div>
                                         <span>@t.Progress%</span>

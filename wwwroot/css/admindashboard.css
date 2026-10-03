@@ -1228,3 +1228,50 @@
 .todo-chevron-btn.open .material-symbols-outlined {
   transform: rotate(180deg);
 }
+/* ---- Tablets and phones ------------------------------------------------ */
+@media (max-width: 1024px) {
+  .dashboard__center { padding: 16px 0; }
+}
+
+/* Board: columns sit side by side and snap into place as you swipe,
+   with the next column peeking in so it's clear there is more. */
+@media (max-width: 1024px) {
+  .kanban-board {
+    grid-template-columns: repeat(5, min(300px, 82vw));
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+  .kanban-column { scroll-snap-align: start; }
+}
+
+@media (max-width: 767px) {
+  .dashboard__center { padding: 8px 0; }
+  .ledger { border-radius: 16px; margin-bottom: 20px; }
+  .ledger__header { padding: 16px; gap: 12px; }
+  .ledger__title { font-size: 20px; line-height: 28px; }
+  .ledger__view-switcher { width: 100%; }
+  .view-switch-btn { flex: 1; justify-content: center; min-height: 40px; }
+  .ledger__body { padding: 16px 12px; overflow-x: visible; }
+  .ledger__body#kanbanView { overflow-x: visible; }
+
+  /* Timeline: the date scale uses the full width; each task's name and
+     due date sit above its own bar instead of in a column beside it. */
+  .gantt { --gantt-task-col: 0px; --gantt-gap: 0px; min-width: 0; }
+  .gantt-header__task-col { display: none; }
+  .gantt-header__month { padding-left: 4px; font-size: 10px; letter-spacing: 0.04em; }
+  .gantt-row { flex-wrap: wrap; gap: 6px; padding: 10px 4px; }
+  .gantt-row__info { width: 100%; padding-left: 0; }
+  .gantt-row__info .avatar-badge { width: 28px; height: 28px; font-size: 10px; }
+  .gantt-row__track { flex-basis: 100%; height: 26px; }
+  .gantt-bar__label { font-size: 10px; padding: 0 6px; }
+  .gantt-legend { gap: 6px 12px; font-size: 11px; }
+
+  .gantt-pager { justify-content: center; text-align: center; }
+  .gantt-pager__buttons { width: 100%; }
+  .gantt-pager__buttons .btn-pill { flex: 1; justify-content: center; min-height: 44px; }
+
+  .performers { padding: 16px; border-radius: 16px; }
+  .performers__grid { gap: 12px; }
+}

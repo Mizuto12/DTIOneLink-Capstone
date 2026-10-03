@@ -387,3 +387,71 @@
     .sa-cards { grid-template-columns: repeat(2, 1fr); }
     .sa-section { padding: 16px; }
 }
+
+/* ── Tablets and phones ────────────────────────────────── */
+/* Task Board: swipe between columns; each snaps into place and the next
+   one peeks in so it's clear there is more. */
+@media (max-width: 1024px) {
+    .sa-board {
+        grid-template-columns: repeat(5, min(300px, 82vw));
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 12px;
+    }
+    .sa-col { scroll-snap-align: start; }
+}
+
+@media (max-width: 767px) {
+    .sa-dashboard { padding-top: 16px; gap: 16px; }
+    .sa-section { padding: 16px; border-radius: 14px; }
+    .sa-section__title { font-size: 17px; }
+    .sa-card { padding: 12px; gap: 10px; }
+    .sa-card__icon { width: 34px; height: 34px; font-size: 18px; }
+    .sa-card__value { font-size: 22px; }
+    .sa-card__label { font-size: 11px; }
+
+    /* Division chips scroll sideways in one row. */
+    .sa-chips { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; }
+    .sa-chip { flex-shrink: 0; min-height: 40px; }
+
+    /* Overdue Tasks: each row becomes a card; labels from data-label. */
+    .sa-table--cards,
+    .sa-table--cards tbody { display: block; }
+    .sa-table--cards thead { display: none; }
+    .sa-table--cards tbody tr {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+        margin-bottom: 10px;
+        padding: 14px;
+        border: 1px solid var(--surface-container);
+        border-radius: 12px;
+    }
+    .sa-table--cards tbody tr:hover td { background: none; }
+    .sa-table--cards td { display: block; padding: 0; border: none; min-width: 0; }
+    .sa-table--cards .td--task,
+    .sa-table--cards .td--progress { grid-column: 1 / -1; }
+    .sa-table--cards .td--task .sa-link { font-size: 15px; }
+    .sa-table--cards td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--on-surface-variant);
+    }
+    .sa-table--cards .sa-progress--table { min-width: 0; }
+
+    /* Workload: many number columns, so it scrolls sideways with each
+       person's name kept in view. */
+    .sa-table--numbers th:first-child,
+    .sa-table--numbers td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--surface-container-lowest);
+        box-shadow: 1px 0 0 var(--surface-container);
+    }
+}
