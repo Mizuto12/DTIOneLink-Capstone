@@ -7,7 +7,7 @@ namespace DTIOneLink.Models
     // pagination, Clear) can round-trip the same query string.
     public class TaskIndexViewModel
     {
-        public const int PageSize = 10;
+        public const int PageSize = 4;
 
         // The current page of tasks.
         public List<TaskItem> Tasks { get; set; } = new();
