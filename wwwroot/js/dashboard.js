@@ -8,6 +8,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   initLedgerFilter();
   initLedgerViewToggle();
+  initGanttPaging();
   initCalendar();
   initTodoAdd();
   initTodoSummaryToggle();
@@ -15,6 +16,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // TODO: fetch and render announcements into the announcements widget
 });
+
+/**
+ * Shows the Gantt rows 4 at a time, with Previous / Next buttons.
+ * The pager stays hidden when everything fits on one page.
+ */
+function initGanttPaging() {
+  const PAGE_SIZE = 4;
+  const rows = Array.from(document.querySelectorAll("#ganttView .gantt-row"));
+  const pager = document.getElementById("ganttPager");
+  const info = document.getElementById("ganttPagerInfo");
+  const prevBtn = document.getElementById("ganttPrev");
+  const nextBtn = document.getElementById("ganttNext");
+  if (!pager || !info || !prevBtn || !nextBtn || rows.length <= PAGE_SIZE) return;
+
+  const pageCount = Math.ceil(rows.length / PAGE_SIZE);
+  let page = 0;
+
+  function show() {
+    const start = page * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, rows.length);
+    rows.forEach((row, i) => { row.hidden = i < start || i >= end; });
+    info.textContent = `Showing ${start + 1}–${end} of ${rows.length} tasks`;
+    prevBtn.disabled = page === 0;
+    nextBtn.disabled = page === pageCount - 1;
+  }
+
+  prevBtn.addEventListener("click", () => { if (page > 0) { page--; show(); } });
+  nextBtn.addEventListener("click", () => { if (page < pageCount - 1) { page++; show(); } });
+
+  pager.hidden = false;
+  show();
+}
 
 /**
  * Placeholder hook for the ledger's Filter button.

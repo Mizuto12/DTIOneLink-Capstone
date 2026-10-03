@@ -476,6 +476,40 @@
   min-width: 800px;
 }
 
+/* Paging (dashboard.js): 4 rows per page */
+.gantt-row[hidden],
+.gantt-pager[hidden] {
+  display: none;
+}
+
+.gantt-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(197, 197, 210, 0.3);
+}
+
+.gantt-pager__info {
+  font-family: var(--dash-font-ui);
+  font-size: 13px;
+  color: var(--dash-secondary);
+}
+
+.gantt-pager__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.gantt-pager .btn-pill:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background-color: var(--dash-surface-container);
+}
+
 .gantt-row {
   display: flex;
   align-items: center;

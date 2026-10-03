@@ -184,6 +184,18 @@
                             </div>
                         }
                     </div>
+                    @* Filled in by dashboard.js — shows 4 tasks per page. *@
+                    <div class="gantt-pager" id="ganttPager" hidden>
+                        <span class="gantt-pager__info" id="ganttPagerInfo"></span>
+                        <div class="gantt-pager__buttons">
+                            <button type="button" class="btn-pill" id="ganttPrev">
+                                <span class="material-symbols-outlined">chevron_left</span> Previous
+                            </button>
+                            <button type="button" class="btn-pill" id="ganttNext">
+                                Next <span class="material-symbols-outlined">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
                 }
             </div>
 
