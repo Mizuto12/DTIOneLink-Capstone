@@ -455,3 +455,8 @@
         box-shadow: 1px 0 0 var(--surface-container);
     }
 }
+
+/* Board: short columns stay short, and the next column visibly peeks in. */
+@media (max-width: 1024px) {
+    .sa-board { grid-template-columns: repeat(5, min(300px, 74vw)); align-items: start; }
+}

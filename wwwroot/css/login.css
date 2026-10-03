@@ -525,3 +525,10 @@ html, body {
     .logo { position: static; width: 70%; max-width: 260px; height: auto; margin: 0 auto 28px; padding: 0; }
     .login-card { position: static; transform: none; width: min(480px, 100%); min-width: 0; height: auto; margin: 0 auto; padding: 32px 40px 40px; }
 }
+
+/* Phones and narrow tablets: the card's inner border (::before) must
+   stay inside the card, not wrap the logo too, so the card keeps a
+   positioning context. */
+@media (max-width: 1000px) {
+    .login-card { position: relative; top: auto; left: auto; }
+}

@@ -1275,3 +1275,27 @@
   .performers { padding: 16px; border-radius: 16px; }
   .performers__grid { gap: 12px; }
 }
+
+/* Phone fixes */
+@media (max-width: 767px) {
+  /* Timeline: task names sit above the date grid, so the Today line and
+     month lines stay behind the bars only. Bar labels are dropped: the
+     colour key and the due-date text say the same, without "Ove...". */
+  .gantt-row__info {
+    position: relative;
+    z-index: 3;
+    background: var(--dash-white);
+    border-radius: 8px;
+  }
+  .gantt-row:hover .gantt-row__info { background: transparent; }
+  .gantt-bar__label { display: none; }
+  .gantt-row__track { height: 18px; }
+}
+
+/* Board: short columns stay short, and the next column visibly peeks in. */
+@media (max-width: 1024px) {
+  .kanban-board {
+    grid-template-columns: repeat(5, min(300px, 74vw));
+    align-items: start;
+  }
+}
