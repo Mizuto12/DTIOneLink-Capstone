@@ -304,6 +304,20 @@
     </form>
   </dialog>
 
+  <!-- Questions and error messages (filled in by showNotice in records.js) -->
+  <dialog class="notice-dialog" id="notice-dialog" aria-labelledby="notice-title" aria-describedby="notice-message">
+    <span class="notice-icon material-symbols-outlined" id="notice-icon" aria-hidden="true"></span>
+    <h2 class="notice-title" id="notice-title"></h2>
+    <p class="notice-file" id="notice-file" hidden></p>
+    <p class="notice-message" id="notice-message"></p>
+    <ul class="notice-steps" id="notice-steps" hidden></ul>
+    <p class="notice-note" id="notice-note" hidden></p>
+    <div class="notice-actions">
+      <button class="btn btn-outline" type="button" id="notice-cancel">Cancel</button>
+      <button class="btn btn-primary" type="button" id="notice-ok">OK</button>
+    </div>
+  </dialog>
+
 </main>
 
 @section Scripts {

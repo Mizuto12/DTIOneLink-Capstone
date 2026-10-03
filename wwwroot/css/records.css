@@ -480,6 +480,113 @@
   .records-page .signatory-grid { grid-template-columns: 1fr; }
 }
 
+/* ---------- Notice dialog (questions and errors, see showNotice) ---------- */
+/* Tone (data-tone) sets the icon colors: info = blue, danger = red. */
+.records-page .notice-dialog {
+  --tone: var(--primary);
+  --tone-soft: var(--surface-container);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(16, 24, 40, 0.25);
+  padding: 28px 24px 24px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  color: var(--on-surface);
+  text-align: center;
+}
+.records-page .notice-dialog[data-tone="danger"] { --tone: #b42318; --tone-soft: #fee4e2; }
+.records-page .notice-dialog::backdrop { background: rgba(15, 23, 42, 0.45); }
+.records-page .notice-dialog [hidden] { display: none !important; }
+
+.records-page .notice-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-full);
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 28px;
+}
+
+.records-page .notice-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* The masterlist's file name, set apart so it is easy to check. */
+.records-page .notice-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-container-low);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.records-page .notice-message {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--on-surface-variant);
+}
+
+.records-page .notice-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.records-page .notice-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.records-page .notice-step-num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--surface-container);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.records-page .notice-note {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff4d6;
+  color: #5c4300;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.records-page .notice-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.records-page .notice-actions .btn { flex: 1; justify-content: center; }
+.records-page .notice-actions .btn-outline { flex: 0 0 120px; }
+.records-page .notice-dialog[data-tone="danger"] .btn-primary { background: var(--tone); }
+
 /* ---------- Saved Masterlists ---------- */
 .records-page .masterlist-list {
   list-style: none;

@@ -340,16 +340,11 @@ form.addEventListener('submit', async (e) => {
     }, 1200);
 
   } catch (err) {
-    // fetch() itself throws a TypeError when the server can't be reached.
-    const message = err instanceof TypeError
-      ? 'Unable to reach the server. Please check your connection and try again.'
-      : err.message;
-
     // The button is too small for a full sentence, so it shows a short
     // status and the full reason appears in a dialog that stays until
-    // the user closes it.
+    // the user closes it. (fetch() throws a TypeError when offline.)
     btn.innerHTML = `<span class="material-symbols-outlined">error</span> Not saved`;
-    alert(message);
+    showError('Record not saved', errorMessage(err));
     setTimeout(() => {
       btn.innerHTML = originalContent;
       btn.disabled = false;
@@ -411,10 +406,85 @@ async function postAction(url) {
   return res.json();
 }
 
-function showActionError(err) {
-  alert(err instanceof TypeError
+// ---------- In-page notice dialog (replaces the browser's alert/confirm) ----------
+// showNotice({ tone, icon, title, file, message, steps, note, okText, cancelText })
+// resolves true when OK is pressed, false when cancelled or closed. Leave
+// cancelText out for a message with a single OK button.
+const noticeDialog = document.getElementById('notice-dialog');
+
+function showNotice(opts) {
+  if (!noticeDialog) {
+    // Fallback if the dialog markup is missing.
+    const text = [opts.title, opts.message].filter(Boolean).join('\n\n');
+    return Promise.resolve(opts.cancelText ? confirm(text) : (alert(text), true));
+  }
+
+  const el = id => document.getElementById(id);
+  const setText = (id, value) => {
+    const node = el(id);
+    node.textContent = value || '';
+    node.hidden = !value;
+  };
+
+  noticeDialog.dataset.tone = opts.tone || 'info';
+  el('notice-icon').textContent = opts.icon || 'info';
+  el('notice-title').textContent = opts.title || '';
+  setText('notice-file', opts.file);
+  setText('notice-message', opts.message);
+  setText('notice-note', opts.note);
+
+  const steps = el('notice-steps');
+  steps.innerHTML = '';
+  (opts.steps || []).forEach((step, i) => {
+    const li = document.createElement('li');
+    const num = document.createElement('span');
+    num.className = 'notice-step-num';
+    num.textContent = String(i + 1);
+    li.appendChild(num);
+    li.appendChild(document.createTextNode(step));
+    steps.appendChild(li);
+  });
+  steps.hidden = !(opts.steps && opts.steps.length);
+
+  const okBtn = el('notice-ok');
+  const cancelBtn = el('notice-cancel');
+  okBtn.textContent = opts.okText || 'OK';
+  cancelBtn.textContent = opts.cancelText || 'Cancel';
+  cancelBtn.hidden = !opts.cancelText;
+
+  return new Promise(resolve => {
+    let result = false;
+    const finish = value => { result = value; noticeDialog.close(); };
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onBackdrop = e => { if (e.target === noticeDialog) finish(false); };
+    const onClose = () => {
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      noticeDialog.removeEventListener('click', onBackdrop);
+      resolve(result);
+    };
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    noticeDialog.addEventListener('click', onBackdrop);
+    noticeDialog.addEventListener('close', onClose, { once: true });
+    noticeDialog.showModal();
+    okBtn.focus();
+  });
+}
+
+function errorMessage(err) {
+  return err instanceof TypeError
     ? 'Unable to reach the server. Please check your connection and try again.'
-    : err.message);
+    : err.message;
+}
+
+function showError(title, message) {
+  return showNotice({ tone: 'danger', icon: 'error', title, message, okText: 'OK' });
+}
+
+function showActionError(err) {
+  showError('Something went wrong', errorMessage(err));
 }
 
 // Enabled when there is something to save. While a search is active the
@@ -496,12 +566,23 @@ async function loadMasterlists() {
 // ones can be added; Update Masterlist then saves one updated file.
 async function reopenMasterlist(item) {
   const newCount = openMasterlist ? 0 : entries.length;
-  let question = `Add records to "${item.fileName}"?\n\n` +
-    'Its saved records will be shown on the table. Add your new records, then click Update Masterlist.';
-  if (newCount > 0 || filtersActive) {
-    question += '\n\nThe new records already on your table will be added to this masterlist too.';
-  }
-  if (!confirm(question)) return;
+  const ok = await showNotice({
+    tone: 'info',
+    icon: 'folder_open',
+    title: 'Add records to this masterlist?',
+    file: item.fileName,
+    steps: [
+      'Its saved records will appear on the table.',
+      'Add your new records using the form.',
+      'Click Update Masterlist to save the updated file.'
+    ],
+    note: (newCount > 0 || filtersActive)
+      ? 'The new records already on your table will be added to this masterlist too.'
+      : '',
+    okText: 'Add Records',
+    cancelText: 'Cancel'
+  });
+  if (!ok) return;
   try {
     await postAction(`/Records/ReopenMasterlist?id=${encodeURIComponent(item.id)}`);
     refreshAll();
@@ -569,10 +650,7 @@ if (saveMasterlistBtn && masterlistDialog) {
       window.location.href = `/Records/DownloadMasterlist?id=${encodeURIComponent(saved.masterlistId)}`;
       refreshAll();
     } catch (err) {
-      const message = err instanceof TypeError
-        ? 'Unable to reach the server. Please check your connection and try again.'
-        : err.message;
-      alert(message);
+      showError('Masterlist not saved', errorMessage(err));
     } finally {
       masterlistConfirmBtn.innerHTML = original;
       masterlistConfirmBtn.disabled = false;
