@@ -348,7 +348,7 @@
 
         var modes = {
             blocked: {
-                tone: "warning", icon: "assignment_late", title: "Can't deactivate yet",
+                tone: "warning", icon: "warning", title: "Can't deactivate yet",
                 cancel: "Close", confirm: null
             },
             deactivate: {

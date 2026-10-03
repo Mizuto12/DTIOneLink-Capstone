@@ -35,6 +35,8 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* The reset above removes the margin browsers use to center a modal <dialog>. */
+dialog { margin: auto; }
 html { height: 100%; }
 
 body {

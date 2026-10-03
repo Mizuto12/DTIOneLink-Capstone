@@ -408,14 +408,12 @@
 
 <!-- Deactivate / Reactivate confirmation (and "can't deactivate yet") -->
 <dialog id="statusDialog" class="um-dialog um-status-dialog" aria-labelledby="sdTitle" aria-describedby="sdMessage">
-    <div class="um-dialog-head">
-        <div class="um-status-heading">
-            <span class="um-status-icon material-symbols-outlined" id="sdIcon" aria-hidden="true"></span>
-            <h3 class="um-section-title" id="sdTitle"></h3>
-        </div>
-        <button type="button" class="um-dialog-close" id="sdClose" aria-label="Close">
-            <span class="material-symbols-outlined">close</span>
-        </button>
+    <button type="button" class="um-dialog-close um-status-close" id="sdClose" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+    </button>
+    <div class="um-status-heading">
+        <span class="um-status-icon material-symbols-outlined" id="sdIcon" aria-hidden="true"></span>
+        <h3 class="um-section-title" id="sdTitle"></h3>
     </div>
 
     <div class="um-dialog-person">
