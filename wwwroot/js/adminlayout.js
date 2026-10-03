@@ -49,6 +49,25 @@
         var loaded = false;
         var skeletonHtml = notifList ? notifList.innerHTML : "";
 
+        // The last list is kept for this browser tab, so moving between
+        // modules shows the bell and its count right away instead of
+        // blinking while the fresh list loads. Keyed by user, so someone
+        // signing in after another person never sees their notifications.
+        var cacheKey = "notifications:" + ((notifBtn && notifBtn.dataset.userId) || "");
+
+        function saveCache() {
+            try { sessionStorage.setItem(cacheKey, JSON.stringify(notifications)); } catch (e) { /* storage blocked */ }
+        }
+
+        function readCache() {
+            try {
+                var cached = JSON.parse(sessionStorage.getItem(cacheKey));
+                return Array.isArray(cached) ? cached : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
         function getCsrfToken() {
             var input = document.querySelector('input[name="__RequestVerificationToken"]');
             return input ? input.value : "";
@@ -156,6 +175,7 @@
             }
 
             updateBadge();
+            saveCache();
         }
 
         function markReadOnServer(id) {
@@ -305,6 +325,12 @@
             }
         });
 
+        var cached = readCache();
+        if (cached) {
+            notifications = cached;
+            loaded = true;
+            renderNotifications();
+        }
         updateBadge();
         setInterval(loadNotifications, 60000); // refresh every minute
         // live-refresh.js fires this as soon as a notification arrives.
