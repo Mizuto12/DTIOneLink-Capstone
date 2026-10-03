@@ -8,7 +8,11 @@
 
         // ── Table row click micro-interaction ─────────────
         document.querySelectorAll(".task-row").forEach(function (row) {
-            row.addEventListener("click", function () {
+            row.addEventListener("click", function (event) {
+                // Clicking a task opens its details; the Edit/Review buttons keep their own links.
+                if (row.dataset.href && !event.target.closest("a, button")) {
+                    window.location.href = row.dataset.href;
+                }
                 row.style.transform = "scale(0.98)";
                 setTimeout(function () {
                     row.style.transform = "";

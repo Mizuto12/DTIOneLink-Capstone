@@ -5,6 +5,7 @@
         : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Task Management";
     ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
+    var isOpd = Context.Session.GetString("UserRole") == "SuperAdmin";
 
     // Workflow indicator tiles, in the order work moves through the system.
     var workflowTiles = new[]
@@ -217,7 +218,7 @@
                             _ => "status-pending"
                         };
                         var progressBarClass = progressWidth >= 80 ? "progress-green" : "";
-                        <tr class="task-row">
+                        <tr class="task-row" data-href="@(task.TaskLevel == "main" ? Url.Action("MainTaskDetails", "Tasks", new { id = task.Id }) : null)">
                             <td class="td-first">
                                 <div class="employee-cell">
                                     <div class="emp-avatar">@initials</div>
@@ -252,15 +253,13 @@
                                 }
                             </td>
                             <td class="td-last">
-                                @if (task.TaskLevel == "main")
+                                @* Admins can't reassign a task the OPD gave straight to people. *@
+                                @if (isOpd || !DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType))
                                 {
-                                    <a asp-controller="Tasks" asp-action="MainTaskDetails" asp-route-id="@task.Id" class="more-btn" aria-label="View main task details">
-                                        <span class="material-symbols-outlined">visibility</span>
+                                    <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="more-btn" aria-label="Edit task">
+                                        <span class="material-symbols-outlined">edit</span>
                                     </a>
                                 }
-                                <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="more-btn" aria-label="Edit task">
-                                    <span class="material-symbols-outlined">edit</span>
-                                </a>
                                 @if (displayStatus == "for-review")
                                 {
                                     var pendingSubmission = task.Submissions?.OrderByDescending(s => s.SubmittedAt).FirstOrDefault(s => s.Decision == null);

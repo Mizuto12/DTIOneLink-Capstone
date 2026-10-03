@@ -473,7 +473,9 @@ namespace DTIOneLink.Controllers
          // models (direct vs. via subtasks) are mutually exclusive, so once
          // any subtask exists, assignment happens there instead and this
          // Main Task stays read-only here.
-         if (IsOfficeWideTaskManager() || task.Subtasks.Any())
+         // A task the OPD gave straight to people (Direct Admin or Whole
+         // Office) is theirs to work — the Admin can't add or reassign anyone.
+         if (IsOfficeWideTaskManager() || task.Subtasks.Any() || TaskTypes.IsAssignedByOpd(task.TaskType))
          {
              return RedirectToAction(nameof(MainTaskDetails), new { id = task.Id });
          }
@@ -565,7 +567,7 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         // subtasks — re-checked here, not trusted from the client, so a
         // tampered POST can't sneak assignments onto a Main Task that
         // gained subtasks after the page was loaded.
-        if (IsOfficeWideTaskManager() || task.Subtasks.Any())
+        if (IsOfficeWideTaskManager() || task.Subtasks.Any() || TaskTypes.IsAssignedByOpd(task.TaskType))
         {
             return Forbid();
         }

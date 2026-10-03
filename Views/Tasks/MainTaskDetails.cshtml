@@ -6,6 +6,7 @@
     ViewData["Title"] = "Main Task Details";
     ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
     var isOpd = Context.Session.GetString("UserRole") == "SuperAdmin";
+    var isAssignedByOpd = DTIOneLink.Services.TaskTypes.IsAssignedByOpd(Model.TaskType);
 
     var task = Model;
     var taskCode = $"TASK-{task.Id:D4}";
@@ -53,12 +54,16 @@
                 <p class="mtd-desc">@task.Description</p>
             }
         </div>
-        <div class="mtd-header-actions">
-            <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="et-btn et-btn-outline">
-                <span class="material-symbols-outlined">edit</span>
-                Edit
-            </a>
-        </div>
+        @* Admins can't reassign a task the OPD gave straight to people. *@
+        @if (isOpd || !isAssignedByOpd)
+        {
+            <div class="mtd-header-actions">
+                <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="et-btn et-btn-outline">
+                    <span class="material-symbols-outlined">edit</span>
+                    Edit
+                </a>
+            </div>
+        }
     </div>
 
     <div class="mtd-summary-grid">
@@ -243,7 +248,10 @@
                                 <div class="empty-state-content">
                                     <span class="material-symbols-outlined empty-icon">assignment</span>
                                     <p class="empty-text">No subtasks yet</p>
-                                    <p class="empty-sub">Click Edit above to assign employees to this directive directly.</p>
+                                    @if (!isAssignedByOpd)
+                                    {
+                                        <p class="empty-sub">Click Edit above to assign employees to this directive directly.</p>
+                                    }
                                 </div>
                             </td>
                         </tr>
