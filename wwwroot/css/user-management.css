@@ -179,10 +179,8 @@
 }
 
 /* ── Form pane ───────────────────────────────────────────── */
-/* p-6 border-l-4 border-l-primary */
 .um-form-pane {
     padding: 24px;
-    border-left: 4px solid var(--primary);
 }
 
 /* flex items-center gap-3 mb-6 */
