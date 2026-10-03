@@ -392,3 +392,57 @@
     });
 
 })(); 
+// ── Slide-out menu (tablets and phones) ───────────────────
+// Below 1024px wide the sidebar is hidden off-screen (adminlayout.css);
+// the menu button in the top bar slides it in over the page.
+(function () {
+    "use strict";
+
+    document.addEventListener("DOMContentLoaded", function () {
+        var menuBtn = document.getElementById("menuBtn");
+        var sidebar = document.getElementById("sidebar");
+        var scrim   = document.getElementById("sidebarScrim");
+        if (!menuBtn || !sidebar) return;
+
+        function isOpen() { return sidebar.classList.contains("open"); }
+
+        function openMenu() {
+            sidebar.classList.add("open");
+            if (scrim) scrim.hidden = false;
+            menuBtn.setAttribute("aria-expanded", "true");
+            menuBtn.setAttribute("aria-label", "Close menu");
+            var current = sidebar.querySelector(".nav-item.active") || sidebar.querySelector(".nav-item");
+            if (current) current.focus();
+        }
+
+        function closeMenu(returnFocus) {
+            if (!isOpen()) return;
+            sidebar.classList.remove("open");
+            if (scrim) scrim.hidden = true;
+            menuBtn.setAttribute("aria-expanded", "false");
+            menuBtn.setAttribute("aria-label", "Open menu");
+            if (returnFocus) menuBtn.focus();
+        }
+
+        menuBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (isOpen()) closeMenu(true); else openMenu();
+        });
+        if (scrim) scrim.addEventListener("click", function () { closeMenu(false); });
+
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeMenu(true);
+        });
+
+        // Picking a page closes the menu (the page then loads).
+        sidebar.querySelectorAll("a").forEach(function (link) {
+            link.addEventListener("click", function () { closeMenu(false); });
+        });
+
+        // Turning a tablet to landscape (sidebar always shown) resets it.
+        var wide = window.matchMedia("(min-width: 1025px)");
+        var onChange = function () { if (wide.matches) closeMenu(false); };
+        if (wide.addEventListener) wide.addEventListener("change", onChange);
+        else if (wide.addListener) wide.addListener(onChange);
+    });
+})();

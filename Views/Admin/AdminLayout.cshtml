@@ -44,6 +44,10 @@
     <!-- ══════════════ TOPBAR ══════════════ -->
     <header class="topbar">
         <div class="topbar-left">
+            @* Phones and tablets: opens the sidebar as a slide-out menu (adminlayout.js). *@
+            <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
             <div class="topbar-search">
                 <span class="material-symbols-outlined search-icon">search</span>
                 <input type="text" placeholder="Search tasks or records..." />
@@ -124,7 +128,7 @@
     </header>
 
     <!-- ══════════════ SIDEBAR ══════════════ -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
 
         <!-- Brand block: logo + DTI (Anton) + OneLink (Open Sauce) -->
         <div class="sidebar-brand">
@@ -174,6 +178,8 @@
 
         </nav>
     </aside>
+
+    <div class="sidebar-scrim" id="sidebarScrim" hidden></div>
 
     <!-- ══════════════ MAIN CONTENT ══════════════ -->
     <main class="main-content">

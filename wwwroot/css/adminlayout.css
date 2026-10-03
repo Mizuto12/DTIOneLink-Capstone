@@ -532,18 +532,84 @@ body {
 .main-content::-webkit-scrollbar-thumb { background: #dce1ff; border-radius: 10px; }
 
 /* ── Responsive ─────────────────────────────────────────── */
-@media (max-width: 860px) {
-    .sidebar      { width: 200px; }
-    .main-content { margin-left: 200px; }
-    .topbar       { left: 200px; }
+/* Menu button: only shown when the sidebar becomes a slide-out menu. */
+.menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-left: -8px;
+    border: none;
+    border-radius: 9999px;
+    background: none;
+    color: var(--on-primary);
+    cursor: pointer;
+}
+.menu-btn:hover { background: rgba(255,255,255,0.12); }
+.menu-btn:focus-visible { outline: 2px solid rgba(255,255,255,0.6); outline-offset: 2px; }
+
+.sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(15, 23, 42, 0.45);
+}
+.sidebar-scrim[hidden] { display: none; }
+
+/* Tablets and phones: the sidebar slides in over the page from the left,
+   opened with the menu button (adminlayout.js). The page uses the full
+   width underneath. */
+@media (max-width: 1024px) {
+    .menu-btn     { display: flex; }
+    .topbar       { left: 0; }
+    .main-content { margin-left: 0; }
+
+    .sidebar {
+        width: min(280px, 85vw);
+        z-index: 70; /* above the top bar */
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition: transform 0.25s ease, visibility 0s linear 0.25s;
+        box-shadow: none;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+        visibility: visible;
+        transition: transform 0.25s ease;
+        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.2);
+    }
+    .nav-item { padding: 14px 16px; font-size: 13px; } /* bigger tap targets */
+
+    /* The page behind the open menu doesn't scroll. */
+    html:has(.sidebar.open) { overflow: hidden; }
 }
 
+/* Phones */
 @media (max-width: 640px) {
-    .topbar-title { font-size: 18px; }
-    .topbar       { left: 0; }
-    .sidebar { position: static; width: 100%; padding-top: 0; box-shadow: none; border-bottom: 1px solid var(--outline-variant); }
-    .sidebar-nav  { flex-direction: row; overflow-x: auto; }
-    .main-content { margin-left: 0; }
+    :root { --topbar-h: 64px; --pad-x: 12px; }
+
+    .main-content { padding-left: 12px; padding-right: 12px; padding-bottom: 24px; }
+
+    .topbar-right   { gap: 8px; }
+    .topbar-divider { display: none; }
+    .user-info      { display: none; } /* the name is in the profile menu */
+    .user-avatar    { width: 36px; height: 36px; }
+
+    /* Panels drop down under the top bar at (almost) full width. */
+    .notif-panel,
+    .profile-dropdown {
+        position: fixed;
+        top: calc(var(--topbar-h) + 8px);
+        left: 8px;
+        right: 8px;
+        width: auto;
+    }
+    .notif-panel { max-height: calc(100vh - var(--topbar-h) - 24px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar, .sidebar.open { transition: none; }
 }
 /* Signed-in person's initials in the top bar (same look as User Management) */
 .avatar-initials {
