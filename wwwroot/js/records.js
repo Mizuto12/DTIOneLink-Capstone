@@ -84,15 +84,16 @@ function renderRows() {
   pageEntries.forEach(data => {
     const row = document.createElement('tr');
     row.className = 'pill-row';
+    // data-label: the column name, shown on phones where rows become cards.
     row.innerHTML = `
-      <td>${escapeHtml(data.code)}</td>
-      <td class="title-cell">${escapeHtml(data.title)}</td>
-      <td>${escapeHtml(data.medium)}</td>
-      <td>${escapeHtml(data.location)}</td>
-      <td>${escapeHtml(data.periodCovered)}</td>
-      <td>${escapeHtml(data.filingSystem)}</td>
-      <td>${escapeHtml(data.accessControl)}</td>
-      <td>${escapeHtml(data.retentionPeriod)}</td>
+      <td data-label="Code">${escapeHtml(data.code)}</td>
+      <td class="title-cell" data-label="Title of Record">${escapeHtml(data.title)}</td>
+      <td data-label="Medium">${escapeHtml(data.medium)}</td>
+      <td data-label="Location">${escapeHtml(data.location)}</td>
+      <td data-label="Period Covered">${escapeHtml(data.periodCovered)}</td>
+      <td data-label="Filing System">${escapeHtml(data.filingSystem)}</td>
+      <td data-label="Access Control">${escapeHtml(data.accessControl)}</td>
+      <td data-label="Retention Period">${escapeHtml(data.retentionPeriod)}</td>
     `;
     // Reminder colour (decided on the server): yellow when the retention
     // period ends within 6 months, red once it has ended. The legend under

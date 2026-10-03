@@ -1031,3 +1031,61 @@
     letter-spacing: 1px;
     user-select: all;
 }
+
+/* ── Phones: each account row becomes a card ───────────────
+   Cells stack; each shows its column name from data-label. */
+@media (max-width: 767px) {
+    .um-table,
+    .um-table tbody { display: block; }
+    .um-table thead { display: none; }
+    .um-table tbody { border-top: none; padding: 12px; }
+
+    .um-table tr.um-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding: 16px;
+        border: 1px solid var(--surface-container);
+        border-radius: 16px;
+        background: var(--surface-lowest);
+    }
+    /* Paging and search still hide rows (they set these classes). */
+    .um-table tr.um-row.um-row-hidden,
+    .um-table tr.um-row.um-search-hidden { display: none; }
+
+    .um-table tr.um-row > td { display: block; padding: 0; border: none; min-width: 0; }
+
+    .um-table td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+        font-family: var(--font-ui);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--secondary);
+    }
+
+    .um-td-name,
+    .um-td-email,
+    .um-td-division,
+    .um-td-actions { grid-column: 1 / -1; }
+    .um-td-email { overflow-wrap: anywhere; }
+
+    .um-td-actions { padding-top: 12px !important; border-top: 1px solid var(--surface-container) !important; }
+    .um-actions > *,
+    .um-actions form,
+    .um-actions .um-btn-status,
+    .um-actions .um-btn-change { flex: 1 1 140px; justify-content: center; min-height: 44px; }
+    .um-actions form .um-btn-status { width: 100%; }
+
+    /* Empty / no-match messages keep their normal look. */
+    .um-table tbody > tr:not(.um-row) { display: block; }
+    .um-table tbody > tr:not(.um-row) > td { display: block; }
+    .um-table tbody > tr[hidden] { display: none; }
+
+    .um-dialog-actions { flex-direction: column-reverse; }
+    .um-dialog-actions .um-btn-cancel { flex: none !important; width: 100%; }
+}

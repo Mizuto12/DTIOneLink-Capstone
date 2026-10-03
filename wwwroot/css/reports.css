@@ -446,3 +446,16 @@
   .reports-page .toolbar-left { max-width: none; flex-wrap: wrap; }
   .reports-page .item-right { display: none; }
 }
+
+/* Phones: tighter report rows; titles wrap instead of being cut off. */
+@media (max-width: 640px) {
+  .reports-page .report-list { padding: 12px; gap: 12px; }
+  .reports-page .report-item { gap: 12px; padding: 14px; border-radius: 16px; }
+  .reports-page .item-icon { width: 44px; height: 44px; }
+  .reports-page .item-icon .material-symbols-outlined { font-size: 22px; }
+  .reports-page .item-title { font-size: 15px; white-space: normal; }
+  .reports-page .item-meta { flex-wrap: wrap; gap: 4px 10px; }
+  .reports-page .filter-btn { min-width: 0; flex: 1; }
+  .reports-page .filter-dropdown-wrapper { flex: 1; }
+  .reports-page .filter-dropdown { width: min(260px, calc(100vw - 32px)); }
+}

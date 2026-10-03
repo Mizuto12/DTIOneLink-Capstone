@@ -202,22 +202,22 @@
                                 data-name="@user.FullName" data-email="@user.Email"
                                 data-role="@user.Role" data-department="@user.Department" data-active="@(isActive ? "1" : "0")"
                                 data-search="@($"{user.FullName} {user.Email} {user.Department} {DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)}".ToLowerInvariant())">
-                                <td>
+                                <td class="um-td-name">
                                     <div class="um-name-cell">
                                         <div class="um-avatar um-av-blue">@initials</div>
                                         <span>@user.FullName</span>
                                     </div>
                                 </td>
-                                <td class="um-td-muted">@user.Email</td>
-                                <td><span class="um-division-badge">@user.Department</span></td>
-                                <td class="um-td-role">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</td>
-                                <td>
+                                <td class="um-td-muted um-td-email" data-label="Email">@user.Email</td>
+                                <td class="um-td-division" data-label="Division"><span class="um-division-badge">@user.Department</span></td>
+                                <td class="um-td-role" data-label="Role">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</td>
+                                <td class="um-td-status" data-label="Status">
                                     <div class="um-status-badge @(isActive ? "um-status-active" : "um-status-disabled")">
                                         <span class="um-status-dot@(isActive ? " um-dot-pulse" : "")"></span>
                                         <span>@(isActive ? "Active" : "Deactivated")</span>
                                     </div>
                                 </td>
-                                <td>
+                                <td class="um-td-actions">
                                     @if (user.Id == currentUserId)
                                     {
                                         <span class="um-td-muted">You</span>

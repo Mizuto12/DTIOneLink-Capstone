@@ -650,3 +650,55 @@
   padding: 4px 10px;
   margin-left: 8px;
 }
+
+/* ---------- Phones: each record becomes a card ----------
+   Cells stack in two columns; each shows its column name from data-label
+   (records.js). The retention colours tint the whole card. */
+@media (max-width: 767px) {
+  .records-page table,
+  .records-page tbody { display: block; }
+  .records-page thead { display: none; }
+
+  .records-page tbody tr.pill-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--surface-container-low);
+  }
+  .records-page tbody tr.pill-row.retention-due-soon { background: #fef3c7; }
+  .records-page tbody tr.pill-row.retention-ended    { background: #fee2e2; }
+
+  .records-page tbody tr.pill-row td {
+    display: block;
+    padding: 0;
+    border-radius: 0;
+    background: transparent !important; /* the card carries the colour */
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .records-page tbody tr.pill-row td.title-cell { grid-column: 1 / -1; font-size: 15px; }
+
+  .records-page tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+
+  /* Empty, error and loading rows keep their normal look. */
+  .records-page tbody tr:not(.pill-row) { display: block; }
+  .records-page tbody tr:not(.pill-row) > td { display: block; }
+  .records-page tbody tr.skeleton-row > td:nth-child(n+3) { display: none; }
+
+  .records-page .notice-actions { flex-direction: column-reverse; }
+  .records-page .notice-actions .btn-outline { flex: none; width: 100%; }
+  .records-page .dialog-actions { flex-direction: column-reverse; }
+  .records-page .dialog-actions .btn { justify-content: center; }
+}

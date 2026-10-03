@@ -200,9 +200,9 @@
                                     </div>
                                 </div>
                             </td>
-                            <td><span class="td-muted">@task.TaskName</span></td>
-                            <td><span class="td-date">@task.DueDate.ToString("MMM dd, yyyy")</span></td>
-                            <td>
+                            <td class="td-task" data-label="Task"><span class="td-muted">@task.TaskName</span></td>
+                            <td class="td-due" data-label="Due date"><span class="td-date">@task.DueDate.ToString("MMM dd, yyyy")</span></td>
+                            <td class="td-progress" data-label="Progress">
                                 <div class="progress-cell">
                                     <div class="progress-track">
                                         <div class="progress-fill @progressBarClass" style="width: @progressWidth%;"></div>
@@ -210,10 +210,10 @@
                                     <span class="progress-pct">@progressWidth%</span>
                                 </div>
                             </td>
-                            <td>
+                            <td class="td-priority" data-label="Priority">
                                 <span class="badge @priorityBadgeClass">@task.Priority</span>
                             </td>
-                            <td>
+                            <td class="td-status" data-label="Status">
                                 <span class="status-badge @statusBadgeClass">@displayLabel</span>
                                 @if (DTIOneLink.Services.TaskWorkflow.DelayRisk(task.Status, task.Progress, task.CreatedAt, task.DueDate) is { } risk)
                                 {

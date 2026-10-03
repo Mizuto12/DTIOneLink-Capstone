@@ -915,3 +915,72 @@ a.page-btn { text-decoration: none; }
 }
 .review-btn:hover { background: #2b428b; }
 .review-btn .material-symbols-outlined { font-size: 16px; }
+
+/* ── Phones: each task row becomes a card ──────────────────
+   No side-scrolling through seven columns. Cells stack, and each one
+   shows its column name from data-label (_TaskList.cshtml). */
+@media (max-width: 767px) {
+    .task-table,
+    .task-table tbody { display: block; padding: 0; }
+    .task-table thead { display: none; }
+
+    .table-scroll { padding: 0 12px; }
+
+    .task-table tr.task-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px 12px;
+        margin: 0 0 12px;
+        padding: 16px;
+        border: 1px solid rgba(197, 197, 210, 0.4);
+        border-radius: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .task-row:hover { transform: none; }
+
+    .task-row td,
+    .task-row .td-first,
+    .task-row .td-last {
+        display: block;
+        padding: 0;
+        border-radius: 0;
+        text-align: left;
+        min-width: 0;
+    }
+
+    .task-row td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+        font-family: var(--font-ui);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--secondary);
+    }
+
+    /* Full-width rows: who, what, progress, status, buttons. Due date
+       and priority share a row. */
+    .task-row .td-first,
+    .task-row .td-task,
+    .task-row .td-progress,
+    .task-row .td-status,
+    .task-row .td-last { grid-column: 1 / -1; }
+
+    .task-row .td-task .td-muted { font-size: 15px; color: var(--on-surface); font-weight: 600; }
+    .progress-cell { min-width: 0; }
+
+    .task-row .td-last {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(197, 197, 210, 0.3);
+    }
+    .task-row .td-last:not(:has(a)) { display: none; } /* no buttons for this task */
+
+    /* Empty-list message keeps its normal look. */
+    .task-table tbody > tr:not(.task-row) { display: block; }
+    .task-table tbody > tr:not(.task-row) > td { display: block; }
+}
