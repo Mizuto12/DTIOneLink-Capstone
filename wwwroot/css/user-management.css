@@ -157,6 +157,7 @@
 /* ── Two-pane layout ─────────────────────────────────────── */
 /* grid grid-cols-1 gap-6 items-start */
 .um-layout {
+    margin-top: 32px; /* space below the top bar (same as the dashboard) */
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;

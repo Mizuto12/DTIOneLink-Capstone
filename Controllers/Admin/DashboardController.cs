@@ -81,22 +81,29 @@ namespace DTIOneLink.Controllers
             // legacy/primary assignee and undercounts Whole Office work.
             var assignments = await _context.TaskAssignments
                 .AsNoTracking()
-                .Include(a => a.Task)
+                .Include(a => a.Task).ThenInclude(t => t!.ParentTask)
                 .Include(a => a.User)
                 .OrderByDescending(a => a.Task!.CreatedAt)
                 .ToListAsync();
 
             var workItems = assignments.Where(a => a.Task != null && a.User != null)
-                .Select(a => new DashboardAssignmentSummary
+                .Select(a =>
                 {
-                    TaskName = a.Task!.TaskName, AssigneeName = a.User!.FullName,
-                    DueDate = a.Task.DueDate, Progress = a.Progress,
-                    Status = TaskWorkflow.Normalize(a.Status), CreatedAt = a.Task.CreatedAt
+                    var status = TaskWorkflow.Normalize(a.Status);
+                    return new DashboardAssignmentSummary
+                    {
+                        TaskId = a.Task!.Id,
+                        Division = a.Task.OwningDepartment ?? a.Task.ParentTask?.OwningDepartment ?? a.User!.Department ?? string.Empty,
+                        TaskName = a.Task.TaskName, AssigneeName = a.User!.FullName,
+                        DueDate = a.Task.DueDate, Progress = a.Progress,
+                        Status = status, CreatedAt = a.Task.CreatedAt,
+                        IsOverdue = TaskWorkflow.IsOverdue(status, a.Task.DueDate),
+                        IsAtRisk = TaskWorkflow.DelayRisk(status, a.Progress, a.Task.CreatedAt, a.Task.DueDate) is { AtRisk: true },
+                    };
                 }).ToList();
             static bool IsStatus(DashboardAssignmentSummary item, string status) => item.Status == status;
-            static bool IsOverdue(DashboardAssignmentSummary item) => TaskWorkflow.IsOverdue(item.Status, item.DueDate);
-            static bool IsAtRisk(DashboardAssignmentSummary item) =>
-                TaskWorkflow.DelayRisk(item.Status, item.Progress, item.CreatedAt, item.DueDate) is { AtRisk: true };
+            static bool IsOverdue(DashboardAssignmentSummary item) => item.IsOverdue;
+            static bool IsAtRisk(DashboardAssignmentSummary item) => item.IsAtRisk;
 
             var vm = new SuperAdminDashboardViewModel
             {

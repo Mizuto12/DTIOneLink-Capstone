@@ -43,6 +43,11 @@ namespace DTIOneLink.Models
 
     public class DashboardAssignmentSummary
     {
+        public int TaskId { get; set; }
+        // The task's division (its own, else its Main Task's, else the assignee's).
+        public string Division { get; set; } = string.Empty;
+        public bool IsOverdue { get; set; }
+        public bool IsAtRisk { get; set; }
         public string TaskName { get; set; } = string.Empty;
         public string AssigneeName { get; set; } = string.Empty;
         public DateTime DueDate { get; set; }
