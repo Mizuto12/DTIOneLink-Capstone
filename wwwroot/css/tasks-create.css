@@ -473,3 +473,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .spin { animation: spin 0.8s linear infinite; }
 /* Header and footer keep their size; the body scrolls. */
 .modal-header, .modal-footer { flex-shrink: 0; }
+
+/* Phones: the form fills more of the screen; buttons stack, Create on top. */
+@media (max-width: 640px) {
+    .modal-overlay { padding: 8px; }
+    .modal-header { padding: 16px; }
+    .modal-title { font-size: 20px; line-height: 28px; }
+    .modal-body { padding: 16px; }
+    .modal-footer { padding: 12px 16px; flex-direction: column-reverse; }
+    .modal-footer .btn-cancel,
+    .modal-footer .btn-create { width: 100%; justify-content: center; min-height: 48px; }
+}

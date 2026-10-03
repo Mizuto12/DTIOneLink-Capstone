@@ -417,3 +417,11 @@
 .edit-task .et-ca-reassign-label { font-size: 13px; font-weight: 600; }
 .edit-task .et-current-assignee.is-reassigning { background: #fff8e6; border-color: #e0b44a; }
 .edit-task .et-ca-note { margin: 0 0 8px; font-size: 13px; color: #5f6368; }
+
+/* Phones */
+@media (max-width: 640px) {
+    .edit-task .et-panel { padding: 20px; }
+    .edit-task .et-title { font-size: 22px; }
+    .edit-task .et-header-actions { flex-wrap: wrap; width: 100%; }
+    .edit-task .et-header-actions > * { flex: 1 1 140px; justify-content: center; min-height: 44px; }
+}

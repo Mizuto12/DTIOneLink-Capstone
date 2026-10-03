@@ -184,3 +184,10 @@
 .task-review .tr-btn-approve:hover {
     background-color: var(--tr-primary-container);
 }
+/* Phones */
+@media (max-width: 640px) {
+    .task-review .tr-card { padding: 20px; }
+    .task-review .tr-title { font-size: 22px; }
+    .task-review .tr-actions { flex-direction: column-reverse; align-items: stretch; }
+    .task-review .tr-actions > * { width: 100%; justify-content: center; min-height: 44px; }
+}

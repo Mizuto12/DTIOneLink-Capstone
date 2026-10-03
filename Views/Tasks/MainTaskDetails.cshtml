@@ -149,7 +149,7 @@
                                         <br /><span class="td-muted">Took over from @a.ReassignedFrom.FullName</span>
                                     }
                                 </td>
-                                <td>
+                                <td class="td-progress" data-label="Progress">
                                     <div class="progress-cell">
                                         <div class="progress-track">
                                             <div class="progress-fill" style="width: @(a.Progress)%;"></div>
@@ -157,8 +157,8 @@
                                         <span class="progress-pct">@a.Progress%</span>
                                     </div>
                                 </td>
-                                <td><span class="status-badge @StatusBadgeClass(aDisplayStatus)">@aDisplayLabel</span></td>
-                                <td><span class="td-muted">@(a.AssignedBy?.FullName ?? "Unknown")</span></td>
+                                <td class="td-status" data-label="Status"><span class="status-badge @StatusBadgeClass(aDisplayStatus)">@aDisplayLabel</span></td>
+                                <td data-label="Assigned by"><span class="td-muted">@(a.AssignedBy?.FullName ?? "Unknown")</span></td>
                                 @if (isOpd)
                                 {
                                     // Review each person as soon as they submit, without
@@ -220,11 +220,11 @@
                                 ? string.Join(", ", sub.Assignments.Select(a => a.AssignedBy?.FullName ?? "Unknown").Distinct())
                                 : "—";
                             <tr class="task-row">
-                                <td class="td-first">@sub.TaskName</td>
-                                <td><span class="td-muted">@assigneeNames</span></td>
-                                <td><span class="td-muted">@assignedByNames</span></td>
-                                <td><span class="td-date">@sub.DueDate.ToString("MMM dd, yyyy")</span></td>
-                                <td>
+                                <td class="td-first td-task-name">@sub.TaskName</td>
+                                <td class="td-task" data-label="Assignees"><span class="td-muted">@assigneeNames</span></td>
+                                <td data-label="Assigned by"><span class="td-muted">@assignedByNames</span></td>
+                                <td data-label="Due date"><span class="td-date">@sub.DueDate.ToString("MMM dd, yyyy")</span></td>
+                                <td class="td-progress" data-label="Progress">
                                     <div class="progress-cell">
                                         <div class="progress-track">
                                             <div class="progress-fill" style="width: @(sub.Progress)%;"></div>
@@ -232,7 +232,7 @@
                                         <span class="progress-pct">@sub.Progress%</span>
                                     </div>
                                 </td>
-                                <td><span class="status-badge @StatusBadgeClass(subDisplayStatus)">@subDisplayLabel</span></td>
+                                <td class="td-status" data-label="Status"><span class="status-badge @StatusBadgeClass(subDisplayStatus)">@subDisplayLabel</span></td>
                                 <td class="td-last">
                                     <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@sub.Id" class="more-btn" aria-label="Edit subtask">
                                         <span class="material-symbols-outlined">edit</span>
