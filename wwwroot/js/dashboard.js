@@ -6,7 +6,6 @@
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
-  initLedgerFilter();
   initLedgerViewToggle();
   initGanttPaging();
   initCalendar();
@@ -47,19 +46,6 @@ function initGanttPaging() {
 
   pager.hidden = false;
   show();
-}
-
-/**
- * Placeholder hook for the ledger's Filter button.
- */
-function initLedgerFilter() {
-  const filterBtn = document.querySelector(".ledger__header .btn-pill");
-  if (!filterBtn) return;
-
-  filterBtn.addEventListener("click", () => {
-    // TODO: open filter menu / apply filters to the ledger table
-    console.log("Filter clicked — hook up filter UI here.");
-  });
 }
 
 /**
@@ -232,13 +218,7 @@ function initTodoSummaryToggle() {
 
 /**
  * Clicking (or pressing Enter/Space on) a Gantt row or Kanban card opens
- * that task's detail view. Clicks on the Kanban card's "⋯" menu button
- * are excluded so they don't also trigger navigation.
- *
- * Sets cursor:pointer inline rather than in admindashboard.css, since
- * that stylesheet wasn't provided here — move these two rules into
- * admindashboard.css (.gantt-row, .kanban-card { cursor: pointer; })
- * once you've confirmed it there instead.
+ * that task's detail view. (cursor: pointer is set in admindashboard.css.)
  */
 function initTaskNavigation() {
   const clickableRows = document.querySelectorAll(
@@ -246,17 +226,13 @@ function initTaskNavigation() {
   );
 
   clickableRows.forEach((el) => {
-    el.style.cursor = "pointer";
-
-    el.addEventListener("click", (event) => {
-      if (event.target.closest(".kanban-card__more-btn")) return;
+    el.addEventListener("click", () => {
       const href = el.getAttribute("data-href");
       if (href) window.location.href = href;
     });
 
     el.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
-      if (event.target.closest(".kanban-card__more-btn")) return;
       event.preventDefault();
       const href = el.getAttribute("data-href");
       if (href) window.location.href = href;

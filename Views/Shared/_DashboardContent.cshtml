@@ -1,26 +1,18 @@
 @model IEnumerable<DTIOneLink.Models.TaskItem>
 @using System.Linq
+@using DTIOneLink.Services
 @*
     _DashboardContent.cshtml
     ---------------------------------------------------------------------
-    Center column: Global Task Ledger (Gantt / Kanban toggle) + Top
-    Performers. Right sidebar: Calendar, To-do, Announcements.
-
-    Matches the real TaskItem model:
-        TaskName, Description,
-        Priority  -> free text, e.g. "low" | "medium" | "high" (case-insensitive)
-        Status    -> free text, e.g. "pending" | "ongoing"/"in-progress" | "completed" (case-insensitive)
-        CreatedAt (used as the Gantt bar's start), DueDate,
-        Progress  -> 0-100 int
-        Assignee.FullName
+    Admin and Employee dashboard: Task Ledger (Gantt / Kanban toggle) +
+    Top Performers (Admins only).
 
     Pairs with:
         ~/css/admindashboard.css   (styles, incl. Gantt/Kanban blocks)
-        ~/js/dashboard.js          (view toggle, calendar, to-do toggle)
+        ~/js/dashboard.js          (view toggle, Gantt paging, card clicks)
 
     The controller (DashboardController.AdminDashboard) already filters
-    by role/employee and passes the resulting task list straight in as
-    the model, so no controller changes are required to use this partial.
+    by role/employee and passes the resulting task list straight in.
 *@
 @{
     var tasks = Model?.ToList() ?? new List<DTIOneLink.Models.TaskItem>();
@@ -28,50 +20,110 @@
     // ---- Employee view: only their own part of each task ---------------
     // The controller already limits an Employee to tasks they are assigned
     // to. On a shared task they still only see their own name, status and
-    // progress, never a co-assignee's. Admins/SuperAdmin see the whole task.
+    // progress, never a co-assignee's. Admins see the whole task.
     var viewerRole = Context.Session.GetString("UserRole");
     var viewerId = Context.Session.GetInt32("UserId");
     var isEmployeeView = string.Equals(viewerRole, "Employee", StringComparison.OrdinalIgnoreCase);
 
     DTIOneLink.Models.TaskAssignment? MyAssignment(DTIOneLink.Models.TaskItem t) =>
         isEmployeeView ? t.Assignments?.FirstOrDefault(a => a.UserId == viewerId) : null;
-    string? StatusOf(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.Status ?? t.Status;
+    // One of the five workflow statuses. Older free-text values ("ongoing",
+    // "done"...) are mapped by keyword so no task drops off the board.
+    string StatusOf(DTIOneLink.Models.TaskItem t)
+    {
+        var s = TaskWorkflow.Normalize(MyAssignment(t)?.Status ?? t.Status);
+        if (s is TaskWorkflow.Pending or TaskWorkflow.InProgress or TaskWorkflow.ForReview
+            or TaskWorkflow.ReturnedForCorrection or TaskWorkflow.Completed) return s;
+        if (s.Contains("complet") || s == "done") return TaskWorkflow.Completed;
+        if (s.Contains("review")) return TaskWorkflow.ForReview;
+        if (s.Contains("return")) return TaskWorkflow.ReturnedForCorrection;
+        if (s.Contains("progress") || s.Contains("ongoing")) return TaskWorkflow.InProgress;
+        return TaskWorkflow.Pending;
+    }
     int ProgressOf(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.Progress ?? t.Progress;
     string? AssigneeName(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.User?.FullName ?? t.Assignee?.FullName;
 
-    // ---- Status / priority normalization ---------------------------------
-    // Status/Priority are free-text strings in the model (defaults are
-    // lowercase: "pending", "medium"), so match case-insensitively and by
-    // keyword rather than assuming an exact casing/spelling.
-    string NormalizeStatus(string? status) => (status ?? string.Empty).Trim().ToLowerInvariant();
-    string NormalizePriority(string? priority) => (priority ?? string.Empty).Trim().ToLowerInvariant();
+    bool IsCompleted(DTIOneLink.Models.TaskItem t) => StatusOf(t) == TaskWorkflow.Completed;
+    bool IsOverdue(DTIOneLink.Models.TaskItem t) => TaskWorkflow.IsOverdue(StatusOf(t), t.DueDate);
+    bool IsAtRisk(DTIOneLink.Models.TaskItem t) =>
+        TaskWorkflow.DelayRisk(StatusOf(t), ProgressOf(t), t.CreatedAt, t.DueDate) is { AtRisk: true };
 
-    bool IsCompleted(DTIOneLink.Models.TaskItem t) => NormalizeStatus(StatusOf(t)).Contains("complet") || NormalizeStatus(StatusOf(t)) == "done";
-    bool IsInProgress(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && (NormalizeStatus(StatusOf(t)).Contains("progress") || NormalizeStatus(StatusOf(t)).Contains("ongoing"));
-    bool IsTodo(DTIOneLink.Models.TaskItem t) => !IsCompleted(t) && !IsInProgress(t);
+    // ---- Statuses, in the order work moves (Kanban columns + Gantt colors)
+    var statuses = new[]
+    {
+        (Key: TaskWorkflow.Pending,               Label: "To Do",       Tone: "todo",      Empty: "Nothing waiting to start."),
+        (Key: TaskWorkflow.InProgress,            Label: "In Progress", Tone: "progress",  Empty: "Nothing in progress."),
+        (Key: TaskWorkflow.ForReview,             Label: "For Review",  Tone: "review",    Empty: "Nothing waiting for review."),
+        (Key: TaskWorkflow.ReturnedForCorrection, Label: "Returned",    Tone: "returned",  Empty: "Nothing returned."),
+        (Key: TaskWorkflow.Completed,             Label: "Completed",   Tone: "completed", Empty: "Nothing completed yet."),
+    };
+    string ToneOf(DTIOneLink.Models.TaskItem t) => statuses.FirstOrDefault(s => s.Key == StatusOf(t)).Tone ?? "todo";
+    string LabelOf(DTIOneLink.Models.TaskItem t) => statuses.FirstOrDefault(s => s.Key == StatusOf(t)).Label ?? "To Do";
 
     string TitleCase(string? s) => string.IsNullOrWhiteSpace(s) ? "" : char.ToUpper(s.Trim()[0]) + s.Trim().Substring(1).ToLowerInvariant();
 
-    // ---- Gantt timeline scale ------------------------------------------
-    // No explicit StartDate on the model, so CreatedAt -> DueDate is used
-    // as each task's span.
-    var timelineStart = tasks.Any() ? tasks.Min(t => t.CreatedAt) : DateTime.Today;
-    var timelineEnd   = tasks.Any() ? tasks.Max(t => t.DueDate)   : DateTime.Today.AddMonths(3);
-    var totalDays     = Math.Max((timelineEnd - timelineStart).TotalDays, 1);
-    var monthLabels   = Enumerable.Range(0, 3)
-        .Select(i => timelineStart.AddMonths(i).ToString("MMM yyyy"))
+    string PriorityBadgeClass(string? priority) => (priority ?? "").Trim().ToLowerInvariant() switch
+    {
+        "high" => "priority-badge priority-badge--high",
+        "medium" => "priority-badge priority-badge--medium",
+        _ => "priority-badge priority-badge--low"
+    };
+
+    string Initials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "?";
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(p => char.IsLetter(p[0])).ToArray();
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
+            : fullName.Substring(0, Math.Min(2, fullName.Length)).ToUpper();
+    }
+
+    var today = TimeZoneHelper.PhilippineToday;
+    string DueText(DateTime due)
+    {
+        var days = (due.Date - today).Days;
+        return days switch
+        {
+            < -1 => $"{-days} days late",
+            -1 => "1 day late",
+            0 => "Due today",
+            1 => "Due tomorrow",
+            _ => $"Due {due:MMM d}"
+        };
+    }
+
+    // ---- Gantt timeline -------------------------------------------------
+    // No StartDate on the model, so each bar runs from CreatedAt (stored in
+    // UTC) to the end of its DueDate. The scale covers whole months from
+    // the earliest start to the latest due date, always including today.
+    DateTime StartOf(DTIOneLink.Models.TaskItem t) => TimeZoneHelper.ToPhilippineTime(t.CreatedAt).Date;
+
+    var firstDay = tasks.Any() ? tasks.Min(StartOf) : today;
+    var lastDay = tasks.Any() ? tasks.Max(t => t.DueDate.Date) : today;
+    if (today < firstDay) firstDay = today;
+    if (today > lastDay) lastDay = today;
+    var timelineStart = new DateTime(firstDay.Year, firstDay.Month, 1);
+    var timelineEnd = new DateTime(lastDay.Year, lastDay.Month, 1).AddMonths(1); // exclusive
+    var totalDays = Math.Max((timelineEnd - timelineStart).TotalDays, 1);
+
+    var months = new List<(string Label, int Days)>();
+    for (var m = timelineStart; m < timelineEnd; m = m.AddMonths(1))
+    {
+        months.Add((m.ToString("MMM yyyy"), DateTime.DaysInMonth(m.Year, m.Month)));
+    }
+    string Pct(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    var todayPct = Pct(((today - timelineStart).TotalDays + 0.5) / totalDays * 100);
+
+    // Unfinished work first (soonest due on top), completed work last.
+    var ganttTasks = tasks
+        .OrderBy(t => IsCompleted(t))
+        .ThenBy(t => t.DueDate)
         .ToList();
 
-    // ---- Kanban buckets --------------------------------------------------
-    var todoTasks       = tasks.Where(IsTodo).ToList();
-    var inProgressTasks = tasks.Where(IsInProgress).ToList();
-    var completedTasks  = tasks.Where(IsCompleted).ToList();
-
-    // ---- Top performers ----------------------------------------------------
+    // ---- Top performers (Admins only; it ranks co-workers) --------------
     var performerAvatarColors = new[] { "performer-avatar", "performer-avatar--alt", "performer-avatar--secondary" };
     var performerMetricColors = new[] { "performer-metric--tertiary", "performer-metric--primary", "performer-metric--secondary" };
 
-    // Ranks co-workers, so it is not shown to Employees.
     var topPerformers = tasks
         .Where(t => !isEmployeeView && t.Assignee != null)
         .GroupBy(t => t.Assignee)
@@ -81,40 +133,6 @@
         .ThenByDescending(p => p.Total)
         .Take(3)
         .ToList();
-
-    // ---- To-do widget: open tasks, soonest due first ----------------------
-    var dueTasks = tasks
-        .Where(t => !IsCompleted(t))
-        .OrderBy(t => t.DueDate)
-        .Take(5)
-        .ToList();
-
-    string Initials(string? fullName)
-    {
-        if (string.IsNullOrWhiteSpace(fullName)) return "?";
-        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length >= 2
-            ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
-            : fullName.Substring(0, Math.Min(2, fullName.Length)).ToUpper();
-    }
-
-    string GanttBarClass(DTIOneLink.Models.TaskItem t) =>
-        IsCompleted(t) ? "gantt-bar--completed" :
-        IsInProgress(t) ? "gantt-bar--inprogress" :
-        "gantt-bar--todo";
-
-    string GanttBarLabel(DTIOneLink.Models.TaskItem t) =>
-        IsCompleted(t) ? "Complete" :
-        IsInProgress(t) ? "On Going" :
-        "Planned";
-
-    string PriorityBadgeClass(string? priority)
-    {
-        var p = NormalizePriority(priority);
-        if (p == "high") return "priority-badge priority-badge--high";
-        if (p == "medium") return "priority-badge priority-badge--medium";
-        return "priority-badge priority-badge--low";
-    }
 }
 
 <div class="dashboard">
@@ -122,21 +140,21 @@
     <!-- ============================= CENTER COLUMN ============================= -->
     <div class="dashboard__center custom-scrollbar">
 
-        <!-- Global Task Ledger -->
+        <!-- Task Ledger -->
         <section class="ledger">
             <div class="ledger__header">
                 <div class="ledger__title-group">
                     <span class="material-symbols-outlined">task_alt</span>
-                    <h3 class="ledger__title">Global Task Ledger</h3>
-                </div>
-                <div class="ledger__actions">
-                    <div class="ledger__view-switcher" role="tablist" aria-label="Ledger view">
-                        <button type="button" id="btnGanttView" class="view-switch-btn is-active" role="tab" aria-selected="true">Gantt</button>
-                        <button type="button" id="btnKanbanView" class="view-switch-btn" role="tab" aria-selected="false">Kanban</button>
+                    <div>
+                        <h3 class="ledger__title">@(isEmployeeView ? "My Tasks" : "Task Ledger")</h3>
+                        <p class="ledger__sub">
+                            @tasks.Count task@(tasks.Count == 1 ? "" : "s") · Click any task to open it.
+                        </p>
                     </div>
-                    <button type="button" class="btn-pill">
-                        <span class="material-symbols-outlined">filter_list</span> Filter
-                    </button>
+                </div>
+                <div class="ledger__view-switcher" role="tablist" aria-label="Ledger view">
+                    <button type="button" id="btnGanttView" class="view-switch-btn is-active" role="tab" aria-selected="true">Timeline</button>
+                    <button type="button" id="btnKanbanView" class="view-switch-btn" role="tab" aria-selected="false">Board</button>
                 </div>
             </div>
 
@@ -148,42 +166,74 @@
                 }
                 else
                 {
-                    <div class="gantt-header">
-                        <div class="gantt-header__assignee-col">Task / Assignee</div>
-                        <div class="gantt-header__months">
-                            @foreach (var label in monthLabels)
-                            {
-                                <div class="gantt-header__month">@label</div>
-                            }
+                    <div class="gantt-legend" aria-hidden="true">
+                        @foreach (var s in statuses)
+                        {
+                            <span><span class="gantt-legend__swatch tone-@s.Tone"></span>@s.Label</span>
+                        }
+                        <span><span class="gantt-legend__swatch gantt-legend__swatch--overdue"></span>Overdue</span>
+                        <span><span class="gantt-legend__today"></span>Today</span>
+                    </div>
+
+                    <div class="gantt">
+                        <div class="gantt-header">
+                            <div class="gantt-header__task-col">Task</div>
+                            <div class="gantt-header__months">
+                                @foreach (var m in months)
+                                {
+                                    <div class="gantt-header__month" style="flex-grow:@m.Days;">@m.Label</div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="gantt-body">
+                            @* Month gridlines and today's line, drawn behind the bars. *@
+                            <div class="gantt-grid" aria-hidden="true">
+                                @foreach (var m in months)
+                                {
+                                    <div class="gantt-grid__month" style="flex-grow:@m.Days;"></div>
+                                }
+                                <div class="gantt-today" style="left:@todayPct%;"><span>Today</span></div>
+                            </div>
+
+                            <div class="gantt-rows">
+                                @foreach (var task in ganttTasks)
+                                {
+                                    var start = StartOf(task);
+                                    var end = task.DueDate.Date.AddDays(1);
+                                    if (end <= start) end = start.AddDays(1);
+                                    var leftPct = Pct((start - timelineStart).TotalDays / totalDays * 100);
+                                    var widthPct = Pct(Math.Max((end - start).TotalDays / totalDays * 100, 1.5));
+                                    var overdue = IsOverdue(task);
+                                    var progress = ProgressOf(task);
+                                    <div class="gantt-row" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
+                                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                                        <div class="gantt-row__info">
+                                            <div class="avatar-badge">@Initials(AssigneeName(task))</div>
+                                            <div class="gantt-row__text">
+                                                <p class="gantt-row__name" title="@task.TaskName">@task.TaskName</p>
+                                                <p class="gantt-row__meta">
+                                                    <span>@(AssigneeName(task) ?? "Unassigned")</span>
+                                                    <span class="gantt-row__due @(overdue ? "is-late" : "")">
+                                                        @(IsCompleted(task) ? $"Due {task.DueDate:MMM d}" : DueText(task.DueDate))
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="gantt-row__track">
+                                            <div class="gantt-bar tone-@ToneOf(task) @(overdue ? "is-overdue" : "")"
+                                                 style="left:@leftPct%; width:@widthPct%;"
+                                                 title="@LabelOf(task) · @progress% done · @start.ToString("MMM d") – @task.DueDate.ToString("MMM d, yyyy")">
+                                                <div class="gantt-bar__fill" style="width:@progress%;"></div>
+                                                <span class="gantt-bar__label">@(overdue ? "Overdue" : LabelOf(task)) · @progress%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
                         </div>
                     </div>
-                    <div class="gantt-rows">
-                        @foreach (var task in tasks)
-                        {
-                            var leftPct  = Math.Max(0, (task.CreatedAt - timelineStart).TotalDays / totalDays * 100);
-                            var widthPct = Math.Max(4, (task.DueDate - task.CreatedAt).TotalDays / totalDays * 100);
-                            var avatarClass = IsCompleted(task)
-                                ? "avatar-badge avatar-badge--lg"
-                                : "avatar-badge avatar-badge--lg avatar-badge--alt";
-                            <div class="gantt-row" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
-                                 role="link" tabindex="0" aria-label="Open @task.TaskName">
-                                <div class="gantt-row__assignee">
-                                    <div class="@avatarClass">@Initials(AssigneeName(task))</div>
-                                    <div>
-                                        <p class="gantt-row__name">@task.TaskName</p>
-                                        <p class="gantt-row__task">@(AssigneeName(task) ?? "Unassigned")</p>
-                                    </div>
-                                </div>
-                                <div class="gantt-row__track">
-                                    <div class="gantt-bar @GanttBarClass(task)"
-                                         style="left:@leftPct.ToString("0.##")%; width:@widthPct.ToString("0.##")%;"
-                                         title="@GanttBarLabel(task) &middot; @ProgressOf(task)% progress">
-                                        <span>@GanttBarLabel(task)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    </div>
+
                     @* Filled in by dashboard.js — shows 4 tasks per page. *@
                     <div class="gantt-pager" id="ganttPager" hidden>
                         <span class="gantt-pager__info" id="ganttPagerInfo"></span>
@@ -202,106 +252,70 @@
             <!-- Kanban view -->
             <div id="kanbanView" class="ledger__body is-hidden">
                 <div class="kanban-board">
-
-                    <div class="kanban-column">
-                        <div class="kanban-column__header">
-                            <h4 class="kanban-column__title">To Do</h4>
-                            <span class="kanban-column__count">@todoTasks.Count</span>
+                    @foreach (var s in statuses)
+                    {
+                        var columnTasks = tasks.Where(t => StatusOf(t) == s.Key)
+                            .OrderByDescending(IsOverdue)
+                            .ThenBy(t => t.DueDate)
+                            .ToList();
+                        if (s.Key == TaskWorkflow.Completed)
+                        {
+                            columnTasks = columnTasks.OrderByDescending(t => t.DueDate).ToList(); // most recent first
+                        }
+                        <div class="kanban-column tone-@s.Tone">
+                            <div class="kanban-column__header">
+                                <span class="kanban-column__dot"></span>
+                                <h4 class="kanban-column__title">@s.Label</h4>
+                                <span class="kanban-column__count">@columnTasks.Count</span>
+                            </div>
+                            <div class="kanban-column__cards">
+                                @if (!columnTasks.Any())
+                                {
+                                    <p class="kanban-column__empty">@s.Empty</p>
+                                }
+                                @foreach (var task in columnTasks)
+                                {
+                                    var overdue = IsOverdue(task);
+                                    var progress = ProgressOf(task);
+                                    <div class="kanban-card @(overdue ? "is-overdue" : "")" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
+                                         role="link" tabindex="0" aria-label="Open @task.TaskName">
+                                        <div class="kanban-card__top">
+                                            @if (!string.IsNullOrWhiteSpace(task.Priority))
+                                            {
+                                                <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority)</span>
+                                            }
+                                            @if (overdue)
+                                            {
+                                                <span class="kanban-tag kanban-tag--overdue">Overdue</span>
+                                            }
+                                            else if (IsAtRisk(task))
+                                            {
+                                                <span class="kanban-tag kanban-tag--risk">At risk</span>
+                                            }
+                                        </div>
+                                        <h5 class="kanban-card__title">@task.TaskName</h5>
+                                        @if (!string.IsNullOrWhiteSpace(task.Description))
+                                        {
+                                            <p class="kanban-card__desc">@task.Description</p>
+                                        }
+                                        <div class="kanban-card__progress" title="@progress% done">
+                                            <div class="kanban-card__bar"><div style="width:@progress%;"></div></div>
+                                            <span>@progress%</span>
+                                        </div>
+                                        <div class="kanban-card__footer">
+                                            <span class="kanban-card__person">
+                                                <span class="avatar-badge avatar-badge--sm">@Initials(AssigneeName(task))</span>
+                                                <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
+                                            </span>
+                                            <span class="kanban-card__due @(overdue ? "is-late" : "")">
+                                                @(IsCompleted(task) ? $"Due {task.DueDate:MMM d}" : DueText(task.DueDate))
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
                         </div>
-                        <div class="kanban-column__cards">
-                            @if (!todoTasks.Any())
-                            {
-                                <div class="empty-state">Nothing queued.</div>
-                            }
-                            @foreach (var task in todoTasks)
-                            {
-                                <div class="kanban-card" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
-                                     role="link" tabindex="0" aria-label="Open @task.TaskName">
-                                    <div class="kanban-card__top">
-                                        <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority) Priority</span>
-                                        <button type="button" class="kanban-card__more-btn">
-                                            <span class="material-symbols-outlined">more_horiz</span>
-                                        </button>
-                                    </div>
-                                    <h5 class="kanban-card__title">@task.TaskName</h5>
-                                    <p class="kanban-card__desc">@task.Description</p>
-                                    <div class="progress-track">
-                                        <div class="progress-fill" style="width:@ProgressOf(task)%;"></div>
-                                    </div>
-                                    <div class="kanban-card__footer">
-                                        <div class="avatar-badge avatar-badge--alt">@Initials(AssigneeName(task))</div>
-                                        <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="kanban-column">
-                        <div class="kanban-column__header">
-                            <h4 class="kanban-column__title kanban-column__title--inprogress">In Progress</h4>
-                            <span class="kanban-column__count kanban-column__count--inprogress">@inProgressTasks.Count</span>
-                        </div>
-                        <div class="kanban-column__cards">
-                            @if (!inProgressTasks.Any())
-                            {
-                                <div class="empty-state">Nothing in progress.</div>
-                            }
-                            @foreach (var task in inProgressTasks)
-                            {
-                                <div class="kanban-card kanban-card--inprogress" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
-                                     role="link" tabindex="0" aria-label="Open @task.TaskName">
-                                    <div class="kanban-card__top">
-                                        <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority) Priority</span>
-                                        <button type="button" class="kanban-card__more-btn">
-                                            <span class="material-symbols-outlined">more_horiz</span>
-                                        </button>
-                                    </div>
-                                    <h5 class="kanban-card__title">@task.TaskName</h5>
-                                    <p class="kanban-card__desc">@task.Description</p>
-                                    <div class="progress-track">
-                                        <div class="progress-fill" style="width:@ProgressOf(task)%;"></div>
-                                    </div>
-                                    <div class="kanban-card__footer">
-                                        <div class="avatar-badge">@Initials(AssigneeName(task))</div>
-                                        <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="kanban-column">
-                        <div class="kanban-column__header">
-                            <h4 class="kanban-column__title kanban-column__title--completed">Completed</h4>
-                            <span class="kanban-column__count kanban-column__count--completed">@completedTasks.Count</span>
-                        </div>
-                        <div class="kanban-column__cards">
-                            @if (!completedTasks.Any())
-                            {
-                                <div class="empty-state">Nothing completed yet.</div>
-                            }
-                            @foreach (var task in completedTasks)
-                            {
-                                <div class="kanban-card kanban-card--completed" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
-                                     role="link" tabindex="0" aria-label="Open @task.TaskName">
-                                    <div class="kanban-card__top">
-                                        <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority) Priority</span>
-                                        <button type="button" class="kanban-card__more-btn">
-                                            <span class="material-symbols-outlined">more_horiz</span>
-                                        </button>
-                                    </div>
-                                    <h5 class="kanban-card__title kanban-card__title--done">@task.TaskName</h5>
-                                    <p class="kanban-card__desc">@task.Description</p>
-                                    <div class="kanban-card__footer">
-                                        <div class="avatar-badge avatar-badge--alt">@Initials(AssigneeName(task))</div>
-                                        <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-
+                    }
                 </div>
             </div>
         </section>
@@ -334,82 +348,4 @@
         </section>
         }
     </div>
-@* 
-    <!-- ============================= RIGHT SIDEBAR ============================= -->
-    <aside class="dashboard__rightbar custom-scrollbar">
-
-        <!-- Calendar (fully driven by dashboard.js:initCalendar) -->
-        <div class="widget">
-            <div class="widget__header">
-                <div class="widget__title-group">
-                    <span class="material-symbols-outlined">calendar_today</span>
-                    <h4 class="widget__title">Calendar</h4>
-                </div>
-            </div>
-            <div class="calendar-nav">
-                <button type="button" id="calendarPrevBtn" class="calendar-nav__btn">
-                    <span class="material-symbols-outlined">chevron_left</span>
-                </button>
-                <span id="calendarLabel" class="calendar-nav__label"></span>
-                <button type="button" id="calendarNextBtn" class="calendar-nav__btn">
-                    <span class="material-symbols-outlined">chevron_right</span>
-                </button>
-            </div>
-            <div class="calendar-weekdays">
-                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-            </div>
-            <div id="calendarDays" class="calendar-days"><!-- populated by initCalendar() --></div>
-            <button type="button" class="widget__link-btn">Full Calendar</button>
-        </div>
-
-        <!-- To-do: driven by the same task list, using the existing toggle pattern -->
-        <div class="widget">
-            <div class="widget__header">
-                <div class="widget__title-group">
-                    <span class="material-symbols-outlined">check_circle</span>
-                    <h4 class="widget__title">To-do</h4>
-                </div>
-                <button type="button" class="widget__add-btn">
-                    <span class="material-symbols-outlined">add</span>
-                </button>
-            </div>
-
-            @if (!dueTasks.Any())
-            {
-                <div class="empty-state">Nothing due &mdash; you're all caught up.</div>
-            }
-            else
-            {
-                <button type="button" id="todoSummaryToggle" class="todo-summary-toggle">
-                    <span class="material-symbols-outlined">schedule</span>
-                    <span class="todo-summary-text">@dueTasks.Count task@(dueTasks.Count == 1 ? "" : "s") due</span>
-                </button>
-                <div id="todoList" class="todo-sublist" style="display:none;">
-                    @foreach (var task in dueTasks)
-                    {
-                        <div class="todo-subitem">
-                            <span class="todo-item-bullet">&bull;</span>
-                            <span class="todo-item-name">@task.TaskName</span>
-                            <span class="todo-item-badge">@task.DueDate.ToString("MMM d")</span>
-                        </div>
-                    }
-                </div>
-                <button type="button" id="todoSummaryChevron" class="todo-chevron-btn">
-                    <span class="material-symbols-outlined">expand_more</span>
-                </button>
-            }
-        </div>
-
-        <!-- Announcements -->
-        <div class="widget">
-            <div class="widget__header">
-                <div class="widget__title-group">
-                    <span class="material-symbols-outlined">campaign</span>
-                    <h4 class="widget__title">Announcements</h4>
-                </div>
-            </div>
-            <div class="empty-state">No new announcements at this time.</div>
-        </div>
-    </aside>
-    *@
 </div>
