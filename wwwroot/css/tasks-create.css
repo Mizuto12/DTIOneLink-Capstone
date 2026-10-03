@@ -104,21 +104,32 @@
 }
 
 /* ── Modal overlay ───────────────────────────────────────── */
-/* An even dim over the whole screen (top bar and sidebar included), the
-   same as the other dialogs in the app. */
+/* A native modal <dialog>: the browser puts it above everything (top bar
+   and sidebar included) and ::backdrop dims the real Task Management list
+   behind it, the same as the other dialogs in the app. The dialog itself
+   is a transparent full-screen frame that centers the form. */
 .modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 100;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: none;
+    padding: 24px 16px;
+    background: transparent;
+    overflow: hidden;
+}
+.modal-overlay[open] {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px 16px;
-    background: rgba(15, 23, 42, 0.5);
 }
+.modal-overlay::backdrop { background: rgba(15, 23, 42, 0.5); }
 
-/* The page behind doesn't scroll while the form is open. */
-html:has(.modal-overlay) { overflow: hidden; }
+/* The list behind is for show only while the form is open. */
+.task-list-behind { pointer-events: none; user-select: none; }
 
 /* ── Modal box ───────────────────────────────────────────── */
 /* bg-surface-container-lowest w-full max-w-2xl rounded-2xl

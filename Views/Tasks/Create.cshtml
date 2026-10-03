@@ -10,18 +10,19 @@
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
 }
 
-<!-- ── Validation Summary ────────────────────────────── -->
-@if (!ViewData.ModelState.IsValid)
+<!-- ── The real Task Management list, behind the form ───── -->
+@* inert: it can't be clicked or tabbed into while the form is open. *@
+@if (ViewBag.TaskList is DTIOneLink.Models.TaskIndexViewModel taskList)
 {
-    <div class="validation-summary">
-        <span class="material-symbols-outlined">error</span>
-        <div asp-validation-summary="All" class="validation-errors"></div>
+    <div class="task-list-behind" inert aria-hidden="true">
+        <partial name="_TaskList" model="taskList" />
     </div>
 }
 
-<!-- ── Create Task Modal ───────────────────────────────── -->
-<div class="modal-overlay" id="createTaskModal">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+<!-- ── Create Task Modal (native dialog, opened by tasks-create.js) ── -->
+<dialog class="modal-overlay" id="createTaskModal" aria-labelledby="modalTitle"
+        data-close-url="@Url.Action("Index", "Tasks")">
+    <div class="modal">
 
         <!-- Header -->
         <div class="modal-header">
@@ -36,6 +37,13 @@
 
         <!-- Body -->
         <div class="modal-body">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="validation-summary">
+                    <span class="material-symbols-outlined">error</span>
+                    <div asp-validation-summary="All" class="validation-errors"></div>
+                </div>
+            }
             <form id="taskForm" asp-controller="Tasks" asp-action="Create" method="post" novalidate>
                 @Html.AntiForgeryToken()
 
@@ -196,7 +204,7 @@
         </div>
 
     </div>
-</div>
+</dialog>
 
 @section Scripts {
     <script src="~/js/responsible-admin-lookup.js" asp-append-version="true"></script>

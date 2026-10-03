@@ -7,15 +7,22 @@
     var modal    = document.getElementById("createTaskModal");
     var taskForm = document.getElementById("taskForm");
 
+    // A native modal dialog sits above everything (top bar and sidebar
+    // included) and dims the real Task Management list behind it.
+    if (modal && typeof modal.showModal === "function") {
+        modal.showModal();
+    } else if (modal) {
+        modal.setAttribute("open", ""); // very old browsers: shown, not modal
+    }
 
-    // ── Close modal (animate out) ─────────────────────────
+    // ── Close: animate out, then back to Task Management ──
     function closeModal() {
         if (!modal) return;
         var box = modal.querySelector(".modal");
         if (box) box.classList.add("closing");
         setTimeout(function () {
-            modal.style.display = "none";
-        }, 200);
+            window.location.href = modal.dataset.closeUrl || "/Tasks";
+        }, 150);
     }
 
     // ── Submit handler — intercept for loading state ──────
@@ -34,16 +41,26 @@
         });
     }
 
-    // ── Close on overlay click ────────────────────────────
+    // ── Close on a click outside the form ─────────────────
+    // The dialog fills the screen, so a click on it (not on .modal) is a
+    // click on the dimmed area around the form. Only while nothing has been
+    // typed, so a stray click never throws away a half-filled form.
+    // Coming back with errors means the form already holds their entries.
+    var touched = !!document.querySelector("#createTaskModal .validation-summary");
+    if (taskForm) {
+        taskForm.addEventListener("input", function () { touched = true; });
+        taskForm.addEventListener("change", function () { touched = true; });
+    }
     if (modal) {
         modal.addEventListener("click", function (e) {
-            if (e.target === modal) closeModal();
+            if (e.target === modal && !touched) closeModal();
+        });
+
+        // ── Close on Escape (the browser fires "cancel") ──
+        modal.addEventListener("cancel", function (e) {
+            e.preventDefault();
+            closeModal();
         });
     }
-
-    // ── Close on Escape ───────────────────────────────────
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") closeModal();
-    });
 
 })();

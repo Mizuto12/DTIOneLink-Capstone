@@ -49,6 +49,15 @@ namespace DTIOneLink.Controllers
                 return StatusCode(403);
             }
 
+            return View(await BuildIndexModelAsync(q, status, priority, department, employeeId, due, sort, page));
+        }
+
+        // The Task Management list (filters, counts, one page of tasks). Also
+        // shown behind the Create Task form, so it overlays the real list.
+        private async Task<TaskIndexViewModel> BuildIndexModelAsync(
+            string? q, string? status, string? priority, string? department,
+            int? employeeId, string? due, string? sort, int page)
+        {
             var isOfficeWide = IsOfficeWideTaskManager();
             var ownDepartment = CurrentUserDepartment();
             var model = new TaskIndexViewModel
@@ -252,7 +261,7 @@ namespace DTIOneLink.Controllers
                 .AsNoTracking() // read-only list
                 .ToListAsync();
 
-            return View(model);
+            return model;
         }
 
         // GET: /Tasks/ReceivedTasks
@@ -319,6 +328,7 @@ namespace DTIOneLink.Controllers
             await PopulateResponsibleAdminsAsync();
             ViewBag.TargetDepartments = TargetDepartments.All;
             ViewBag.CanCreateMainTask = true;
+            ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
             return View(new TaskCreateViewModel());
         }
 
@@ -372,6 +382,7 @@ namespace DTIOneLink.Controllers
                 await PopulateResponsibleAdminsAsync();
                 ViewBag.TargetDepartments = TargetDepartments.All;
                 ViewBag.CanCreateMainTask = true;
+                ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
                 return View(model);
             }
 
