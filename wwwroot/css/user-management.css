@@ -949,7 +949,9 @@
 .um-btn-reactivate:hover { background: #dcfce7; }
 
 /* Deactivate / Reactivate dialog (#statusDialog) — tone set by data-tone */
-.um-status-dialog { position: relative; width: min(420px, calc(100vw - 32px)); padding: 32px 24px 24px; }
+/* No position here: a modal <dialog> is position: fixed (centered, stays put
+   while the page scrolls), which also anchors the absolute close button. */
+.um-status-dialog { width: min(420px, calc(100vw - 32px)); padding: 32px 24px 24px; }
 .um-status-close { position: absolute; top: 16px; right: 16px; }
 .um-status-heading {
     display: flex;
