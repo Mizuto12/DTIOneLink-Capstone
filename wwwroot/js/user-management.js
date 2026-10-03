@@ -327,6 +327,115 @@
 
 })();
 
+// ── Deactivate / Reactivate dialog ────────────────────────
+// Replaces the browser's alert()/confirm() boxes. Three cases: deactivation
+// refused because of unfinished tasks, confirm deactivate, confirm reactivate.
+(function () {
+    document.addEventListener("DOMContentLoaded", function () {
+        var dialog = document.getElementById("statusDialog");
+        if (!dialog) return;
+
+        var icon = document.getElementById("sdIcon");
+        var title = document.getElementById("sdTitle");
+        var initials = document.getElementById("sdInitials");
+        var userName = document.getElementById("sdUserName");
+        var message = document.getElementById("sdMessage");
+        var points = document.getElementById("sdPoints");
+        var cancelBtn = document.getElementById("sdCancel");
+        var confirmBtn = document.getElementById("sdConfirm");
+        var tasksLink = document.getElementById("sdTasksLink");
+        var pendingForm = null;
+
+        var modes = {
+            blocked: {
+                tone: "warning", icon: "assignment_late", title: "Can't deactivate yet",
+                cancel: "Close", confirm: null
+            },
+            deactivate: {
+                tone: "danger", icon: "person_off", title: "Deactivate this account?",
+                cancel: "Cancel", confirm: "Deactivate account", busy: "Deactivating...",
+                points: [
+                    "They won't be able to sign in.",
+                    "Their past tasks and records are kept.",
+                    "You can reactivate the account anytime."
+                ]
+            },
+            reactivate: {
+                tone: "success", icon: "person_check", title: "Reactivate this account?",
+                cancel: "Cancel", confirm: "Reactivate account", busy: "Reactivating...",
+                points: ["They will be able to sign in again."]
+            }
+        };
+
+        function open(form) {
+            var name = form.dataset.userName || "This person";
+            var openTasks = parseInt(form.dataset.openTasks, 10) || 0;
+            var key = form.dataset.action === "deactivate" && openTasks > 0 ? "blocked" : form.dataset.action;
+            var mode = modes[key];
+            pendingForm = mode.confirm ? form : null;
+
+            dialog.dataset.tone = mode.tone;
+            icon.textContent = mode.icon;
+            title.textContent = mode.title;
+            userName.textContent = name;
+            initials.textContent = name.split(" ").filter(Boolean)
+                .map(function (w) { return w[0]; }).slice(0, 2).join("").toUpperCase();
+
+            if (key === "blocked") {
+                message.textContent = name + " still has " + openTasks + " unfinished task"
+                    + (openTasks === 1 ? "" : "s")
+                    + ". Reassign " + (openTasks === 1 ? "it" : "them")
+                    + " to someone else or wait until " + (openTasks === 1 ? "it's" : "they're")
+                    + " finished, then try again.";
+                message.hidden = false;
+            } else {
+                message.hidden = true;
+            }
+
+            points.textContent = "";
+            (mode.points || []).forEach(function (text) {
+                var li = document.createElement("li");
+                li.textContent = text;
+                points.appendChild(li);
+            });
+            points.hidden = !mode.points;
+
+            cancelBtn.textContent = mode.cancel;
+            confirmBtn.hidden = !mode.confirm;
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = mode.confirm || "";
+            confirmBtn.dataset.busy = mode.busy || "";
+            tasksLink.hidden = key !== "blocked";
+            tasksLink.href = form.dataset.tasksUrl || "#";
+
+            dialog.showModal();
+            (mode.confirm ? cancelBtn : tasksLink).focus();
+        }
+
+        document.querySelectorAll("form.um-status-form").forEach(function (form) {
+            form.addEventListener("submit", function (e) {
+                e.preventDefault();
+                open(form);
+            });
+        });
+
+        // form.submit() skips the submit event, so the dialog doesn't reopen.
+        confirmBtn.addEventListener("click", function () {
+            if (!pendingForm) return;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = confirmBtn.dataset.busy;
+            pendingForm.submit();
+        });
+
+        function closeDialog() { dialog.close(); }
+        cancelBtn.addEventListener("click", closeDialog);
+        document.getElementById("sdClose").addEventListener("click", closeDialog);
+        dialog.addEventListener("click", function (e) {
+            if (e.target === dialog) closeDialog();
+        });
+    });
+})();
+
 // ── Edit Email dialog ─────────────────────────────────────
 (function () {
     document.addEventListener("DOMContentLoaded", function () {

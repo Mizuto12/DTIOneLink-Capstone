@@ -948,6 +948,66 @@
 .um-btn-reactivate { border: 1px solid #0f7a3d; color: #0f7a3d; }
 .um-btn-reactivate:hover { background: #dcfce7; }
 
+/* Deactivate / Reactivate dialog (#statusDialog) — tone set by data-tone */
+.um-status-dialog { width: min(440px, calc(100vw - 32px)); }
+.um-status-heading { display: flex; align-items: center; gap: 12px; }
+.um-status-heading .um-section-title { margin: 0; }
+.um-status-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+.um-status-dialog[data-tone="warning"] .um-status-icon { background: #fff4d6; color: #b27b00; }
+.um-status-dialog[data-tone="danger"]  .um-status-icon { background: var(--error-container); color: var(--error); }
+.um-status-dialog[data-tone="success"] .um-status-icon { background: #dcfce7; color: #0f7a3d; }
+
+.um-status-dialog .um-dialog-person { margin: 16px 0; }
+.um-status-dialog .um-dialog-person .um-dialog-name { margin: 0; }
+
+.um-status-message {
+    margin: 0 0 20px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff4d6;
+    color: #5c4300;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.um-status-points {
+    margin: 0 0 20px;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+}
+.um-status-points li {
+    position: relative;
+    padding-left: 28px;
+    font-size: 14px;
+    color: var(--on-surface-variant);
+    line-height: 1.4;
+}
+.um-status-points li::before {
+    content: "check";
+    font-family: "Material Symbols Outlined";
+    position: absolute;
+    left: 0;
+    top: -1px;
+    font-size: 18px;
+    color: var(--secondary);
+}
+
+.um-status-dialog .um-dialog-actions .um-btn-cancel { flex: 0 0 110px; }
+.um-status-dialog .um-dialog-actions .um-btn-save { flex: 1; text-decoration: none; }
+.um-status-dialog[data-tone="danger"]  #sdConfirm { background: var(--error); }
+.um-status-dialog[data-tone="danger"]  #sdConfirm:hover { box-shadow: 0 8px 24px rgba(186, 26, 26, 0.25); }
+.um-status-dialog[data-tone="success"] #sdConfirm { background: #0f7a3d; }
+.um-status-dialog[data-tone="success"] #sdConfirm:hover { box-shadow: 0 8px 24px rgba(15, 122, 61, 0.25); }
+
 /* ── Reset Password / Edit Email ─────────────────────────── */
 .um-btn-neutral { border: 1px solid var(--primary); color: var(--primary); }
 .um-btn-neutral:hover { background: var(--surface-container); }

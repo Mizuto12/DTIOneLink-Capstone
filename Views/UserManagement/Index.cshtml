@@ -249,17 +249,14 @@
                                             }
                                             @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
                                             {
-                                                var confirmText = isActive
-                                                    ? $"Deactivate {user.FullName}'s account? They will no longer be able to sign in."
-                                                      + " Their past tasks and records are kept, and you can reactivate the account later."
-                                                    : $"Reactivate {user.FullName}'s account? They will be able to sign in again.";
-                                                // Deactivation is refused while they still have unfinished work.
-                                                var blockedText = isActive && userOpen > 0
-                                                    ? $"{user.FullName}'s account can't be deactivated yet. They still have {userOpen} unfinished task(s). Reassign or finish them first."
-                                                    : null;
+                                                @* Confirmed in #statusDialog (user-management.js). Deactivation
+                                                   is refused while they still have unfinished work. *@
                                                 <form asp-controller="UserManagement" asp-action="SetActive" method="post"
-                                                      data-confirm="@confirmText" data-blocked="@blockedText"
-                                                      onsubmit="if (this.dataset.blocked) { alert(this.dataset.blocked); return false; } return confirm(this.dataset.confirm);">
+                                                      class="um-status-form"
+                                                      data-action="@(isActive ? "deactivate" : "reactivate")"
+                                                      data-user-name="@user.FullName"
+                                                      data-open-tasks="@userOpen"
+                                                      data-tasks-url="@Url.Action("Index", "Tasks", new { employeeId = user.Id })">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@user.Id" />
                                                     <input type="hidden" name="active" value="@(isActive ? "false" : "true")" />
@@ -407,6 +404,36 @@
             <button type="submit" class="um-btn-save" id="eeSave">Save email</button>
         </div>
     </form>
+</dialog>
+
+<!-- Deactivate / Reactivate confirmation (and "can't deactivate yet") -->
+<dialog id="statusDialog" class="um-dialog um-status-dialog" aria-labelledby="sdTitle" aria-describedby="sdMessage">
+    <div class="um-dialog-head">
+        <div class="um-status-heading">
+            <span class="um-status-icon material-symbols-outlined" id="sdIcon" aria-hidden="true"></span>
+            <h3 class="um-section-title" id="sdTitle"></h3>
+        </div>
+        <button type="button" class="um-dialog-close" id="sdClose" aria-label="Close">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+
+    <div class="um-dialog-person">
+        <div class="um-avatar um-av-blue" id="sdInitials"></div>
+        <p class="um-dialog-name" id="sdUserName"></p>
+    </div>
+
+    <p class="um-status-message" id="sdMessage"></p>
+    <ul class="um-status-points" id="sdPoints"></ul>
+
+    <div class="um-dialog-actions">
+        <button type="button" class="um-btn-cancel" id="sdCancel">Cancel</button>
+        <button type="button" class="um-btn-save" id="sdConfirm"></button>
+        <a class="um-btn-save" id="sdTasksLink" href="#">
+            <span class="material-symbols-outlined">assignment</span>
+            View their tasks
+        </a>
+    </div>
 </dialog>
 
 @section Scripts {
