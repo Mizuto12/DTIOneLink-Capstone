@@ -23,47 +23,6 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
 
     public static readonly string[] Roles = { "SuperAdmin", "Admin", "Employee" };
 
-    // POST: /UserManagement/TestEmail — Super Admin only. Sends one test
-    // email to the signed-in Super Admin and shows exactly what Brevo said,
-    // so a broken email setup can be diagnosed without server logs.
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> TestEmail([FromServices] DTIOneLink.Services.Email.IEmailSender sender)
-    {
-        if (HttpContext.Session.GetString("UserRole") != "SuperAdmin")
-        {
-            return StatusCode(403);
-        }
-
-        var to = HttpContext.Session.GetString("UserEmail");
-        if (string.IsNullOrWhiteSpace(to))
-        {
-            TempData["DirectoryError"] = "Your account has no email address to send the test to.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var sentAt = TimeZoneHelper.ToPhilippineTime(DateTime.UtcNow).ToString("MMM d, yyyy h:mm tt");
-        var message = new DTIOneLink.Services.Email.EmailMessage(
-            to,
-            HttpContext.Session.GetString("FullName") ?? "",
-            "DTI OneLink test email",
-            $"This is a test email from DTI OneLink, sent {sentAt}. If you can read this, emails (including verification codes) are being sent.",
-            $"<p>This is a test email from DTI OneLink, sent {System.Net.WebUtility.HtmlEncode(sentAt)}.</p><p>If you can read this, emails (including verification codes) are being sent.</p>");
-
-        var (result, detail) = await sender.SendWithDetailAsync(message, HttpContext.RequestAborted);
-        logger.LogInformation("Test email requested by a Super Admin: {Result}.", result);
-
-        if (result == DTIOneLink.Services.Email.EmailSendResult.Sent)
-        {
-            TempData["DirectoryMessage"] = $"Test email sent to {to}. {detail} If it doesn't arrive in a few minutes (check Spam too), look in Brevo under Transactional → Logs.";
-        }
-        else
-        {
-            TempData["DirectoryError"] = $"Test email NOT sent ({result}). {detail}";
-        }
-        return RedirectToAction(nameof(Index));
-    }
-
     public async Task<IActionResult> Index()
     {
         var users = new List<UserItem>();

@@ -135,22 +135,9 @@
                 <span class="material-symbols-outlined">groups</span>
                 <h3 class="um-section-title">All Accounts</h3>
             </div>
-            <div class="um-header-tools">
-                @if (canChangeStanding)
-                {
-                    @* Sends one email to you and shows Brevo's answer (UserManagementController.TestEmail). *@
-                    <form asp-controller="UserManagement" asp-action="TestEmail" method="post" class="um-test-email-form">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="um-btn-status um-btn-neutral" title="Send a test email to yourself to check that emails are working">
-                            <span class="material-symbols-outlined">mail</span>
-                            Send test email
-                        </button>
-                    </form>
-                }
-                <div class="um-total-badge">
-                    <span class="um-total-label">Total:</span>
-                    <span class="um-total-count" id="totalUsersCount">@(Model?.Count() ?? 0) Users</span>
-                </div>
+            <div class="um-total-badge">
+                <span class="um-total-label">Total:</span>
+                <span class="um-total-count" id="totalUsersCount">@(Model?.Count() ?? 0) Users</span>
             </div>
         </div>
 

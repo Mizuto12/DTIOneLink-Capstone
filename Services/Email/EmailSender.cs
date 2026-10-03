@@ -21,11 +21,6 @@ namespace DTIOneLink.Services.Email
     public interface IEmailSender
     {
         Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default);
-
-        // Same as SendAsync, plus a plain description of what happened
-        // (Brevo's own error text on failure). Used by the SuperAdmin
-        // "Send test email" check in User Management.
-        Task<(EmailSendResult Result, string Detail)> SendWithDetailAsync(EmailMessage message, CancellationToken cancellationToken = default);
     }
 
     // Settings section "Brevo". The API key is never stored in the project:
@@ -56,10 +51,7 @@ namespace DTIOneLink.Services.Email
             _logger = logger;
         }
 
-        public async Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default) =>
-            (await SendWithDetailAsync(message, cancellationToken)).Result;
-
-        public async Task<(EmailSendResult Result, string Detail)> SendWithDetailAsync(EmailMessage message, CancellationToken cancellationToken = default)
+        public async Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
         {
             object recipient = string.IsNullOrWhiteSpace(message.ToName)
                 ? new { email = message.ToEmail }
@@ -89,36 +81,35 @@ namespace DTIOneLink.Services.Email
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "Could not reach Brevo to send \"{Subject}\".", message.Subject);
-                return (EmailSendResult.TemporaryFailure, "The server could not reach Brevo: " + ex.Message);
+                return EmailSendResult.TemporaryFailure;
             }
 
             using (response)
             {
                 if (response.IsSuccessStatusCode)
                 {
-                    return (EmailSendResult.Sent, $"Brevo accepted the email ({(int)response.StatusCode}).");
+                    return EmailSendResult.Sent;
                 }
 
                 // Brevo's error body describes the problem; it never contains the key.
                 var detail = await response.Content.ReadAsStringAsync(cancellationToken);
                 if (detail.Length > 300) detail = detail[..300];
 
-                var said = $"Brevo answered {(int)response.StatusCode}: {detail}";
                 switch (response.StatusCode)
                 {
                     case HttpStatusCode.Unauthorized:
                     case HttpStatusCode.Forbidden:
                         _logger.LogError("Brevo refused the API key ({Status}): {Detail}", (int)response.StatusCode, detail);
-                        return (EmailSendResult.NotConfigured, said);
+                        return EmailSendResult.NotConfigured;
                     case HttpStatusCode.TooManyRequests:
                         _logger.LogWarning("Brevo rate limit reached: {Detail}", detail);
-                        return (EmailSendResult.TemporaryFailure, said);
+                        return EmailSendResult.TemporaryFailure;
                     case >= HttpStatusCode.InternalServerError:
                         _logger.LogWarning("Brevo error {Status}: {Detail}", (int)response.StatusCode, detail);
-                        return (EmailSendResult.TemporaryFailure, said);
+                        return EmailSendResult.TemporaryFailure;
                     default:
                         _logger.LogError("Brevo rejected \"{Subject}\" ({Status}): {Detail}", message.Subject, (int)response.StatusCode, detail);
-                        return (EmailSendResult.Rejected, said);
+                        return EmailSendResult.Rejected;
                 }
             }
         }
@@ -150,14 +141,6 @@ namespace DTIOneLink.Services.Email
 
             _logger.LogError("Brevo is not configured (Brevo:ApiKey / Brevo:SenderEmail). Email \"{Subject}\" was not sent.", message.Subject);
             return Task.FromResult(EmailSendResult.NotConfigured);
-        }
-
-        public async Task<(EmailSendResult Result, string Detail)> SendWithDetailAsync(EmailMessage message, CancellationToken cancellationToken = default)
-        {
-            var result = await SendAsync(message, cancellationToken);
-            return (result, result == EmailSendResult.Sent
-                ? "Development: the email was printed to the console instead of being sent."
-                : "The server has no Brevo API key or sender email set (Brevo:ApiKey / Brevo:SenderEmail), so nothing is sent.");
         }
     }
 }

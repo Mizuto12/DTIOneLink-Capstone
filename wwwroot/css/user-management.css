@@ -1089,8 +1089,3 @@
     .um-dialog-actions { flex-direction: column-reverse; }
     .um-dialog-actions .um-btn-cancel { flex: none !important; width: 100%; }
 }
-
-/* Header: Send test email + Total badge */
-.um-header-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.um-test-email-form { margin: 0; }
-
