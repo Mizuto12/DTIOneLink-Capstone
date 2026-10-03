@@ -193,9 +193,23 @@ app.Use(async (context, next) =>
 
 app.UseAuthorization();
 
+// "/" opens the login page; "/Records", "/Tasks" etc. open that page's
+// Index. (Before, every controller defaulted to a Login action, so
+// "/Records" was a 404.)
+app.MapControllerRoute(
+    name: "login",
+    pattern: "",
+    defaults: new { controller = "Account", action = "Login" });
+
+// "/Account" has no Index page; keep it opening the login page as before.
+app.MapControllerRoute(
+    name: "account",
+    pattern: "Account",
+    defaults: new { controller = "Account", action = "Login" });
+
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Account}/{action=Login}/{id?}");
+    pattern: "{controller}/{action=Index}/{id?}");
 
 // After UseSession, so the hub can see who is signed in.
 app.MapHub<LiveHub>("/hubs/live");

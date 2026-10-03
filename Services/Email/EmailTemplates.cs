@@ -60,12 +60,6 @@ namespace DTIOneLink.Services.Email
         // is set.
         public static EmailMessage Notification(string toEmail, string toName, string subject, string message, string? link, string? baseUrl)
         {
-            // The default route makes "/Records" look for a Login action, so a
-            // controller-only link gets "/Index" added.
-            if (!string.IsNullOrWhiteSpace(link) && link.StartsWith('/') && link.Count(c => c == '/') == 1)
-            {
-                link += "/Index";
-            }
             var url = !string.IsNullOrWhiteSpace(link) && !string.IsNullOrWhiteSpace(baseUrl) && link.StartsWith('/')
                 ? baseUrl.TrimEnd('/') + link
                 : null;
