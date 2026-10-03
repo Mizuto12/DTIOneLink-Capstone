@@ -11,12 +11,10 @@ namespace DTIOneLink.Controllers
     public class DashboardController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly RecordsSummaryService _recordsSummary;
 
-        public DashboardController(AppDbContext context, RecordsSummaryService recordsSummary)
+        public DashboardController(AppDbContext context)
         {
             _context = context;
-            _recordsSummary = recordsSummary;
         }
 
         [HttpGet]
@@ -71,27 +69,6 @@ namespace DTIOneLink.Controllers
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
-
-            // Records Overview card: office totals for SuperAdmin, department
-            // totals for Admin/Supervisor, nothing for Employees (or an Admin
-            // with no department, who has no department to total).
-            var userDepartment = HttpContext.Session.GetString("UserDepartment");
-            if (isOfficeWide)
-            {
-                ViewData["RecordsOverview"] = new RecordsOverviewViewModel
-                {
-                    ScopeLabel = "Whole office",
-                    Summary = await _recordsSummary.OfficeWideAsync()
-                };
-            }
-            else if (isDepartmentElevated && !string.IsNullOrWhiteSpace(userDepartment))
-            {
-                ViewData["RecordsOverview"] = new RecordsOverviewViewModel
-                {
-                    ScopeLabel = userDepartment.Trim(),
-                    Summary = await _recordsSummary.ForDepartmentAsync(userDepartment)
-                };
-            }
 
             return View(tasks);
         }
@@ -155,12 +132,6 @@ namespace DTIOneLink.Controllers
                 })
                 .OrderByDescending(w => w.TotalAssigned)
                 .ToList();
-
-            vm.RecordsOverview = new RecordsOverviewViewModel
-            {
-                ScopeLabel = "Whole office",
-                Summary = await _recordsSummary.OfficeWideAsync()
-            };
 
             // Explicit path: the view lives at Views/SuperAdmin.cshtml, not the
             // conventional Views/Dashboard/SuperAdminDashboard.cshtml location.

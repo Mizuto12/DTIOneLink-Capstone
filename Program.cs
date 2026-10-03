@@ -23,7 +23,6 @@ builder.Services.AddHostedService<RecurringTaskService>();
 builder.Services.AddHostedService<TaskReminderService>();
 builder.Services.AddScoped<RecordRetentionReminder>();
 builder.Services.AddHostedService<RecordRetentionReminderService>();
-builder.Services.AddScoped<RecordsSummaryService>();
 
 // ── Live updates (SignalR) ──────────────────────────────────
 // Open pages listen on /hubs/live; LiveChangeBroadcaster pushes a change
