@@ -55,3 +55,14 @@
 .task-proof .btn-secondary {
     background: #eff4ff; color: var(--tp-primary); border: 1px solid var(--tp-outline-variant);
 }
+/* ---- Phones ---------------------------------------------------------- */
+@media (max-width: 640px) {
+    .task-proof .tp-panel { padding: 20px; gap: 20px; }
+    .task-proof .tp-title { font-size: 20px; }
+    .task-proof .tp-breadcrumb { flex-wrap: wrap; }
+    .task-proof input[type="file"], .task-proof textarea { width: 100%; }
+
+    /* Buttons fill the width and are easy to tap; Submit sits on top. */
+    .task-proof .tp-actions { flex-direction: column-reverse; }
+    .task-proof .tp-actions .btn { justify-content: center; min-height: 44px; }
+}

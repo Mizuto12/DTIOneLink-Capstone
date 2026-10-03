@@ -237,3 +237,20 @@ body {
     color: #ffffff;
 }
 .task-update .btn-primary:hover { background-color: #16265e; }
+/* ---- Phones ---------------------------------------------------------- */
+@media (max-width: 640px) {
+    .task-update .tu-panel { padding: 20px; gap: 22px; }
+    .task-update .tu-title { font-size: 22px; }
+    .task-update .tu-locked-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+    /* Buttons fill the width and are easy to tap; Save sits on top. */
+    .task-update .tu-actions { flex-direction: column-reverse; }
+    .task-update .tu-actions .btn { justify-content: center; min-height: 44px; }
+
+    /* A taller slider is easier to drag with a thumb. */
+    .task-update input[type="range"] { height: 32px; }
+}
+
+@media (max-width: 380px) {
+    .task-update .tu-locked-grid { grid-template-columns: 1fr; }
+}

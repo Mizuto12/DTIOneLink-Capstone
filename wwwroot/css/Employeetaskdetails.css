@@ -758,3 +758,26 @@ body{
     background-color: var(--td-error-container);
     color: var(--td-on-error-container);
 }
+
+/* --------------------------------------------------------------------
+   Tablets and phones
+   -------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+    /* One column: the overview card just follows the task, no sticking. */
+    .task-details .td-sidebar { position: static; }
+}
+
+@media (max-width: 640px) {
+    .task-details .td-panel   { padding: 20px; gap: 24px; }
+    .task-details .td-sidebar { padding: 20px; }
+    .task-details .td-title   { font-size: 22px; }
+    .task-details .td-breadcrumb { flex-wrap: wrap; }
+
+    /* Buttons fill the width and are easy to tap. */
+    .task-details .td-actions { flex-wrap: wrap; margin-top: 8px; }
+    .task-details .td-actions .btn { flex: 1 1 100%; justify-content: center; min-height: 44px; }
+
+    /* Long values (names, dates) wrap instead of pushing the label off. */
+    .task-details .td-overview-list > div { align-items: flex-start; }
+    .task-details .td-overview-list dd    { overflow-wrap: anywhere; }
+}
