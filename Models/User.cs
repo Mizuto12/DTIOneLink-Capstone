@@ -41,6 +41,13 @@ namespace DTIOneLink.Models
         public int FailedLoginCount { get; set; }
         public DateTime? LockoutEndUtc { get; set; }
 
+        // Sign-in status shown in User Management (all UTC; null = never, since
+        // recording started). Signed in = they logged in after their last
+        // Sign Out and the app heard from them within the session timeout.
+        public DateTime? LastLoginAtUtc { get; set; }   // finished signing in
+        public DateTime? LastLogoutAtUtc { get; set; }  // pressed Sign Out
+        public DateTime? LastSeenAtUtc { get; set; }    // last page load (Program.cs, at most once a minute)
+
         // Changes whenever the password (or email) changes. Every signed-in
         // session holds the value it started with; Program.cs signs out any
         // session whose value no longer matches.

@@ -157,7 +157,7 @@ app.Use(async (context, next) =>
         var db = context.RequestServices.GetRequiredService<AppDbContext>();
         var current = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId.Value)
-            .Select(u => new { u.Role, u.Department, u.IsActive, u.SecurityStamp })
+            .Select(u => new { u.Role, u.Department, u.IsActive, u.SecurityStamp, u.LastSeenAtUtc })
             .FirstOrDefaultAsync();
 
         if (current == null || !current.IsActive
@@ -171,6 +171,16 @@ app.Use(async (context, next) =>
                 context.Session.SetString("UserRole", current.Role);
             if (context.Session.GetString("UserDepartment") != (current.Department ?? string.Empty))
                 context.Session.SetString("UserDepartment", current.Department ?? string.Empty);
+
+            // "Signed in" status in User Management. Written at most once a
+            // minute; an open tab checks notifications every minute, so it
+            // stays fresh while the session is alive.
+            var now = DateTime.UtcNow;
+            if (current.LastSeenAtUtc == null || now - current.LastSeenAtUtc.Value > TimeSpan.FromMinutes(1))
+            {
+                await db.Users.Where(u => u.Id == userId.Value)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastSeenAtUtc, now));
+            }
         }
     }
 

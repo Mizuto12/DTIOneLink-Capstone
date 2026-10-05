@@ -26,7 +26,7 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
     public async Task<IActionResult> Index()
     {
         var users = new List<UserItem>();
-        const string sql = "SELECT Id, FullName, Username, Email, Department, Role, IsActive FROM dbo.Users ORDER BY FullName";
+        const string sql = "SELECT Id, FullName, Username, Email, Department, Role, IsActive, LastLoginAtUtc, LastLogoutAtUtc, LastSeenAtUtc FROM dbo.Users ORDER BY FullName";
 
         using var conn = db.GetConnection();
         await conn.OpenAsync();
@@ -42,7 +42,10 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
                 Email = reader.IsDBNull(3) ? "" : reader.GetString(3),
                 Department = reader.IsDBNull(4) ? "" : reader.GetString(4),
                 Role = reader.GetString(5),
-                Status = reader.GetBoolean(6) ? "active" : "disabled"
+                Status = reader.GetBoolean(6) ? "active" : "disabled",
+                LastLoginAtUtc = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                LastLogoutAtUtc = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                LastSeenAtUtc = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
             });
         }
         await reader.CloseAsync();
