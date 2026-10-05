@@ -10,7 +10,7 @@ namespace DTIOneLink.Controllers
 {
     public class ReportsController : Controller
     {
-        // Newest audit-log entries returned (keeps the page quick).
+        // Newest task-history entries returned (keeps the page quick).
         private const int AuditLogLimit = 200;
 
         private readonly AppDbContext _context;
@@ -134,7 +134,7 @@ namespace DTIOneLink.Controllers
                     SortAt: t.LastActivity ?? t.CreatedAt));
             }
 
-            // ── Audit logs: task history on the tasks above ──────────
+            // ── Task history on the tasks above ──────────────────────
             var taskIds = tasks.Select(t => t.Id).ToList();
             var activities = await _context.TaskActivities
                 .AsNoTracking()
@@ -166,7 +166,7 @@ namespace DTIOneLink.Controllers
                     Icon: "history",
                     Tone: "primary-container",
                     Time: TimeAgo(a.OccurredAt, now),
-                    Category: "Audit Logs",
+                    Category: "Task History",
                     SortAt: a.OccurredAt));
             }
 

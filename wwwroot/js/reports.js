@@ -176,7 +176,7 @@
   // ---------- Public API for wiring real data in later ----------
   // Example: ReportsPage.addReport({ id: '45821-B', title: 'Business Registration Report',
   //   owner: 'Lao, Chandrei Emerson V.', tag: 'Processing', badge: null,
-  //   icon: 'schedule', tone: 'primary', time: '2 hours ago', category: 'Audit Logs' });
+  //   icon: 'schedule', tone: 'primary', time: '2 hours ago', category: 'Task History' });
   window.ReportsPage = {
     addReport(report) {
       reports.push(report);
