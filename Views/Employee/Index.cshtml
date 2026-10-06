@@ -1,16 +1,282 @@
 @model IEnumerable<DTIOneLink.Models.TaskItem>
+@using DTIOneLink.Services
 @{
     Layout = "~/Views/Employee/employeelayout.cshtml";
     ViewData["Title"] = "Dashboard";
     ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
+
+    // Employee workspace (Canva pages 1–2): To Do and In Progress boards, a
+    // calendar preview that opens into a full calendar, and "My progress".
+    // The task list comes from EmployeeController.Index (only tasks this
+    // person is assigned to). On a shared task they see only their own
+    // status and progress, never a co-assignee's.
+    var tasks = Model?.ToList() ?? new List<DTIOneLink.Models.TaskItem>();
+    var viewerId = Context.Session.GetInt32("UserId");
+    var today = TimeZoneHelper.PhilippineToday;
+
+    DTIOneLink.Models.TaskAssignment? Mine(DTIOneLink.Models.TaskItem t) =>
+        t.Assignments?.FirstOrDefault(a => a.UserId == viewerId);
+
+    // One of the five workflow statuses (older free-text values mapped by keyword).
+    string StatusOf(DTIOneLink.Models.TaskItem t)
+    {
+        var s = TaskWorkflow.Normalize(Mine(t)?.Status ?? t.Status);
+        if (s is TaskWorkflow.Pending or TaskWorkflow.InProgress or TaskWorkflow.ForReview
+            or TaskWorkflow.ReturnedForCorrection or TaskWorkflow.Completed) return s;
+        if (s.Contains("complet") || s == "done") return TaskWorkflow.Completed;
+        if (s.Contains("review")) return TaskWorkflow.ForReview;
+        if (s.Contains("return")) return TaskWorkflow.ReturnedForCorrection;
+        if (s.Contains("progress") || s.Contains("ongoing")) return TaskWorkflow.InProgress;
+        return TaskWorkflow.Pending;
+    }
+    int ProgressOf(DTIOneLink.Models.TaskItem t) => Mine(t)?.Progress ?? t.Progress;
+    string? PersonOf(DTIOneLink.Models.TaskItem t) => Mine(t)?.User?.FullName ?? t.Assignee?.FullName;
+    bool IsOverdue(DTIOneLink.Models.TaskItem t) => TaskWorkflow.IsOverdue(StatusOf(t), t.DueDate);
+    bool IsAtRisk(DTIOneLink.Models.TaskItem t) =>
+        TaskWorkflow.DelayRisk(StatusOf(t), ProgressOf(t), t.CreatedAt, t.DueDate) is { AtRisk: true };
+
+    var statusInfo = new Dictionary<string, (string Label, string Tone)>
+    {
+        [TaskWorkflow.Pending] = ("To Do", "todo"),
+        [TaskWorkflow.InProgress] = ("In Progress", "progress"),
+        [TaskWorkflow.ForReview] = ("For Review", "review"),
+        [TaskWorkflow.ReturnedForCorrection] = ("Returned", "returned"),
+        [TaskWorkflow.Completed] = ("Completed", "completed"),
+    };
+
+    var divisionShort = new Dictionary<string, string>
+    {
+        ["Business Development Division"] = "BDD",
+        ["Consumer Protection Division"] = "CPD",
+        ["Financial and Administrative Unit"] = "FAU",
+        ["Office of the Provincial Director"] = "OPD",
+    };
+    string? DivisionOf(DTIOneLink.Models.TaskItem t)
+    {
+        var dept = t.OwningDepartment ?? t.ParentTask?.OwningDepartment;
+        return dept != null && divisionShort.TryGetValue(dept, out var s) ? s : null;
+    }
+
+    string TitleCase(string? s) => string.IsNullOrWhiteSpace(s) ? "" : char.ToUpper(s.Trim()[0]) + s.Trim().Substring(1).ToLowerInvariant();
+
+    string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(p => char.IsLetter(p[0])).ToArray();
+        return parts.Length >= 2 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : name.Substring(0, Math.Min(2, name.Length)).ToUpper();
+    }
+
+    string DueText(DateTime due)
+    {
+        var days = (due.Date - today).Days;
+        return days switch
+        {
+            < -1 => $"{-days} days late",
+            -1 => "1 day late",
+            0 => "Due today",
+            1 => "Due tomorrow",
+            _ => $"Due {due:MMM d}"
+        };
+    }
+
+    // Boards shown on the dashboard (the full five-status board is Task Management).
+    var boards = new[]
+    {
+        (Key: TaskWorkflow.Pending,    Empty: "Nothing waiting to start."),
+        (Key: TaskWorkflow.InProgress, Empty: "Nothing in progress."),
+    };
+
+    // My progress (the employee's own numbers only).
+    var total = tasks.Count;
+    var completed = tasks.Count(t => StatusOf(t) == TaskWorkflow.Completed);
+    var completedPct = total > 0 ? (int)Math.Round(completed * 100.0 / total) : 0;
+    var progressStats = new[]
+    {
+        (Label: "In Progress", Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.InProgress), Tone: "progress"),
+        (Label: "For Review",  Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.ForReview), Tone: "review"),
+        (Label: "Returned",    Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.ReturnedForCorrection), Tone: "returned"),
+        (Label: "Overdue",     Value: tasks.Count(IsOverdue), Tone: "overdue"),
+    };
+
+    // Calendar data: real tasks only, with just what the calendar panel shows.
+    var calendarItems = tasks.Select(t =>
+    {
+        var status = StatusOf(t);
+        var info = statusInfo[status];
+        var assignedUtc = Mine(t)?.AssignedAt ?? t.CreatedAt;
+        return new
+        {
+            id = t.Id,
+            title = t.ParentTask?.TaskName ?? t.TaskName,
+            subtask = t.ParentTask != null ? t.TaskName : null,
+            due = t.DueDate.ToString("yyyy-MM-dd"),
+            assigned = TimeZoneHelper.ToPhilippineTime(assignedUtc).ToString("yyyy-MM-dd"),
+            status = info.Label,
+            tone = IsOverdue(t) ? "overdue" : info.Tone,
+            overdue = IsOverdue(t),
+            priority = TitleCase(t.Priority),
+            priorityKey = (t.Priority ?? "").Trim().ToLowerInvariant(),
+            progress = ProgressOf(t),
+            url = Url.Action("Details", "Dashboard", new { id = t.Id })
+        };
+    }).ToList();
+    var calendarJson = System.Text.Json.JsonSerializer.Serialize(calendarItems);
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/admindashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/employee-dashboard.css" asp-append-version="true" />
 }
 
-<partial name="_DashboardContent" model="Model" />
+<div class="ed" id="employeeDashboard" data-today="@today.ToString("yyyy-MM-dd")">
+
+    <!-- ── Workspace: boards + calendar preview + my progress ───────── -->
+    <div class="ed-workspace" id="edWorkspace">
+
+        <div class="ed-boards">
+            @foreach (var b in boards)
+            {
+                var info = statusInfo[b.Key];
+                var boardTasks = tasks.Where(t => StatusOf(t) == b.Key)
+                    .OrderByDescending(IsOverdue)
+                    .ThenBy(t => t.DueDate)
+                    .ToList();
+                <section class="ed-col ed-tone-@info.Tone" aria-labelledby="edCol-@info.Tone">
+                    <header class="ed-col__head">
+                        <span class="ed-col__dot" aria-hidden="true"></span>
+                        <h2 class="ed-col__title" id="edCol-@info.Tone">@info.Label</h2>
+                        <span class="ed-col__count">@boardTasks.Count</span>
+                    </header>
+                    <div class="ed-col__cards">
+                        @if (!boardTasks.Any())
+                        {
+                            <p class="ed-empty">@b.Empty</p>
+                        }
+                        @foreach (var task in boardTasks)
+                        {
+                            var overdue = IsOverdue(task);
+                            var progress = ProgressOf(task);
+                            var division = DivisionOf(task);
+                            <a class="ed-card @(overdue ? "is-overdue" : "")" href="@Url.Action("Details", "Dashboard", new { id = task.Id })">
+                                @if (division != null || overdue || IsAtRisk(task))
+                                {
+                                    <span class="ed-card__tags">
+                                        @if (division != null)
+                                        {
+                                            <span class="ed-tag ed-tag--division">@division</span>
+                                        }
+                                        @if (overdue)
+                                        {
+                                            <span class="ed-tag ed-tag--overdue">Overdue</span>
+                                        }
+                                        else if (IsAtRisk(task))
+                                        {
+                                            <span class="ed-tag ed-tag--risk">At risk</span>
+                                        }
+                                    </span>
+                                }
+                                <span class="ed-card__title">@task.TaskName</span>
+                                <span class="ed-card__progress" title="@progress% done">
+                                    <span class="ed-bar"><span style="width:@progress%;"></span></span>
+                                    <span class="ed-card__pct">@progress%</span>
+                                </span>
+                                <span class="ed-card__foot">
+                                    <span class="ed-person">
+                                        <span class="ed-avatar" aria-hidden="true">@Initials(PersonOf(task))</span>
+                                        <span class="ed-person__name">@(PersonOf(task) ?? "Unassigned")</span>
+                                    </span>
+                                    <span class="ed-due @(overdue ? "is-late" : "")">@DueText(task.DueDate)</span>
+                                </span>
+                            </a>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+
+        <div class="ed-rule" aria-hidden="true"></div>
+
+        <aside class="ed-side" aria-label="Calendar and progress">
+            <!-- Calendar preview: opens the full calendar -->
+            <button type="button" class="ed-calcard" id="edCalOpen"
+                    aria-controls="edCalendar" aria-expanded="false" aria-describedby="edCalOpenHint">
+                <span class="ed-calcard__sheet">
+                    <span class="ed-calcard__month" id="edMiniLabel">@today.ToString("MMMM yyyy")</span>
+                    <span class="ed-calcard__weekdays" aria-hidden="true">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </span>
+                    <span class="ed-calcard__grid" id="edMiniGrid" aria-hidden="true"></span>
+                </span>
+                <span class="ed-calcard__view">View</span>
+                <span class="visually-hidden" id="edCalOpenHint">Opens the full calendar with the work due on each day.</span>
+            </button>
+
+            <!-- My progress -->
+            <section class="ed-progress" aria-labelledby="edProgressTitle">
+                <span class="material-symbols-outlined ed-progress__icon" aria-hidden="true">military_tech</span>
+                <h2 class="ed-progress__title" id="edProgressTitle">My progress</h2>
+                <p class="ed-progress__summary"><strong>@completed</strong> of @total task@(total == 1 ? "" : "s") completed</p>
+                <span class="ed-progress__bar" role="progressbar" aria-valuenow="@completedPct" aria-valuemin="0" aria-valuemax="100" aria-label="Tasks completed">
+                    <span style="width:@completedPct%;"></span>
+                </span>
+                <dl class="ed-progress__stats">
+                    @foreach (var s in progressStats)
+                    {
+                        <div class="ed-stat ed-tone-@s.Tone">
+                            <dt><span class="ed-stat__dot" aria-hidden="true"></span>@s.Label</dt>
+                            <dd>@s.Value</dd>
+                        </div>
+                    }
+                </dl>
+                <a class="ed-progress__link" asp-controller="Employee" asp-action="TaskManagement">
+                    Open Task Management
+                    <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                </a>
+            </section>
+        </aside>
+    </div>
+
+    <!-- ── Expanded calendar (Canva page 2), shown in place of the workspace ── -->
+    <dialog class="ed-calendar" id="edCalendar" aria-labelledby="edCalTitle">
+        <div class="ed-calendar__main">
+            <div class="ed-calendar__bar">
+                <button type="button" class="ed-btn-back" id="edCalClose">
+                    <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                    Back to dashboard
+                </button>
+                <div class="ed-calendar__nav">
+                    <button type="button" class="ed-btn-icon" id="edCalPrev" aria-label="Previous month">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                    </button>
+                    <button type="button" class="ed-btn-today" id="edCalToday">Today</button>
+                    <button type="button" class="ed-btn-icon" id="edCalNext" aria-label="Next month">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+
+            <h2 class="ed-calendar__title" id="edCalTitle" tabindex="-1">
+                <span id="edCalMonth"></span>
+                <span id="edCalYear"></span>
+            </h2>
+
+            <div class="ed-calendar__weekdays" aria-hidden="true">
+                <span class="is-sunday">Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            </div>
+            <div class="ed-calendar__grid" id="edCalGrid"></div>
+        </div>
+
+        <div class="ed-rule" aria-hidden="true"></div>
+
+        <aside class="ed-calendar__panel" aria-labelledby="edPanelTitle">
+            <h3 class="ed-panel__title" id="edPanelTitle"></h3>
+            <div class="ed-panel__list" id="edPanelList" aria-live="polite"></div>
+        </aside>
+    </dialog>
+</div>
+
+@* Real task data for the calendar (this employee's tasks only). *@
+<script type="application/json" id="edTaskData">@Html.Raw(calendarJson)</script>
 
 @section Scripts {
-    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+    <script src="~/js/employee-dashboard.js" asp-append-version="true"></script>
 }

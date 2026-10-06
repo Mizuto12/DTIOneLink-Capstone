@@ -190,9 +190,14 @@
 .sa-chip.is-active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .sa-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* Desktop: three status columns on top (To Do, In Progress, For Review),
+   Returned and Completed underneath, filling the full width. Six tracks:
+   the first three columns take two each, the last two take three each.
+   Tablets/phones keep the swipe layout from the max-width: 1024px rules
+   below (which replace these tracks, and the spans only apply above it). */
 .sa-board {
     display: grid;
-    grid-template-columns: repeat(5, minmax(220px, 1fr));
+    grid-template-columns: repeat(6, minmax(110px, 1fr));
     gap: 16px;
     overflow-x: auto;
     padding-bottom: 4px;
@@ -459,4 +464,11 @@
 /* Board: short columns stay short, and the next column visibly peeks in. */
 @media (max-width: 1024px) {
     .sa-board { grid-template-columns: repeat(5, min(300px, 74vw)); align-items: start; }
+}
+
+/* Task Board on desktop: 3 columns on top, the second row's 2 columns
+   share the full width (see the 6-track .sa-board grid above). */
+@media (min-width: 1025px) {
+    .sa-board > .sa-col:nth-child(-n + 3) { grid-column: span 2; }
+    .sa-board > .sa-col:nth-child(n + 4) { grid-column: span 3; }
 }

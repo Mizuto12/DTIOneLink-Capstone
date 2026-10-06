@@ -17,22 +17,7 @@
     var lastShown = Math.Min(Model.Page * DTIOneLink.Models.TaskIndexViewModel.PageSize, Model.TotalCount);
 }
 
-<!-- ── Page Header ─────────────────────────────────────── -->
-<div class="page-header">
-    <div class="page-header-text">
-    </div>
-    <div class="page-actions">
-        @* Only the OPD creates tasks; Admins assign employees via Edit. *@
-        @if (Model.IsOfficeWide)
-        {
-            <a asp-controller="Tasks" asp-action="Create" class="btn-primary-pill">
-                <span class="material-symbols-outlined">add</span>
-                CREATE TASK
-            </a>
-        }
-    </div>
-</div>
-
+<div class="tm-list">
 <!-- ── Workflow indicators: click a tile to show only that status ── -->
 <nav class="workflow-tiles" aria-label="Filter by workflow status">
     <a class="workflow-tile tile-all @(Model.Status == "all" ? "is-active" : "")"
@@ -76,6 +61,14 @@
                         <option value="priority-desc" selected="@(Model.Sort == "priority-desc")">Priority</option>
                     </select>
                 </label>
+                @* Only the OPD creates tasks; Admins assign employees via Edit. *@
+                @if (Model.IsOfficeWide)
+                {
+                    <a asp-controller="Tasks" asp-action="Create" class="btn-primary-pill">
+                        <span class="material-symbols-outlined">add</span>
+                        CREATE TASK
+                    </a>
+                }
             </div>
         </div>
 
@@ -144,10 +137,15 @@
     <!-- Table -->
     <div class="table-scroll">
         <table class="task-table">
+            @* Fixed column widths (wide screens) so columns don't shift between pages. *@
+            <colgroup>
+                <col class="col-employee" /><col class="col-task" /><col class="col-due" />
+                <col class="col-progress" /><col class="col-priority" /><col class="col-status" /><col class="col-actions" />
+            </colgroup>
             <thead>
                 <tr>
                     <th>Employee</th>
-                    <th>Task Assignee</th>
+                    <th>Tasks</th>
                     <th>Due Date</th>
                     <th>Task Progress</th>
                     <th>Priority</th>
@@ -190,7 +188,15 @@
                             _ => "status-pending"
                         };
                         var progressBarClass = progressWidth >= 80 ? "progress-green" : "";
-                        <tr class="task-row" data-href="@(task.TaskLevel == "main" ? Url.Action("MainTaskDetails", "Tasks", new { id = task.Id }) : null)">
+                        // Clicking a row opens the right page: a main task → its details page
+                        // (unchanged), a subtask → its edit/details page directly. Subtasks are
+                        // made clickable only where the old edit icon would have shown, so the
+                        // access rule is unchanged.
+                        var canOpenForEdit = isOpd || !DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType);
+                        var rowHref = task.TaskLevel == "main"
+                            ? Url.Action("MainTaskDetails", "Tasks", new { id = task.Id })
+                            : (canOpenForEdit ? Url.Action("Edit", "Tasks", new { id = task.Id }) : null);
+                        <tr class="task-row" data-href="@rowHref">
                             <td class="td-first">
                                 <div class="employee-cell">
                                     <div class="emp-avatar">@initials</div>
@@ -225,13 +231,8 @@
                                 }
                             </td>
                             <td class="td-last">
-                                @* Admins can't reassign a task the OPD gave straight to people. *@
-                                @if (isOpd || !DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType))
-                                {
-                                    <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="more-btn" aria-label="Edit task">
-                                        <span class="material-symbols-outlined">edit</span>
-                                    </a>
-                                }
+                                @* Edit icon removed — clicking the row opens the task
+                                   (main → details page, subtask → its edit page). *@
                                 @if (displayStatus == "for-review")
                                 {
                                     var pendingSubmission = task.Submissions?.OrderByDescending(s => s.SubmittedAt).FirstOrDefault(s => s.Decision == null);
@@ -306,4 +307,5 @@
             </nav>
         }
     </div>
+</div>
 </div>

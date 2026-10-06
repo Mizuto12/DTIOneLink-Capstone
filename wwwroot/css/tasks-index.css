@@ -994,3 +994,91 @@ a.page-btn { text-decoration: none; }
     .toolbar-filters .filter-select { width: 100%; min-width: 0; }
     .filter-select select { flex: 1; min-width: 0; width: 100%; text-overflow: ellipsis; }
 }
+
+/* ==========================================================
+   Task Management list — spacing, alignment and fixed frame.
+   Scoped to .tm-list (Views/Tasks/_TaskList.cshtml) so the other
+   pages that load this stylesheet are unaffected.
+   ========================================================== */
+
+/* Header → status tiles: the same 32px top spacing the Dashboard and
+   User Management pages use. A result banner, when shown, takes that
+   spot instead and the list follows it. */
+.tm-list { padding-top: 32px; }
+.success-banner:has(~ .tm-list) { margin-top: 32px; }
+.success-banner + .success-banner { margin-top: 0; }
+.success-banner ~ .tm-list { padding-top: 0; }
+
+/* Dividers: same grey, visible enough to read as section breaks. */
+.tm-list .card-toolbar { border-bottom-color: rgba(197, 197, 210, 0.45); }
+.tm-list .pagination-bar { border-top-color: rgba(197, 197, 210, 0.45); }
+
+/* Search line: equal space above and below; Sort and Create Task match
+   the search box height. */
+.tm-list .card-toolbar { padding: 20px 24px; }
+.tm-list .toolbar-filters .filter-select,
+.tm-list .toolbar-filters .btn-primary-pill { min-height: 44px; }
+
+/* Filter line: off the divider, equal space above and below. */
+.tm-list .filter-row {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(197, 197, 210, 0.45);
+}
+
+@media (min-width: 768px) {
+    /* Equal-width filter boxes spanning the card (4 for Super Admin, 3 for
+       Admins); "Clear all filters" sits on its own line at the right. */
+    .tm-list .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+    .tm-list .filter-row .filter-select { min-height: 44px; }
+    .tm-list .filter-row .filter-select-label { white-space: nowrap; }
+    /* Every dropdown fills the rest of its box, so in all four boxes the
+       value starts right after the label and the arrow sits at the edge,
+       however long the longest option is. */
+    .tm-list .filter-row .filter-select select {
+        flex: 1;
+        min-width: 0;
+        text-overflow: ellipsis;
+    }
+    .tm-list .filter-row .clear-filters { grid-column: 1 / -1; justify-self: end; }
+
+    /* Task frame: always the height of a full 5-task page, so the frame
+       and pagination stay put on a page with fewer tasks. Rows keep their
+       normal size; the space below them is part of the frame. */
+    .tm-list {
+        --tm-head-h: 48px;   /* column header row */
+        --tm-row-h: 82.8px;  /* one task row + the gap under it (measured) */
+    }
+    .tm-list .task-table { padding: 8px 24px; }
+    .tm-list .table-scroll {
+        min-height: calc(16px + var(--tm-head-h) + 5 * var(--tm-row-h));
+    }
+    /* No tasks: the message sits in the middle of the same frame. */
+    .tm-list .task-table td.empty-state {
+        height: calc(5 * var(--tm-row-h) - 16px);
+        vertical-align: middle;
+        padding-top: 24px !important;
+        padding-bottom: 24px !important;
+    }
+}
+
+/* Wide screens: fixed column widths so columns don't shift between pages. */
+@media (min-width: 1200px) {
+    .tm-list .task-table { table-layout: fixed; }
+    .tm-list .col-employee { width: 17%; }
+    .tm-list .col-task     { width: 25%; }
+    .tm-list .col-due      { width: 11%; }
+    .tm-list .col-progress { width: 14%; }
+    .tm-list .col-priority { width: 9%; }
+    .tm-list .col-status   { width: 12%; }
+    .tm-list .col-actions  { width: 112px; }
+}
+
+/* Phones: filters stack; keep equal space above and below them. */
+@media (max-width: 767px) {
+    .tm-list .card-toolbar { padding: 16px; }
+    .tm-list .filter-row { padding: 16px; }
+}

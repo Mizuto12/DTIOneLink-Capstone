@@ -146,35 +146,52 @@ body{
 /* --------------------------------------------------------------------
    Kanban board
    -------------------------------------------------------------------- */
+/* One white workspace (Canva page 3). The five boards fill the full width:
+   desktop  → To Do · In Progress · For Review on top, Rejected · Completed
+              sharing the second row (6 tracks: 2+2+2 / 3+3);
+   tablet   → two per row, Completed spanning the last row;
+   phone    → one per row.
+   Boards in a row share the same height, so headers and cards line up. */
 .task-management .kanban-board {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: stretch;
     width: 100%;
     max-width: 100%;
-    padding-bottom: 32px;
-    overflow-x: auto;      /* horizontal scroll happens HERE, inside the
-                               board, never on the page itself */
+    margin-bottom: 24px;
+    padding: 20px;
+    background-color: var(--color-surface-container-lowest);
+    border: 1px solid rgba(29, 53, 126, 0.32);
+    border-radius: 24px;
+    box-shadow: 0 1px 2px rgba(0, 30, 101, 0.05), 0 12px 32px -16px rgba(0, 30, 101, 0.22);
 }
 
-@media (min-width: 1024px) {
-    .task-management .kanban-column { width: 280px; }
-}
-
-@media (min-width: 1600px) {
-    .task-management .kanban-column { width: 320px; }
-}
 .task-management .kanban-column {
-    flex-shrink: 0;
-    width: 100%;
+    min-width: 0;
+    min-height: 240px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    padding: 14px 14px 16px;
+    background-color: var(--color-surface-container-low);
+    border: 1px solid rgba(29, 53, 126, 0.32);
+    border-radius: 22px;
 }
 
-@media (min-width: 1024px) {
-    .task-management .kanban-column { width: 350px; }
+@media (min-width: 640px) {
+    .task-management .kanban-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .task-management .kanban-board > .kanban-column:last-child { grid-column: span 2; }
+}
+
+@media (min-width: 1100px) {
+    .task-management .kanban-board { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .task-management .kanban-board > .kanban-column:nth-child(-n + 3) { grid-column: span 2; min-height: 320px; }
+    .task-management .kanban-board > .kanban-column:nth-child(n + 4) { grid-column: span 3; }
+}
+
+@media (max-width: 639px) {
+    .task-management .kanban-board { padding: 12px; gap: 14px; border-radius: 18px; }
 }
 
 .task-management .column-header {
@@ -197,8 +214,18 @@ body{
     display: inline-block;
 }
 
-.task-management .status-dot.for-review { background-color: var(--color-primary-container); }
-.task-management .status-dot.rejected { background-color: #ba1a1a; }
+/* Board colours (Canva page 3): dot + tinted count per status. */
+.task-management .status-dot.todo        { background-color: #64748b; }
+.task-management .status-dot.in-progress { background-color: #2563eb; }
+.task-management .status-dot.for-review  { background-color: #7c3aed; }
+.task-management .status-dot.rejected    { background-color: #d97706; }
+.task-management .status-dot.completed   { background-color: #16a34a; }
+
+.task-management .kanban-column:has(.status-dot.todo) .column-count        { background-color: #eef1f5; color: #475569; }
+.task-management .kanban-column:has(.status-dot.in-progress) .column-count { background-color: #e0ebff; color: #1d4ed8; }
+.task-management .kanban-column:has(.status-dot.for-review) .column-count  { background-color: #f1e9ff; color: #6d28d9; }
+.task-management .kanban-column:has(.status-dot.rejected) .column-count    { background-color: #fff3dc; color: #b45309; }
+.task-management .kanban-column:has(.status-dot.completed) .column-count   { background-color: #e3f8ea; color: #15803d; }
 
 .task-management .task-card.for-review { border-left: 4px solid var(--color-primary-container); }
 .task-management .task-card.rejected { border-left: 4px solid #ba1a1a; }
@@ -209,9 +236,9 @@ body{
 }
 
 .task-management .column-title {
-    font-size: 18px;
-    line-height: 32px;
-    font-weight: 600;
+    font-size: 15px;
+    line-height: 28px;
+    font-weight: 700;
     color: var(--color-on-surface);
     margin: 0;
 }
@@ -223,7 +250,7 @@ body{
     border-radius: var(--radius-full);
     font-size: 11px;
     line-height: 14px;
-    font-weight: 500;
+    font-weight: 700;
 }
 
 .task-management .column-menu-btn {

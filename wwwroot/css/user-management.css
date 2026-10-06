@@ -156,16 +156,41 @@
 
 /* ── Two-pane layout ─────────────────────────────────────── */
 /* grid grid-cols-1 gap-6 items-start */
+/* One unified card holding both panes (Add Account + All Accounts),
+   instead of two separate floating cards. */
 .um-layout {
     margin-top: 32px; /* space below the top bar (same as the dashboard) */
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
-    align-items: start;
+    gap: 0;
+    align-items: stretch;
+    background: #ffffff;
+    border: 1px solid var(--outline-variant);
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(0, 30, 101, 0.06), 0 8px 24px rgba(0, 30, 101, 0.05);
+    overflow: hidden;
 }
 
-@media (min-width: 1024px) {
-    .um-layout { grid-template-columns: 380px 1fr; }
+/* Panes share the card surface; a subtle divider separates them. */
+.um-pane {
+    background: transparent;
+    min-width: 0; /* let the table scroll instead of stretching the card */
+}
+
+/* Stacked (mobile/tablet): divider runs between the two panes horizontally. */
+.um-form-pane {
+    border-bottom: 1px solid var(--outline-variant);
+}
+
+/* Side by side only where the table still has room for every column
+   (about 1800px+); narrower screens stack the form above the table. */
+@media (min-width: 1800px) {
+    .um-layout { grid-template-columns: 380px minmax(0, 1fr); }
+    /* Side by side: divider becomes vertical. */
+    .um-form-pane {
+        border-bottom: none;
+        border-right: 1px solid var(--outline-variant);
+    }
 }
 
 /* ── Glass card (shared) ─────────────────────────────────── */
@@ -1088,4 +1113,171 @@
 
     .um-dialog-actions { flex-direction: column-reverse; }
     .um-dialog-actions .um-btn-cancel { flex: none !important; width: 100%; }
+}
+
+/* ==========================================================
+   User Management v2 — one connected module (approved mockup)
+   Header strip, identical form fields, Save pinned level with the
+   pagination bar, fixed proportional table columns, fixed 6-row frame,
+   compact icon + text actions.
+   ========================================================== */
+
+/* Header strip: joins the two panes into one module. */
+.um-module-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 32px;
+    padding: 18px 24px;
+    background: #ffffff;
+    border: 1px solid var(--outline-variant);
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+}
+.um-module-title { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--primary); }
+.um-module-sub { margin: 2px 0 0; font-family: var(--font-ui); font-size: 13px; color: var(--secondary); }
+
+.um-layout { margin-top: 0; border-radius: 0 0 20px 20px; }
+
+/* ── Add a New Account ─────────────────────────────────── */
+.um-form-pane {
+    display: flex;
+    flex-direction: column;
+    background: #fafbff;
+}
+.um-form-pane #addUserForm { flex: 1; display: flex; flex-direction: column; }
+.um-field-grid { display: grid; gap: 16px; }
+
+/* Every box identical: same height, border, radius, icon spot and text start. */
+.um-form-pane .um-input,
+.um-form-pane .um-select {
+    box-sizing: border-box;
+    height: 46px;
+    padding: 0 40px 0 40px;
+    font-size: 14px;
+}
+.um-form-pane .um-input { padding-right: 16px; }
+.um-select-wrap .um-select { padding-right: 40px; }
+.um-select-caret {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    color: var(--secondary);
+    pointer-events: none;
+}
+.um-form-pane .um-default-password-note { margin-top: 20px; }
+
+/* Save sits at the bottom of the panel, level with the table's pagination bar. */
+.um-form-foot { margin-top: auto; padding-top: 20px; }
+.um-form-pane .um-btn-save { width: 100%; height: 46px; padding: 0 24px; }
+
+@media (min-width: 1800px) {
+    .um-form-pane { padding-bottom: 12px; }
+}
+
+/* Stacked (narrower than 1800px): two fields per row, Save bottom-right. */
+@media (max-width: 1799px) {
+    .um-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+    .um-form-foot { display: flex; justify-content: flex-end; }
+    .um-form-pane .um-btn-save { width: auto; padding: 0 32px; }
+}
+
+/* ── All Accounts ──────────────────────────────────────── */
+.um-table-pane { display: flex; flex-direction: column; }
+.um-table-pane .um-table-scroll { flex: 1; }
+.um-pagination-bar { padding: 16px 24px; border-top-color: var(--outline-variant); }
+
+.um-ell {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.um-name-cell { min-width: 0; }
+.um-division-badge.um-ell { display: inline-block; max-width: 100%; vertical-align: middle; }
+
+@media (min-width: 768px) {
+    /* Fixed proportional columns: Email widest, Name and Division equal. */
+    .um-table { table-layout: fixed; width: 100%; }
+    .um-col-name     { width: 18%; }
+    .um-col-email    { width: 23%; }
+    .um-col-division { width: 18%; }
+    .um-col-role     { width: 10%; }
+    .um-col-status   { width: 12%; }
+    .um-col-action   { width: 19%; }
+
+    .um-table thead th { padding: 14px; }
+    /* Row height comes from user-management.js (--um-row-h): six rows
+       exactly fill the accounts area, the same on every page. */
+    .um-row td { height: var(--um-row-h, 64px); padding: 0 14px; font-size: 14px; vertical-align: middle; }
+    .um-td-status { overflow: hidden; }
+
+    /* Frame: always the height of a full 6-account page. */
+    .um-table-pane .um-table-scroll { min-height: 440px; }
+}
+
+/* Action buttons: small and quiet — clearly clickable, never the focus.
+   They firm up a little when the row is hovered. */
+.um-actions { flex-wrap: nowrap; gap: 6px; }
+.um-actions .um-btn-change,
+.um-actions .um-btn-status {
+    height: 28px;
+    gap: 4px;
+    padding: 0 9px;
+    border-radius: 7px;
+    border: 1px solid rgba(197, 197, 210, 0.7);
+    background: transparent;
+    font-family: var(--font-ui);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.um-actions .um-btn-change { color: var(--on-surface-variant); }
+.um-actions .um-btn-deactivate { color: #a8473f; border-color: rgba(240, 196, 191, 0.8); }
+.um-actions .um-btn-reactivate { color: #2f7a4e; border-color: rgba(183, 228, 199, 0.9); }
+.um-actions .um-btn-change .material-symbols-outlined,
+.um-actions .um-btn-status .material-symbols-outlined { font-size: 15px; }
+
+.um-row:hover .um-btn-change { color: var(--primary); border-color: var(--outline-variant); }
+.um-actions .um-btn-change:hover { background: #f0f4ff; }
+.um-actions .um-btn-deactivate:hover { background: #fdf1f0; color: #9c2b23; }
+.um-actions .um-btn-reactivate:hover { background: #eef9f2; color: #0f7a3d; }
+.um-actions .um-btn-change:focus-visible,
+.um-actions .um-btn-status:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Narrower tables: icon-only buttons (the label stays as the tooltip). */
+@media (min-width: 768px) and (max-width: 1599px) {
+    .um-btn-txt { display: none; }
+    .um-actions .um-btn-change,
+    .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
+    .um-col-name     { width: 19%; }
+    .um-col-email    { width: 25%; }
+    .um-col-division { width: 19%; }
+    .um-col-role     { width: 11%; }
+    .um-col-status   { width: 15%; }
+    .um-col-action   { width: 11%; }
+}
+
+/* Tablets (sidebar hidden, table about 750–1000px): more room for Status. */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .um-col-name     { width: 16%; }
+    .um-col-email    { width: 22%; }
+    .um-col-division { width: 16%; }
+    .um-col-role     { width: 10%; }
+    .um-col-status   { width: 21%; }
+    .um-col-action   { width: 15%; }
+}
+
+/* Phones: cards, one field per row; long values wrap instead of "…". */
+@media (max-width: 767px) {
+    .um-field-grid { grid-template-columns: 1fr; }
+    .um-form-foot { flex-direction: column; align-items: stretch; }
+    .um-form-pane .um-btn-save { width: 100%; }
+    .um-ell { white-space: normal; overflow: visible; }
 }

@@ -70,9 +70,6 @@
                 if (totalCount) {
                     totalCount.textContent = visibleCount + " User" + (visibleCount !== 1 ? "s" : "");
                 }
-                if (paginationInfo) {
-                    paginationInfo.textContent = "Showing " + visibleCount + " of " + rows.length + " entries";
-                }
             }
             searchInput.addEventListener("input", applySearch);
             if (searchClear) searchClear.addEventListener("click", function () {
@@ -83,7 +80,7 @@
         }
 
         // ── Pagination ─────────────────────────────────────
-        var rowsPerPage = 4;
+        var rowsPerPage = 6;
         var currentPage = 1;
         var paginationBtns = document.getElementById("paginationBtns");
 
@@ -113,10 +110,12 @@
                 }
             });
 
-            // Update info text
-            var showing = totalRows === 0 ? 0 : Math.min(rowsPerPage, totalRows - start);
+            // Update info text, e.g. "Showing 1–6 of 8 accounts"
             if (paginationInfo) {
-                paginationInfo.textContent = "Showing " + showing + " of " + totalRows + " entries";
+                paginationInfo.textContent = totalRows === 0
+                    ? "No accounts to show"
+                    : "Showing " + (start + 1) + "–" + Math.min(end, totalRows) + " of " + totalRows +
+                      " account" + (totalRows !== 1 ? "s" : "");
             }
 
             // Render page buttons
@@ -161,6 +160,66 @@
 
         // Initial pagination
         paginate();
+
+        // ── Six rows fill the accounts area ───────────────
+        // Side by side, the table panel is as tall as the form, so the row
+        // height is worked out to make exactly six rows fill it. The same
+        // height (and frame) is used on every page, so pages line up.
+        var umLayout = document.querySelector(".um-layout");
+        var formPane = document.querySelector(".um-form-pane");
+        var tablePane = document.querySelector(".um-table-pane");
+        var tableFrame = tablePane ? tablePane.querySelector(".um-table-scroll") : null;
+        var BASE_ROW = 64;
+
+        function fitRows() {
+            if (!umLayout || !formPane || !tablePane || !tableFrame || !table) return;
+            var thead = table.querySelector("thead");
+            table.style.removeProperty("--um-row-h");
+            tableFrame.style.minHeight = "";
+            if (window.innerWidth < 768 || !thead) return; // phones use cards
+
+            var sideBySide = getComputedStyle(umLayout).gridTemplateColumns.trim().split(/\s+/).length > 1;
+            var rowH = BASE_ROW;
+
+            if (sideBySide) {
+                // Measure both panels at their natural height.
+                umLayout.style.alignItems = "start";
+                var target = Math.max(formPane.getBoundingClientRect().height, tablePane.getBoundingClientRect().height);
+                var fixed = 0;
+                Array.prototype.forEach.call(tablePane.children, function (el) {
+                    if (el !== tableFrame) fixed += el.getBoundingClientRect().height;
+                });
+                umLayout.style.alignItems = "";
+                var available = target - fixed - thead.getBoundingClientRect().height;
+                rowH = Math.max(BASE_ROW, Math.floor(available / rowsPerPage));
+            }
+
+            table.style.setProperty("--um-row-h", rowH + "px");
+            // Borders add to each row; take them back out so six rows fit exactly.
+            var sample = table.querySelector("tbody tr.um-row:not(.um-row-hidden):not(.um-search-hidden)");
+            if (sample) {
+                var extra = Math.round(sample.getBoundingClientRect().height) - rowH;
+                if (extra > 0 && rowH - extra >= BASE_ROW) {
+                    rowH -= extra;
+                    table.style.setProperty("--um-row-h", rowH + "px");
+                }
+                var rowActual = sample.getBoundingClientRect().height;
+                tableFrame.style.minHeight = Math.floor(thead.getBoundingClientRect().height + rowActual * rowsPerPage) + "px";
+            }
+        }
+
+        var fitQueued = false;
+        function queueFit() {
+            if (fitQueued) return;
+            fitQueued = true;
+            requestAnimationFrame(function () { fitQueued = false; fitRows(); });
+        }
+        fitRows();
+        window.addEventListener("resize", queueFit);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueFit);
+        document.querySelectorAll(".um-form-pane select").forEach(function (el) {
+            el.addEventListener("change", queueFit); // role help text changes the form height
+        });
 
         // ── Role dropdowns: show what the chosen role means under the box ──
         document.querySelectorAll(".um-role-select").forEach(function (select) {

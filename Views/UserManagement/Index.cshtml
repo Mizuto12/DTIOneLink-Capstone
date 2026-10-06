@@ -45,11 +45,19 @@
 
 <!-- ── Page Header ─────────────────────────────────────── -->
 
+<!-- ── Module header: ties the two panes together ─────── -->
+<div class="um-module-head">
+    <div>
+        <h2 class="um-module-title">User Management</h2>
+        <p class="um-module-sub">@(canChangeStanding ? "Create staff accounts and manage their role, division and access." : "Create staff accounts and manage their access.")</p>
+    </div>
+</div>
+
 <!-- ── Two-pane layout ────────────────────────────────── -->
 <div class="um-layout">
 
     <!-- Left: Add Microsoft Account form -->
-    <section class="um-card um-form-pane">
+    <section class="um-pane um-form-pane">
         <div class="um-section-head">
             <div class="um-section-icon">
                 <span class="material-symbols-outlined">person_add</span>
@@ -69,6 +77,7 @@
                 <p class="um-form-error">@errorMessage</p>
             }
 
+            <div class="um-field-grid">
             <!-- Official Outlook -->
             <div class="um-field-group">
                 <label class="um-label" for="newUserEmail">Official Outlook Email</label>
@@ -94,26 +103,35 @@
             <!-- Role -->
             <div class="um-field-group">
                 <label class="um-label" for="newUserRole">Role</label>
-                <select class="um-select um-role-select" name="Role" id="newUserRole" data-help="newUserRoleHelp" required>
-                    <option value="">Select Role</option>
-                    @foreach (var role in roleHelp.Keys)
-                    {
-                        <option value="@role" data-help="@roleHelp[role].Help" selected="@(role == formRole)">@roleHelp[role].Title</option>
-                    }
-                </select>
+                <div class="um-input-wrap um-select-wrap">
+                    <span class="material-symbols-outlined um-input-icon" aria-hidden="true">manage_accounts</span>
+                    <select class="um-select um-role-select" name="Role" id="newUserRole" data-help="newUserRoleHelp" required>
+                        <option value="">Select Role</option>
+                        @foreach (var role in roleHelp.Keys)
+                        {
+                            <option value="@role" data-help="@roleHelp[role].Help" selected="@(role == formRole)">@roleHelp[role].Title</option>
+                        }
+                    </select>
+                    <span class="material-symbols-outlined um-select-caret" aria-hidden="true">expand_more</span>
+                </div>
                 <p class="um-role-help" id="newUserRoleHelp"></p>
             </div>
 
             <!-- Division -->
             <div class="um-field-group">
                 <label class="um-label" for="newUserDepartment">Division</label>
-                <select class="um-select" name="Department" id="newUserDepartment" required>
-                    <option value="">Select Division</option>
-                    @foreach (var division in DTIOneLink.Controllers.UserManagementController.Divisions)
-                    {
-                        <option value="@division" selected="@(division == formDepartment)">@division</option>
-                    }
-                </select>
+                <div class="um-input-wrap um-select-wrap">
+                    <span class="material-symbols-outlined um-input-icon" aria-hidden="true">group</span>
+                    <select class="um-select" name="Department" id="newUserDepartment" required>
+                        <option value="">Select Division</option>
+                        @foreach (var division in DTIOneLink.Controllers.UserManagementController.Divisions)
+                        {
+                            <option value="@division" selected="@(division == formDepartment)">@division</option>
+                        }
+                    </select>
+                    <span class="material-symbols-outlined um-select-caret" aria-hidden="true">expand_more</span>
+                </div>
+            </div>
             </div>
 
             <p class="um-default-password-note">
@@ -121,15 +139,17 @@
                 <span>They will sign in with this email and the default password <strong>@DTIOneLink.Security.AccountDefaults.DefaultPassword</strong>. On their first sign-in they confirm their email with a code and choose their own password.</span>
             </p>
 
-            <button class="um-btn-save" type="submit" id="saveBtn">
-                SAVE ACCOUNT
-                <span class="material-symbols-outlined">check_circle</span>
-            </button>
+            <div class="um-form-foot">
+                <button class="um-btn-save" type="submit" id="saveBtn">
+                    SAVE ACCOUNT
+                    <span class="material-symbols-outlined">check_circle</span>
+                </button>
+            </div>
         </form>
     </section>
 
     <!-- Right: Administrative Directory table -->
-    <section class="um-card um-table-pane">
+    <section class="um-pane um-table-pane">
         <div class="um-table-header">
             <div class="um-table-title-row">
                 <span class="material-symbols-outlined">groups</span>
@@ -181,6 +201,11 @@
 
         <div class="um-table-scroll">
             <table class="um-table" id="userTable">
+                @* Fixed proportional widths so long values never move the columns. *@
+                <colgroup>
+                    <col class="um-col-name" /><col class="um-col-email" /><col class="um-col-division" />
+                    <col class="um-col-role" /><col class="um-col-status" /><col class="um-col-action" />
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -205,12 +230,12 @@
                                 <td class="um-td-name">
                                     <div class="um-name-cell">
                                         <div class="um-avatar um-av-blue">@initials</div>
-                                        <span>@user.FullName</span>
+                                        <span class="um-ell" title="@user.FullName">@user.FullName</span>
                                     </div>
                                 </td>
-                                <td class="um-td-muted um-td-email" data-label="Email">@user.Email</td>
-                                <td class="um-td-division" data-label="Division"><span class="um-division-badge">@user.Department</span></td>
-                                <td class="um-td-role" data-label="Role">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</td>
+                                <td class="um-td-muted um-td-email" data-label="Email"><span class="um-ell" title="@user.Email">@user.Email</span></td>
+                                <td class="um-td-division" data-label="Division"><span class="um-division-badge um-ell" title="@user.Department">@user.Department</span></td>
+                                <td class="um-td-role" data-label="Role"><span class="um-ell" title="@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</span></td>
                                 <td class="um-td-status" data-label="Status">
                                     <div class="um-status-badge @(isActive ? "um-status-active" : "um-status-disabled")">
                                         <span class="um-status-dot@(isActive ? " um-dot-pulse" : "")"></span>
@@ -234,9 +259,9 @@
                                                         data-user-role="@user.Role"
                                                         data-user-department="@user.Department"
                                                         data-open-tasks="@userOpen"
-                                                        aria-label="Change role or division of @user.FullName">
-                                                    <span class="material-symbols-outlined">manage_accounts</span>
-                                                    Change Role
+                                                        aria-label="Change role or division of @user.FullName" title="Change Role">
+                                                    <span class="material-symbols-outlined" aria-hidden="true">manage_accounts</span>
+                                                    <span class="um-btn-txt">Change Role</span>
                                                 </button>
                                             }
                                             @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
@@ -252,9 +277,10 @@
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@user.Id" />
                                                     <input type="hidden" name="active" value="@(isActive ? "false" : "true")" />
-                                                    <button type="submit" class="um-btn-status @(isActive ? "um-btn-deactivate" : "um-btn-reactivate")">
-                                                        <span class="material-symbols-outlined">@(isActive ? "person_off" : "person_check")</span>
-                                                        @(isActive ? "Deactivate" : "Reactivate")
+                                                    <button type="submit" class="um-btn-status @(isActive ? "um-btn-deactivate" : "um-btn-reactivate")"
+                                                            title="@(isActive ? "Deactivate" : "Reactivate")" aria-label="@(isActive ? "Deactivate" : "Reactivate") @user.FullName">
+                                                        <span class="material-symbols-outlined" aria-hidden="true">@(isActive ? "person_off" : "person_check")</span>
+                                                        <span class="um-btn-txt">@(isActive ? "Deactivate" : "Reactivate")</span>
                                                     </button>
                                                 </form>
                                             }
