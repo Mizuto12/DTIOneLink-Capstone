@@ -51,15 +51,29 @@
         </div>
       </div>
 
-      <div class="toolbar-right">
-        <button class="icon-btn-outline" type="button" aria-label="Calendar filter">
-          <span class="material-symbols-outlined">calendar_today</span>
-        </button>
-        <button class="icon-btn-outline" type="button" aria-label="More filters">
-          <span class="material-symbols-outlined">tune</span>
-        </button>
+      <!-- Period filter (reports.js): the server returns only items with
+           activity in the chosen period. Month options are filled in by JS. -->
+      <div class="toolbar-right period-filter">
+        <label class="period-select-wrap">
+          <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+          <span class="visually-hidden">Period</span>
+          <select id="period-select" aria-label="Period">
+            <option value="all">All time</option>
+            <option value="this-month">This month</option>
+            <option value="last-month">Last month</option>
+            <optgroup label="Month" id="period-months"></optgroup>
+            <option value="custom">Custom dates…</option>
+          </select>
+        </label>
+        <form class="period-custom" id="period-custom" hidden>
+          <label>From <input type="date" id="period-from" required></label>
+          <label>To <input type="date" id="period-to" required></label>
+          <button type="submit" class="period-apply">Apply</button>
+        </form>
       </div>
     </div>
+
+    <p class="period-summary" id="period-summary" hidden></p>
 
     <!-- Report List Content -->
     <div class="report-list" id="report-list" aria-busy="true">

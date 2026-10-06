@@ -45,8 +45,12 @@ namespace DTIOneLink.Controllers
         //   Employee — tasks they are assigned to, and their activity.
         //   Admin    — tasks of their division (plus their own assignments).
         //   Records  — only the records the user created (owner-only rule).
+        // Optional period (?from=yyyy-MM-dd&to=yyyy-MM-dd, Philippine dates,
+        // both inclusive): only items with activity in it — a task created or
+        // worked on then, a history entry made then, a record logged or
+        // changed then. Either end may be left open.
         [HttpGet]
-        public async Task<IActionResult> Data()
+        public async Task<IActionResult> Data(string? from, string? to)
         {
             var userId = HttpContext.Session.GetInt32("UserId");
             var role = HttpContext.Session.GetString("UserRole");
@@ -59,6 +63,11 @@ namespace DTIOneLink.Controllers
                 return StatusCode(StatusCodes.Status403Forbidden, new { message = "You don't have access to reports." });
             }
 
+            if (!TryParsePeriod(from, to, out var fromUtc, out var toUtc, out var periodError))
+            {
+                return BadRequest(new { message = periodError });
+            }
+
             var department = HttpContext.Session.GetString("UserDepartment");
             var isAdmin = role == "Admin";
             var isOfficeWide = RolePermissions.Has(role, Permissions.ViewOfficeWideSummaries);
@@ -66,7 +75,16 @@ namespace DTIOneLink.Controllers
             var items = new List<ReportItem>();
 
             // ── Tasks: Active / Completed ─────────────────────────────
-            var tasks = await ScopedTasks(userId.Value, isAdmin, isOfficeWide, department)
+            var taskQuery = ScopedTasks(userId.Value, isAdmin, isOfficeWide, department);
+            if (fromUtc != null || toUtc != null)
+            {
+                var start = fromUtc ?? DateTime.MinValue;
+                var end = toUtc ?? DateTime.MaxValue;
+                taskQuery = taskQuery.Where(t =>
+                    (t.CreatedAt >= start && t.CreatedAt < end) ||
+                    t.Activities.Any(a => a.OccurredAt >= start && a.OccurredAt < end));
+            }
+            var tasks = await taskQuery
                 .AsNoTracking()
                 .Select(t => new
                 {
@@ -136,9 +154,12 @@ namespace DTIOneLink.Controllers
 
             // ── Task history on the tasks above ──────────────────────
             var taskIds = tasks.Select(t => t.Id).ToList();
-            var activities = await _context.TaskActivities
+            var activityQuery = _context.TaskActivities
                 .AsNoTracking()
-                .Where(a => taskIds.Contains(a.TaskId))
+                .Where(a => taskIds.Contains(a.TaskId));
+            if (fromUtc != null) activityQuery = activityQuery.Where(a => a.OccurredAt >= fromUtc.Value);
+            if (toUtc != null) activityQuery = activityQuery.Where(a => a.OccurredAt < toUtc.Value);
+            var activities = await activityQuery
                 .OrderByDescending(a => a.OccurredAt)
                 .Take(AuditLogLimit)
                 .Select(a => new
@@ -171,7 +192,7 @@ namespace DTIOneLink.Controllers
             }
 
             // ── Records: Retained / Archived / Disposed ──────────────
-            items.AddRange(await OwnRecordsAsync(userId.Value, now));
+            items.AddRange(await OwnRecordsAsync(userId.Value, now, fromUtc, toUtc));
 
             var ordered = items.OrderByDescending(i => i.SortAt).Select(i => new
             {
@@ -187,6 +208,47 @@ namespace DTIOneLink.Controllers
             });
 
             return Json(ordered);
+        }
+
+        // Reads ?from=/?to= (yyyy-MM-dd, Philippine dates, both inclusive) into
+        // a UTC range [fromUtc, toUtc). Blank = open on that side.
+        private static bool TryParsePeriod(string? from, string? to,
+            out DateTime? fromUtc, out DateTime? toUtc, out string? error)
+        {
+            fromUtc = null;
+            toUtc = null;
+            error = null;
+            DateTime? fromDate = null, toDate = null;
+
+            if (!string.IsNullOrWhiteSpace(from))
+            {
+                if (!DateTime.TryParseExact(from.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var d))
+                {
+                    error = "The start date isn't a valid date.";
+                    return false;
+                }
+                fromDate = d;
+            }
+            if (!string.IsNullOrWhiteSpace(to))
+            {
+                if (!DateTime.TryParseExact(to.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var d))
+                {
+                    error = "The end date isn't a valid date.";
+                    return false;
+                }
+                toDate = d;
+            }
+            if (fromDate > toDate)
+            {
+                error = "The start date is after the end date.";
+                return false;
+            }
+
+            if (fromDate != null) fromUtc = TimeZoneHelper.PhilippineDateStartUtc(fromDate.Value);
+            if (toDate != null) toUtc = TimeZoneHelper.PhilippineDateStartUtc(toDate.Value.AddDays(1));
+            return true;
         }
 
         private static bool IsAllowedRole(string? role) =>
@@ -217,15 +279,21 @@ namespace DTIOneLink.Controllers
         // Records the user owns (same owner-only rule as the Records page).
         // "Retained" = still active; "Archived"/"Disposed" follow RecordStatus
         // once those statuses are used.
-        private async Task<List<ReportItem>> OwnRecordsAsync(int userId, DateTime now)
+        private async Task<List<ReportItem>> OwnRecordsAsync(int userId, DateTime now, DateTime? fromUtc, DateTime? toUtc)
         {
             var items = new List<ReportItem>();
+            // Period: logged or last changed inside it (CreatedAt/UpdatedAt are UTC).
             const string sql = @"
                 SELECT r.RecordId, r.Code, r.Title, r.RecordStatus, r.RetentionPeriod,
                        r.RetentionDueDate, r.CreatedAt, r.UpdatedAt, u.FullName
                 FROM dbo.Records r
                 LEFT JOIN dbo.Users u ON u.Id = r.CreatedByUserId
                 WHERE r.CreatedByUserId = @UserId
+                  AND (   (@From IS NULL AND @To IS NULL)
+                       OR (r.CreatedAt >= COALESCE(@From, CAST('0001-01-01' AS datetime2))
+                           AND r.CreatedAt < COALESCE(@To, CAST('9999-12-31' AS datetime2)))
+                       OR (r.UpdatedAt >= COALESCE(@From, CAST('0001-01-01' AS datetime2))
+                           AND r.UpdatedAt < COALESCE(@To, CAST('9999-12-31' AS datetime2))))
                 ORDER BY r.RecordId";
 
             try
@@ -234,6 +302,8 @@ namespace DTIOneLink.Controllers
                 await conn.OpenAsync();
                 using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@UserId", userId);
+                cmd.Parameters.Add("@From", System.Data.SqlDbType.DateTime2).Value = (object?)fromUtc ?? DBNull.Value;
+                cmd.Parameters.Add("@To", System.Data.SqlDbType.DateTime2).Value = (object?)toUtc ?? DBNull.Value;
                 using var reader = await cmd.ExecuteReaderAsync();
 
                 // Same "today" as the Records page's retention colours.

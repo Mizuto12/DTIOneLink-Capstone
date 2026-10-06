@@ -42,5 +42,10 @@ namespace DTIOneLink.Services
         // yesterday here until 8 AM.
         public static DateTime PhilippineToday => ToPhilippineTime(DateTime.UtcNow).Date;
 
+        // The UTC moment a Philippine calendar date starts (00:00 in the
+        // office), for filtering UTC timestamps by Philippine dates.
+        public static DateTime PhilippineDateStartUtc(DateTime philippineDate) =>
+            TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(philippineDate.Date, DateTimeKind.Unspecified), PhilippineTimeZone);
+
     }
 }
