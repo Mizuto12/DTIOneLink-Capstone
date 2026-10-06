@@ -4,7 +4,8 @@ A plain-language guide to what the system does and how it flows. This note is
 documentation only; it is not used by the app and changes nothing when present
 or removed.
 
-Last written: 2026-10-04, from the code on branch `main` (commit `ad4cbdf`).
+Last updated: 2026-10-07, from branch `ui-redesign` (the UI redesign merged with
+the colleague's `main` up to commit `08f3375`).
 
 ---
 
@@ -80,6 +81,12 @@ Key security behavior (constants in `Security/AccountDefaults.cs`):
   60 s, max 3 per 15 minutes.
 - **Password reset**: Forgot password → emailed code → set new password.
 - Passwords are stored **hashed** (one-way) — they can never be read back.
+- **Sign-in status** (shown in User Management): signing in records
+  `LastLoginAtUtc`, Sign Out records `LastLogoutAtUtc`, and every page load
+  updates `LastSeenAtUtc` (at most once a minute). An account shows
+  **Signed in** when it logged in after its last sign-out and was seen in the
+  last 30 minutes; otherwise **Signed out + "Last active …"**, or
+  **Not signed in yet** if it never has. Deactivated always wins.
 
 Role home pages (`RoleHomeUrl`):
 - SuperAdmin → `/Dashboard/SuperAdminDashboard`
@@ -152,6 +159,15 @@ records need `ViewConfidentialRecords`):
 
 `Controllers/ReportsController.cs`: an Index page plus a `Data` endpoint that
 feeds the charts/figures. Uses existing task/record data — no invented numbers.
+A **Period** filter (All time, This month, Last month, a month, or custom
+From/To dates) narrows everything to items with activity in that period; the
+choice is kept in the page address. The former "Audit Logs" category is now
+**"Task History"**.
+
+Staff ratings (Top Performers, per-person Efficiency) were removed on purpose:
+DTI Laguna tracks staff targets in its own PGS Dashboard, so OneLink stays a
+task platform. The Employee dashboard's "My progress" card shows the person's
+own task **counts** only — no percentages or scores.
 
 ---
 
@@ -174,7 +190,11 @@ feeds the charts/figures. Uses existing task/record data — no invented numbers
    `SchemaRepair` adds missing columns/tables directly so the app keeps working.
 2. **Cancel leftover verification codes** from before the restart (they can no
    longer match, since the checking key is in memory only).
-3. **Per-request session sync** — on every request, the signed-in user's role
+3. **Static files are cached by browsers.** Files linked with
+   `asp-append-version` (all CSS/JS here) carry a version hash and are kept for
+   a year; any change to the file changes the hash, so updates still arrive.
+   Other files (fonts) are re-checked daily.
+4. **Per-request session sync** — on every request, the signed-in user's role
    and department are re-read from the database, so a promotion/demotion or
    department change applies on the next page load. A deactivated/deleted
    account, or a session older than the account's last password/email change
@@ -208,7 +228,7 @@ feeds the charts/figures. Uses existing task/record data — no invented numbers
 
 ## 13. Data model (tables)
 
-`Users`, `TaskItems`, `TaskAssignments`, `TaskSubmissions`, `TaskActivities`,
+`Users` (incl. `LastLoginAtUtc`, `LastLogoutAtUtc`, `LastSeenAtUtc`), `TaskItems`, `TaskAssignments`, `TaskSubmissions`, `TaskActivities`,
 `TaskComments`, `Notifications`, `OneTimeCodes`, `EmailOutbox`, `UserItems`.
 Defined in `Data/AppDbContext.cs`; schema changes live in `Migrations/`.
 
@@ -244,3 +264,21 @@ Defined in `Data/AppDbContext.cs`; schema changes live in `Migrations/`.
 - Only `superadmin@local.test` exists in your local database right now; its
   password is hashed and cannot be recovered — reset it locally or ask your
   teammate for a known account.
+
+---
+
+## 16. Recent UI (branch `ui-redesign`)
+
+- **User Management:** one connected module — header strip, identical form
+  fields, Save level with the pagination bar; fixed proportional columns with
+  "…" + tooltips; 6 accounts per page that fill the area on every page
+  (`user-management.js` sizes the rows); quiet Change Role / Deactivate buttons.
+- **Task Management (Admin/Super Admin):** status tiles on top, Create Task in
+  the search line, balanced filter row, fixed 5-row frame, 5 tasks per page;
+  clicking a subtask opens it directly.
+- **Employee dashboard:** To Do / In Progress boards, a calendar card that opens
+  into a full month (pick a day to see work due or assigned that day), and
+  "My progress" counts. Employee Task Management boards fill the width.
+- **Super Admin Task Board:** To Do · In Progress · For Review over
+  Returned · Completed.
+- The non-working top-bar search was removed from all layouts.

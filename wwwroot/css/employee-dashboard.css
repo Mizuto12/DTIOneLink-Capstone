@@ -381,15 +381,6 @@
 .ed-progress__summary { margin: 0; font-size: 14px; }
 .ed-progress__summary strong { font-size: 22px; color: #001e65; }
 
-.ed-progress__bar {
-    display: block;
-    height: 6px;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.55);
-    overflow: hidden;
-}
-.ed-progress__bar > span { display: block; height: 100%; background: #001e65; border-radius: inherit; }
-
 .ed-progress__stats {
     display: grid;
     gap: 6px;

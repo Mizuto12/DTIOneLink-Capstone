@@ -86,12 +86,12 @@
         (Key: TaskWorkflow.InProgress, Empty: "Nothing in progress."),
     };
 
-    // My progress (the employee's own numbers only).
+    // My progress: the employee's own task counts only — no percentages or
+    // scores (staff ratings are tracked in DTI's PGS Dashboard, not here).
     var total = tasks.Count;
-    var completed = tasks.Count(t => StatusOf(t) == TaskWorkflow.Completed);
-    var completedPct = total > 0 ? (int)Math.Round(completed * 100.0 / total) : 0;
     var progressStats = new[]
     {
+        (Label: "Completed",   Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.Completed), Tone: "completed"),
         (Label: "In Progress", Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.InProgress), Tone: "progress"),
         (Label: "For Review",  Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.ForReview), Tone: "review"),
         (Label: "Returned",    Value: tasks.Count(t => StatusOf(t) == TaskWorkflow.ReturnedForCorrection), Tone: "returned"),
@@ -214,10 +214,7 @@
             <section class="ed-progress" aria-labelledby="edProgressTitle">
                 <span class="material-symbols-outlined ed-progress__icon" aria-hidden="true">military_tech</span>
                 <h2 class="ed-progress__title" id="edProgressTitle">My progress</h2>
-                <p class="ed-progress__summary"><strong>@completed</strong> of @total task@(total == 1 ? "" : "s") completed</p>
-                <span class="ed-progress__bar" role="progressbar" aria-valuenow="@completedPct" aria-valuemin="0" aria-valuemax="100" aria-label="Tasks completed">
-                    <span style="width:@completedPct%;"></span>
-                </span>
+                <p class="ed-progress__summary"><strong>@total</strong> task@(total == 1 ? "" : "s") assigned to you</p>
                 <dl class="ed-progress__stats">
                     @foreach (var s in progressStats)
                     {
