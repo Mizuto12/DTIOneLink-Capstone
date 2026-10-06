@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DTIOneLink.Models
 {
@@ -30,5 +31,19 @@ namespace DTIOneLink.Models
         public string Status { get; set; } = "active";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Sign-in status (UTC, read-only; see User.cs). Null = never. Read from
+        // dbo.Users for User Management; [NotMapped] so the old UserItems
+        // table (UserItem is also a DbSet) doesn't get these columns.
+        [NotMapped] public DateTime? LastLoginAtUtc { get; set; }
+        [NotMapped] public DateTime? LastLogoutAtUtc { get; set; }
+        [NotMapped] public DateTime? LastSeenAtUtc { get; set; }
+
+        // Logged in after their last Sign Out, and heard from within the
+        // 30-minute session timeout (Program.cs AddSession).
+        public bool IsSignedIn =>
+            LastLoginAtUtc != null
+            && (LastLogoutAtUtc == null || LastLogoutAtUtc < LastLoginAtUtc)
+            && LastSeenAtUtc > DateTime.UtcNow.AddMinutes(-30);
     }
 }

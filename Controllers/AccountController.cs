@@ -138,8 +138,15 @@ namespace DTIOneLink.Controllers
         // POST: /Account/Logout
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            // Shown as "Signed out" in User Management.
+            if (HttpContext.Session.GetInt32("UserId") is int userId)
+            {
+                var now = DateTime.UtcNow;
+                await _db.Users.Where(u => u.Id == userId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLogoutAtUtc, now));
+            }
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
         }
@@ -502,6 +509,15 @@ namespace DTIOneLink.Controllers
             HttpContext.Session.SetString("UserDepartment", user.Department ?? string.Empty);
             HttpContext.Session.SetString(SecurityStampKey, user.SecurityStamp);
             HttpContext.Session.SetInt32("UserId", user.Id);
+
+            // Shown in User Management ("Last signed in ..."). One direct
+            // UPDATE, so it never saves other pending changes by accident.
+            var now = DateTime.UtcNow;
+            _db.Users.Where(u => u.Id == user.Id)
+                .ExecuteUpdate(s => s
+                    .SetProperty(u => u.LastLoginAtUtc, now)
+                    .SetProperty(u => u.LastSeenAtUtc, now));
+
             _logger.LogInformation("User {UserId} signed in.", user.Id);
         }
 

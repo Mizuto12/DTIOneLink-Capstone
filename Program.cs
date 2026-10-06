@@ -137,7 +137,22 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
 }
 
-app.UseStaticFiles();
+// The server is in Germany (~0.25 s each way from the Philippines), so every
+// file the browser has to re-check costs a round trip. Files linked with
+// asp-append-version carry "?v=<hash>" that changes whenever the file does,
+// so the browser may keep them for a year without asking again. Others
+// (fonts, which fonts.css links without a version) are kept for a day, then
+// re-checked. wwwroot holds only the app's own files, never uploads.
+// (Compression is already done by the host's IIS.)
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.CacheControl = ctx.Context.Request.Query.ContainsKey("v")
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=86400";
+    }
+});
 app.UseRouting();
 app.UseRateLimiter();
 
@@ -157,7 +172,7 @@ app.Use(async (context, next) =>
         var db = context.RequestServices.GetRequiredService<AppDbContext>();
         var current = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId.Value)
-            .Select(u => new { u.Role, u.Department, u.IsActive, u.SecurityStamp })
+            .Select(u => new { u.Role, u.Department, u.IsActive, u.SecurityStamp, u.LastSeenAtUtc })
             .FirstOrDefaultAsync();
 
         if (current == null || !current.IsActive
@@ -171,6 +186,16 @@ app.Use(async (context, next) =>
                 context.Session.SetString("UserRole", current.Role);
             if (context.Session.GetString("UserDepartment") != (current.Department ?? string.Empty))
                 context.Session.SetString("UserDepartment", current.Department ?? string.Empty);
+
+            // "Signed in" status in User Management. Written at most once a
+            // minute; an open tab checks notifications every minute, so it
+            // stays fresh while the session is alive.
+            var now = DateTime.UtcNow;
+            if (current.LastSeenAtUtc == null || now - current.LastSeenAtUtc.Value > TimeSpan.FromMinutes(1))
+            {
+                await db.Users.Where(u => u.Id == userId.Value)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastSeenAtUtc, now));
+            }
         }
     }
 

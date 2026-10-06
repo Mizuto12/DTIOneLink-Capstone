@@ -72,6 +72,15 @@ BEGIN
     );
     CREATE INDEX IX_OneTimeCodes_UserId_Purpose_CreatedAtUtc ON dbo.OneTimeCodes (UserId, Purpose, CreatedAtUtc);
 END");
+
+            // AddUserLastLogin
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.Users', N'LastLoginAtUtc') IS NULL
+    ALTER TABLE dbo.Users ADD LastLoginAtUtc datetime2 NULL;
+IF COL_LENGTH(N'dbo.Users', N'LastLogoutAtUtc') IS NULL
+    ALTER TABLE dbo.Users ADD LastLogoutAtUtc datetime2 NULL;
+IF COL_LENGTH(N'dbo.Users', N'LastSeenAtUtc') IS NULL
+    ALTER TABLE dbo.Users ADD LastSeenAtUtc datetime2 NULL;");
         }
     }
 }

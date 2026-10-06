@@ -4,8 +4,8 @@
 @*
     _DashboardContent.cshtml
     ---------------------------------------------------------------------
-    Admin and Employee dashboard: Task Ledger (Gantt / Kanban toggle) +
-    Top Performers (Admins only).
+    Admin and Employee dashboard: Task Ledger (Gantt / Kanban toggle).
+    (Top Performers was removed: staff ratings belong to DTI's PGS Dashboard.)
 
     Pairs with:
         ~/css/admindashboard.css   (styles, incl. Gantt/Kanban blocks)
@@ -118,20 +118,6 @@
     var ganttTasks = tasks
         .OrderBy(t => IsCompleted(t))
         .ThenBy(t => t.DueDate)
-        .ToList();
-
-    // ---- Top performers (Admins only; it ranks co-workers) --------------
-    var performerAvatarColors = new[] { "performer-avatar", "performer-avatar--alt", "performer-avatar--secondary" };
-    var performerMetricColors = new[] { "performer-metric--tertiary", "performer-metric--primary", "performer-metric--secondary" };
-
-    var topPerformers = tasks
-        .Where(t => !isEmployeeView && t.Assignee != null)
-        .GroupBy(t => t.Assignee)
-        .Select(g => new { Assignee = g.Key, Total = g.Count(), Completed = g.Count(t => IsCompleted(t)) })
-        .Select(p => new { p.Assignee, p.Total, p.Completed, Efficiency = p.Total > 0 ? (int)Math.Round(p.Completed * 100.0 / p.Total) : 0 })
-        .OrderByDescending(p => p.Efficiency)
-        .ThenByDescending(p => p.Total)
-        .Take(3)
         .ToList();
 }
 
@@ -319,33 +305,5 @@
                 </div>
             </div>
         </section>
-
-        @if (!isEmployeeView)
-        {
-        <!-- Top Performers -->
-        <section class="performers">
-            <div class="performers__header">
-                <h4 class="performers__title">Top Performers</h4>
-                <span class="material-symbols-outlined">military_tech</span>
-            </div>
-            <div class="performers__grid">
-                @if (!topPerformers.Any())
-                {
-                    <div class="empty-state">No performance data yet.</div>
-                }
-                @for (int i = 0; i < topPerformers.Count; i++)
-                {
-                    var performer = topPerformers[i];
-                    <div class="performer-card">
-                        <div class="performer-avatar @performerAvatarColors[i % performerAvatarColors.Length]">@Initials(performer.Assignee!.FullName)</div>
-                        <div>
-                            <p class="performer-name">@performer.Assignee!.FullName</p>
-                            <span class="performer-metric @performerMetricColors[i % performerMetricColors.Length]">@performer.Efficiency% Efficiency</span>
-                        </div>
-                    </div>
-                }
-            </div>
-        </section>
-        }
     </div>
 </div>

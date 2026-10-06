@@ -1115,6 +1115,11 @@
     .um-dialog-actions .um-btn-cancel { flex: none !important; width: 100%; }
 }
 
+/* Account has never been signed in to (grey), and the last sign-in time. */
+.um-status-pending { background: var(--surface-container); color: var(--secondary); }
+.um-status-pending .um-status-dot { background: var(--outline); }
+.um-last-login { display: block; margin-top: 4px; font-size: 12px; color: var(--secondary); white-space: nowrap; }
+
 /* ==========================================================
    User Management v2 — one connected module (approved mockup)
    Header strip, identical form fields, Save pinned level with the

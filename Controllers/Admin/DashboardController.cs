@@ -134,7 +134,6 @@ namespace DTIOneLink.Controllers
                         Completed = completed,
                         Overdue = g.Count(IsOverdue),
                         AtRisk = g.Count(IsAtRisk),
-                        EfficiencyPercent = total == 0 ? 0 : (int)Math.Round(completed * 100.0 / total),
                     };
                 })
                 .OrderByDescending(w => w.TotalAssigned)

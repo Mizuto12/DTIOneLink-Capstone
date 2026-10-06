@@ -128,7 +128,7 @@
 
         <!-- Brand block: logo + DTI (Anton) + OneLink (Open Sauce) -->
         <div class="sidebar-brand">
-            <img src="~/images/dti-logo.png"
+            <img src="~/images/dti-logo.png" asp-append-version="true"
                  alt="DTI Laguna Provincial Office"
                  class="sidebar-logo" />
             <div class="brand-text">
@@ -139,12 +139,8 @@
             </div>
         </div>
 
-        <!-- SuperAdmin currently has one destination: the office-wide
-             dashboard. If more SuperAdmin-only pages get added later
-             (e.g. User Management once it's SuperAdmin-scoped), add
-             them here rather than pulling in AdminLayout's full nav —
-             SuperAdmin shouldn't link to pages it isn't permitted to
-             open (Tasks, Records, Reports remain Admin-only). -->
+        <!-- SuperAdmin's own nav (not AdminLayout's): link only pages
+             SuperAdmin is permitted to open. -->
         <nav class="sidebar-nav">
 
             <a asp-controller="Dashboard" asp-action="SuperAdminDashboard"
@@ -162,6 +158,12 @@
                 <span>Task Management</span>
             </a>
             }
+            @* RecordsController allows SuperAdmin; each user sees only the records they logged. *@
+            <a asp-controller="Records" asp-action="Index"
+               class="nav-item @(IsActive("Records") ? "active" : "")">
+                <span class="material-symbols-outlined">folder_open</span>
+                <span>Records Management</span>
+            </a>
             <a asp-controller="UserManagement" asp-action="Index"
                class="nav-item @(IsActive("UserManagement") ? "active" : "")">
                 <span class="material-symbols-outlined">group</span>

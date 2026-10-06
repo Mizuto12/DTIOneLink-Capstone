@@ -236,12 +236,12 @@
         }
     </section>
 
-    <!-- ── Employee workload & productivity ──────────────── -->
+    <!-- ── Employee workload ─────────────────────────────── -->
     <section class="sa-section">
         <div class="sa-section__head">
             <div>
-                <h4 class="sa-section__title">Employee Workload &amp; Productivity</h4>
-                <p class="sa-section__sub">Efficiency is the share of each person's assignments that are completed.</p>
+                <h4 class="sa-section__title">Employee Workload</h4>
+                <p class="sa-section__sub">How many tasks each person has, and where they stand.</p>
             </div>
         </div>
         @if (!Model.EmployeeWorkloads.Any())
@@ -264,7 +264,6 @@
                             <th>Completed</th>
                             <th>Overdue</th>
                             <th>At Risk</th>
-                            <th>Efficiency</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -285,12 +284,6 @@
                                 <td class="@Num(w.Completed)">@w.Completed</td>
                                 <td class="@Num(w.Overdue, "td--danger-count")">@w.Overdue</td>
                                 <td class="@Num(w.AtRisk, "td--risk-count")">@w.AtRisk</td>
-                                <td>
-                                    <div class="sa-kcard__progress sa-progress--table sa-progress--green">
-                                        <div class="sa-kcard__bar"><div style="width:@(w.EfficiencyPercent)%;"></div></div>
-                                        <span>@w.EfficiencyPercent%</span>
-                                    </div>
-                                </td>
                             </tr>
                         }
                     </tbody>

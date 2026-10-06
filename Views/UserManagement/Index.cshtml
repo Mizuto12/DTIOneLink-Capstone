@@ -22,6 +22,17 @@
     var highlightUserId = TempData["HighlightUserId"] as int?;
     var openTasks = ViewData["OpenTasks"] as Dictionary<int, int> ?? new();
 
+    // "today", "yesterday", "3 days ago", or a date (Philippine time).
+    string LastSeen(DateTime utc)
+    {
+        var local = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(utc);
+        var days = (DTIOneLink.Services.TimeZoneHelper.PhilippineToday - local.Date).Days;
+        return days <= 0 ? "today, " + local.ToString("h:mm tt")
+             : days == 1 ? "yesterday"
+             : days < 30 ? $"{days} days ago"
+             : "on " + local.ToString("MMM d, yyyy");
+    }
+
     // Short names used on the division buttons.
     var divisionShort = new Dictionary<string, string>
     {
@@ -237,10 +248,37 @@
                                 <td class="um-td-division" data-label="Division"><span class="um-division-badge um-ell" title="@user.Department">@user.Department</span></td>
                                 <td class="um-td-role" data-label="Role"><span class="um-ell" title="@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</span></td>
                                 <td class="um-td-status" data-label="Status">
-                                    <div class="um-status-badge @(isActive ? "um-status-active" : "um-status-disabled")">
-                                        <span class="um-status-dot@(isActive ? " um-dot-pulse" : "")"></span>
-                                        <span>@(isActive ? "Active" : "Deactivated")</span>
-                                    </div>
+                                    @* Deactivated wins; then signed in right now; then signed out (or never signed in). *@
+                                    @if (!isActive)
+                                    {
+                                        <div class="um-status-badge um-status-disabled">
+                                            <span class="um-status-dot"></span>
+                                            <span>Deactivated</span>
+                                        </div>
+                                    }
+                                    else if (user.IsSignedIn)
+                                    {
+                                        <div class="um-status-badge um-status-active" title="Signed in and using DTI OneLink now.">
+                                            <span class="um-status-dot um-dot-pulse"></span>
+                                            <span>Signed in</span>
+                                        </div>
+                                    }
+                                    else if (user.LastLoginAtUtc != null)
+                                    {
+                                        var lastSeen = user.LastSeenAtUtc ?? user.LastLoginAtUtc.Value;
+                                        <div class="um-status-badge um-status-pending" title="Signed out, or inactive for over 30 minutes.">
+                                            <span class="um-status-dot"></span>
+                                            <span>Signed out</span>
+                                        </div>
+                                        <span class="um-last-login" title="@DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(lastSeen).ToString("MMM d, yyyy h:mm tt")">Last active @LastSeen(lastSeen)</span>
+                                    }
+                                    else
+                                    {
+                                        <div class="um-status-badge um-status-pending" title="This account was created but the person hasn't signed in yet.">
+                                            <span class="um-status-dot"></span>
+                                            <span>Not signed in yet</span>
+                                        </div>
+                                    }
                                 </td>
                                 <td class="um-td-actions">
                                     @if (user.Id == currentUserId)

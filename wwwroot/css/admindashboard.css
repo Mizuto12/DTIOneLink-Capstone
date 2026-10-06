@@ -873,111 +873,6 @@
 .priority-badge--medium { background: #fef3c7; color: #92400e; }
 .priority-badge--low    { background: var(--dash-surface-container); color: var(--dash-on-primary-fixed-variant); }
 
-/* ---- Top Performers --------------------------------------------------- */
-.performers {
-  padding: 24px;
-  background-color: var(--dash-white);
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(197, 197, 210, 0.1);
-  margin-bottom: 32px;
-}
-
-.performers__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.performers__title {
-  color: var(--dash-primary);
-  font-family: var(--dash-font-display);
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.performers__header .material-symbols-outlined {
-  color: var(--dash-primary);
-}
-
-.performers__grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-
-@media (min-width: 640px) {
-  .performers__grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.performer-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background-color: rgba(239, 244, 255, 0.5);
-  border-radius: var(--dash-radius-xl);
-}
-
-.performer-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--dash-radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--dash-font-ui);
-  font-weight: 700;
-  background-color: var(--dash-primary-fixed-dim);
-  color: var(--dash-primary);
-}
-
-.performer-avatar--alt {
-  background-color: var(--dash-surface-variant);
-}
-
-.performer-avatar--secondary {
-  background-color: var(--dash-secondary-fixed);
-  color: var(--dash-secondary);
-}
-
-.performer-name {
-  font-family: var(--dash-font-ui);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--dash-on-surface);
-  margin: 0 0 4px;
-}
-
-.performer-metric {
-  font-family: var(--dash-font-ui);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--dash-radius-full);
-  display: inline-block;
-}
-
-.performer-metric--tertiary {
-  color: var(--dash-on-tertiary-fixed-variant);
-  background-color: rgba(107, 254, 156, 0.2);
-}
-
-.performer-metric--primary {
-  color: var(--dash-primary);
-  background-color: rgba(220, 225, 255, 0.3);
-}
-
-.performer-metric--secondary {
-  color: var(--dash-secondary);
-  background-color: var(--dash-secondary-container);
-}
-
 /* ---- Right sidebar widgets --------------------------------------------- */
 .widget {
   background-color: var(--dash-white);
@@ -1271,9 +1166,6 @@
   .gantt-pager { justify-content: center; text-align: center; }
   .gantt-pager__buttons { width: 100%; }
   .gantt-pager__buttons .btn-pill { flex: 1; justify-content: center; min-height: 44px; }
-
-  .performers { padding: 16px; border-radius: 16px; }
-  .performers__grid { gap: 12px; }
 }
 
 /* Phone fixes */

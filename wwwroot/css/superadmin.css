@@ -372,7 +372,7 @@
 .sa-table tbody tr:hover td { background: var(--surface-container-low); }
 
 .sa-table--numbers th:not(:first-child),
-.sa-table--numbers td:not(:first-child):not(:last-child) { text-align: center; }
+.sa-table--numbers td:not(:first-child) { text-align: center; }
 
 .sa-link { color: var(--primary); font-weight: 600; text-decoration: none; }
 .sa-link:hover { text-decoration: underline; }

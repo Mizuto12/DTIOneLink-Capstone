@@ -38,7 +38,6 @@ namespace DTIOneLink.Models
         public int Completed { get; set; }
         public int Overdue { get; set; }
         public int AtRisk { get; set; }
-        public int EfficiencyPercent { get; set; }
     }
 
     public class DashboardAssignmentSummary
