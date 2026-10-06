@@ -137,7 +137,22 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
 }
 
-app.UseStaticFiles();
+// The server is in Germany (~0.25 s each way from the Philippines), so every
+// file the browser has to re-check costs a round trip. Files linked with
+// asp-append-version carry "?v=<hash>" that changes whenever the file does,
+// so the browser may keep them for a year without asking again. Others
+// (fonts, which fonts.css links without a version) are kept for a day, then
+// re-checked. wwwroot holds only the app's own files, never uploads.
+// (Compression is already done by the host's IIS.)
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.CacheControl = ctx.Context.Request.Query.ContainsKey("v")
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=86400";
+    }
+});
 app.UseRouting();
 app.UseRateLimiter();
 
