@@ -176,6 +176,12 @@
                 <span>User Management</span>
             </a>
 
+            <a asp-controller="TimeLogs" asp-action="Index"
+               class="nav-item @(IsActive("TimeLogs") ? "active" : "")">
+                <span class="material-symbols-outlined">schedule</span>
+                <span>Time Logs</span>
+            </a>
+
         </nav>
     </aside>
 

@@ -20,6 +20,7 @@ namespace DTIOneLink.Data
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<OneTimeCode> OneTimeCodes { get; set; }
     public DbSet<EmailOutboxMessage> EmailOutbox { get; set; }
+    public DbSet<TimeLog> TimeLogs { get; set; }
 
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -163,6 +164,18 @@ modelBuilder.Entity<Notification>()
         .WithMany()
         .HasForeignKey(s => s.TaskAssignmentId)
         .OnDelete(DeleteBehavior.Restrict);
+
+    // Restrict (not the default Cascade) so a user with time logs can still
+    // be handled the same way every other Users FK above is — the log is a
+    // historical fact, not something that should vanish with the account.
+    modelBuilder.Entity<TimeLog>()
+        .HasOne(t => t.User)
+        .WithMany()
+        .HasForeignKey(t => t.UserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<TimeLog>()
+        .HasIndex(t => new { t.UserId, t.TimeInUtc });
 }
 }
 }
