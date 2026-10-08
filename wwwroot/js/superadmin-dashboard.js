@@ -49,4 +49,36 @@
             apply(saved);
         }
     });
+
+    // Employee Workload table: same chip pattern, filtering table rows
+    // instead of board cards. Kept independent of the board's own choice.
+    document.addEventListener("DOMContentLoaded", function () {
+        var section = document.getElementById("saWorkload");
+        if (!section) return;
+
+        var chips = Array.from(section.querySelectorAll(".sa-chip"));
+        var rows = Array.from(section.querySelectorAll("tbody tr[data-division]"));
+        var emptyRow = section.querySelector(".sa-table__empty");
+        if (!chips.length || !rows.length) return;
+
+        function apply(division) {
+            chips.forEach(function (chip) {
+                var on = chip.dataset.division === division;
+                chip.classList.toggle("is-active", on);
+                chip.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+
+            var shown = 0;
+            rows.forEach(function (row) {
+                var match = !division || row.dataset.division === division;
+                row.hidden = !match;
+                if (match) shown++;
+            });
+            if (emptyRow) emptyRow.hidden = shown > 0;
+        }
+
+        chips.forEach(function (chip) {
+            chip.addEventListener("click", function () { apply(chip.dataset.division); });
+        });
+    });
 })();

@@ -126,6 +126,12 @@ namespace DTIOneLink.Controllers
                     return new EmployeeWorkloadSummary
                     {
                         FullName = g.Key,
+                        // A person's tasks can span divisions (e.g. a cross-department
+                        // directive); show whichever division most of their work belongs to.
+                        Division = g.GroupBy(i => i.Division)
+                            .OrderByDescending(dg => dg.Count())
+                            .Select(dg => dg.Key)
+                            .FirstOrDefault() ?? string.Empty,
                         TotalAssigned = total,
                         ToDo = g.Count(i => IsStatus(i, TaskWorkflow.Pending)),
                         InProgress = g.Count(i => IsStatus(i, TaskWorkflow.InProgress)),

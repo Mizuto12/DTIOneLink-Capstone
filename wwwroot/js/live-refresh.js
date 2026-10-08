@@ -11,7 +11,9 @@
 // open, or has changed a field; instead a small "New updates" button
 // appears so they can refresh when ready.
 (function () {
-    var FALLBACK_CHECK_MS = 10000;
+    // Matches the server's own check interval (LiveChangeBroadcaster) — no
+    // point polling faster than the data could possibly have changed.
+    var FALLBACK_CHECK_MS = 60000;
     // Disconnect once nobody has touched the page for this long, so an
     // unattended tab doesn't hold a connection (or the session) forever.
     var STOP_AFTER_IDLE_MS = 30 * 60 * 1000;

@@ -176,6 +176,10 @@
             <p class="um-form-error um-directory-banner">
                 <span class="material-symbols-outlined">error</span>
                 <span>@directoryError</span>
+                @if (TempData["DirectoryErrorTaskLink"] is string directoryErrorTaskLink)
+                {
+                    <a href="@directoryErrorTaskLink" class="um-directory-banner-link">@TempData["DirectoryErrorTaskLinkLabel"]</a>
+                }
             </p>
         }
 

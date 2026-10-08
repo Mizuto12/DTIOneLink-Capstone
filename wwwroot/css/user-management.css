@@ -713,6 +713,14 @@
     font-size: 14px;
 }
 
+.um-directory-banner-link {
+    margin-left: auto;
+    font-weight: 700;
+    text-decoration: underline;
+    color: inherit;
+    white-space: nowrap;
+}
+
 /* ── Change Role dialog, easier layout ───────────────────── */
 .um-dialog-head { display: flex; align-items: center; justify-content: space-between; }
 .um-dialog-close {

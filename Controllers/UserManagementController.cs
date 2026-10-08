@@ -315,6 +315,10 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             if (openWork > 0)
             {
                 TempData["DirectoryError"] = $"{fullName}'s account can't be deactivated yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
+                // Sent straight to their open work (e.g. an AWOL employee) so
+                // the admin doesn't have to hunt for which tasks to reassign.
+                TempData["DirectoryErrorTaskLink"] = Url.Action("Index", "Tasks", new { employeeId = id });
+                TempData["DirectoryErrorTaskLinkLabel"] = $"View {fullName}'s tasks";
                 return RedirectToAction(nameof(Index));
             }
         }

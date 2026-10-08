@@ -30,6 +30,7 @@ namespace DTIOneLink.Models
     public class EmployeeWorkloadSummary
     {
         public string FullName { get; set; } = string.Empty;
+        public string Division { get; set; } = string.Empty;
         public int TotalAssigned { get; set; }
         public int ToDo { get; set; }
         public int InProgress { get; set; }

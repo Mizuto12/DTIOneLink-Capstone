@@ -34,6 +34,22 @@
 }
 .mtd-breadcrumb a:hover { color: var(--mtd-primary); }
 
+.mtd-add-subtask {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.mtd-add-subtask input[type="text"] {
+    padding: 8px 12px;
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    min-width: 220px;
+}
+
 .mtd-header {
     display: flex;
     justify-content: space-between;

@@ -14,6 +14,7 @@
     var isAssignmentOnly = ViewBag.IsAssignmentOnly as bool? ?? false;
     var opdDueDate = ViewBag.OpdDueDate as DateTime?;
     var canPassOpdDueDate = ViewBag.CanPassOpdDueDate as bool? ?? false;
+    var isDirectMainTaskAssignment = ViewBag.IsDirectMainTaskAssignment as bool? ?? false;
 }
 
 @section Styles {
@@ -161,6 +162,25 @@
                         </div>
                         <span asp-validation-for="AssigneeIds" class="et-error-text"></span>
                     </div>
+
+                    @if (isDirectMainTaskAssignment)
+                    {
+                        <!-- Subtasks — this directive has none yet (otherwise Edit
+                             would have redirected to Main Task Details, where
+                             subtasks are added instead). -->
+                        <div class="et-field et-field-full">
+                            <label class="et-label">Subtasks</label>
+                            <p class="et-ca-note">No subtasks yet — add one to break this directive down, or just assign people to it directly above.</p>
+                            <form asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@Model.Id" method="post" class="et-add-subtask">
+                                @Html.AntiForgeryToken()
+                                <input type="text" name="subtaskName" class="et-input" placeholder="New subtask name" maxlength="200" required>
+                                <button type="submit" class="et-btn et-btn-outline">
+                                    <span class="material-symbols-outlined">add</span>
+                                    Add Subtask
+                                </button>
+                            </form>
+                        </div>
+                    }
 
                     <!-- Due Date -->
                     <div class="et-field">
