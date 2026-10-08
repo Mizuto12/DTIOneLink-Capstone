@@ -18,16 +18,14 @@ namespace DTIOneLink.Controllers
         }
 
         [HttpGet]
+        [RequireLogin]
         public async Task<IActionResult> AdminDashboard()
         {
             var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
-            {
-                return RedirectToAction("Login", "Account");
-            }
 
             var userRole = HttpContext.Session.GetString("UserRole");
-            var isDepartmentElevated = userRole == "Admin" || userRole == "Supervisor";
+            var isDepartmentElevated = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userRole, "Supervisor", StringComparison.OrdinalIgnoreCase);
 
             // Office-wide (SuperAdmin) is its own permission check, same as
             // TasksController/DashboardController.Details — never granted by
@@ -62,7 +60,7 @@ namespace DTIOneLink.Controllers
                 // (Kept as t.Assignments rather than the legacy AssigneeId
                 // column, matching the multi-assignee model used elsewhere —
                 // AssigneeId only ever reflects the primary assignee.)
-                query = query.Where(t => t.Assignments.Any(a => a.UserId == userId.Value));
+                query = query.Where(t => t.Assignments.Any(a => a.UserId == userId));
             }
             // isOfficeWide: no filter — SuperAdmin sees every department.
 
@@ -151,16 +149,14 @@ namespace DTIOneLink.Controllers
         }
 
         [HttpGet]
+        [RequireLogin]
         public async Task<IActionResult> Details(int id)
         {
             var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
-            {
-                return NotFound();
-            }
 
             var userRole = HttpContext.Session.GetString("UserRole");
-            var isDepartmentElevated = userRole == "Admin" || userRole == "Supervisor";
+            var isDepartmentElevated = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userRole, "Supervisor", StringComparison.OrdinalIgnoreCase);
 
             // Office-wide (SuperAdmin) is a separate check from the
             // department-elevated one above — granted only by

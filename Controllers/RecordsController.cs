@@ -906,12 +906,13 @@ WHERE CreatedByUserId = @UserId AND MasterlistId IS NULL AND RecordId <= @MaxRec
                     return Json(new { available = false, items = Array.Empty<object>(), signatories = new MasterlistRequest { PreparedByName = fullName } });
                 }
 
-                using var cmd = new SqlCommand($@"
-SELECT TOP ({MasterlistHistoryLimit}) MasterlistId, FileName, CreatedAt, RecordCount,
+                using var cmd = new SqlCommand(@"
+SELECT TOP (@Limit) MasterlistId, FileName, CreatedAt, RecordCount,
        PreparedByName, PreparedByPosition, ReviewedByName, ReviewedByPosition, NotedByName, NotedByPosition
 FROM dbo.RecordMasterlists
 WHERE CreatedByUserId = @UserId
 ORDER BY CreatedAt DESC, MasterlistId DESC", conn);
+                cmd.Parameters.Add("@Limit", SqlDbType.Int).Value = MasterlistHistoryLimit;
                 cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
 
                 // Only trusted if it is one of this user's masterlists (below).
