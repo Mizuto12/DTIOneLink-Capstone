@@ -81,6 +81,21 @@ IF COL_LENGTH(N'dbo.Users', N'LastLogoutAtUtc') IS NULL
     ALTER TABLE dbo.Users ADD LastLogoutAtUtc datetime2 NULL;
 IF COL_LENGTH(N'dbo.Users', N'LastSeenAtUtc') IS NULL
     ALTER TABLE dbo.Users ADD LastSeenAtUtc datetime2 NULL;");
+
+            // AddTimeLogs
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'dbo.TimeLogs', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TimeLogs (
+        Id         int IDENTITY(1,1) NOT NULL CONSTRAINT PK_TimeLogs PRIMARY KEY,
+        UserId     int       NOT NULL,
+        TimeInUtc  datetime2 NOT NULL,
+        TimeOutUtc datetime2 NULL,
+        CONSTRAINT FK_TimeLogs_Users_UserId
+            FOREIGN KEY (UserId) REFERENCES dbo.Users (Id)
+    );
+    CREATE INDEX IX_TimeLogs_UserId_TimeInUtc ON dbo.TimeLogs (UserId, TimeInUtc);
+END");
         }
     }
 }
