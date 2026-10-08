@@ -22,6 +22,14 @@
     <!-- <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.*" /> -->
   </ItemGroup>
 
+  <!-- DTIOneLink.Tests is its own project nested in this folder; without this,
+       the default **/*.cs glob below pulls its files into this project too. -->
+  <ItemGroup>
+    <Compile Remove="DTIOneLink.Tests/**/*.cs" />
+    <Content Remove="DTIOneLink.Tests/**/*" />
+    <None Remove="DTIOneLink.Tests/**/*" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
