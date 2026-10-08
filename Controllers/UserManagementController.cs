@@ -96,6 +96,16 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             return RedirectToAction(nameof(Index));
         }
 
+        // Only the OPD (SuperAdmin) may hand out SuperAdmin or Admin rights.
+        // A plain Admin reaches this same action and could otherwise grant
+        // themselves (or anyone) office-wide access by posting Role=SuperAdmin.
+        if (role != "Employee"
+            && !string.Equals(HttpContext.Session.GetString("UserRole"), "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["ErrorMessage"] = "Only the OPD can create Admin or SuperAdmin accounts.";
+            return RedirectToAction(nameof(Index));
+        }
+
         using var conn = db.GetConnection();
         await conn.OpenAsync();
 

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Diagnostics;
 
 namespace DTIOneLink.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(ILogger<HomeController> logger) : Controller
     {
         public IActionResult Index()
         {
@@ -13,8 +13,15 @@ namespace DTIOneLink.Controllers
         public IActionResult Error()
         {
             var error = HttpContext.Features.Get<IExceptionHandlerFeature>()?.Error;
+            if (error != null)
+            {
+                logger.LogError(error, "Unhandled exception reached the error page.");
+            }
+
+            // Never echo error.Message to the browser: it can carry SQL/server
+            // internals. Log it above instead, same as every other controller.
             return StatusCode(StatusCodes.Status500InternalServerError,
-                error?.Message ?? "An unexpected error occurred. Please try again.");
+                "An unexpected error occurred. Please try again.");
         }
     }
 }

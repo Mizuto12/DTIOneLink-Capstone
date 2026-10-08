@@ -3,6 +3,7 @@ using DTIOneLink.Security;
 using DTIOneLink.Controllers;
 using DTIOneLink.Services;
 using DTIOneLink.Services.Email;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,6 +62,12 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    // Always in production (real traffic is HTTPS); local dev runs on
+    // plain http://localhost, where "Always" would silently drop the
+    // cookie and make login loop forever.
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
 });
 
 var app = builder.Build();
@@ -135,6 +142,8 @@ using (var scope = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
 // The server is in Germany (~0.25 s each way from the Philippines), so every
