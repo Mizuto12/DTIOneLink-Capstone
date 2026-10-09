@@ -61,32 +61,18 @@ builder.Services.AddAntiforgery(options =>
 });
 
 // ── Session (needed to persist login state) ─────────────────
-// Backed by SQL Server (dbo.SessionCache, see migration AddSessionCache),
-// not AddDistributedMemoryCache(): the in-memory store is wiped whenever the
-// host recycles or restarts the app's process (which managed/shared hosting
-// does periodically even with traffic), silently signing everyone out mid-use
-// — they'd re-login a few minutes later, and because that isn't a real
-// Logout, their previous Time Log entry stayed stuck on "Still signed in"
-// forever. A DB-backed cache survives process restarts, so a session only
-// really ends on an explicit Logout or genuine 30-minute inactivity.
-//
-// Skipped in "Testing" for the same reason as the migration below: the
-// integration-test host (DTIOneLink.Tests' CustomWebApplicationFactory) runs
-// on SQLite and deliberately points "DefaultConnection" at an unreachable SQL
-// Server address, so a SQL-backed cache would break every session there.
-if (builder.Environment.IsEnvironment("Testing"))
-{
-    builder.Services.AddDistributedMemoryCache();
-}
-else
-{
-    builder.Services.AddDistributedSqlServerCache(options =>
-    {
-        options.ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        options.SchemaName = "dbo";
-        options.TableName = "SessionCache";
-    });
-}
+// AddDistributedMemoryCache(), not a SQL-backed one: a SQL-backed session
+// store (AddDistributedSqlServerCache) was tried here to survive host
+// process recycles, but it forces Microsoft.Data.SqlClient >= 6.1.1, which
+// in turn needs System.Configuration.ConfigurationManager 9.0.x — a version
+// this host's Web Deploy could not actually get onto the server (confirmed:
+// three redeploys, including one with Web Deploy retry flags, left the old
+// 5.x/6.0.9 DLLs in place), causing every database connection including
+// login to fail outright. Reverted for a working site over session
+// durability; revisit only once the host can actually serve that DLL
+// version (see git history around 2026-10-09 for the Temp diagnostics
+// endpoint and findings).
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
