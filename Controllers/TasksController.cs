@@ -5,9 +5,11 @@ using DTIOneLink.Models;
 using DTIOneLink.Data;
 using DTIOneLink.Services;
 using DTIOneLink.Security;
+using DTIOneLink.Filters;
 
 namespace DTIOneLink.Controllers
 {
+    [RequireLogin]
     public class TasksController : Controller
     {
         private readonly AppDbContext _context;
