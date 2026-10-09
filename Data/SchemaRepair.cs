@@ -130,24 +130,6 @@ IF OBJECT_ID(N'dbo.FK_Records_RecordMasterlists_MasterlistId', N'F') IS NULL
         FOREIGN KEY (MasterlistId) REFERENCES dbo.RecordMasterlists (MasterlistId) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Records_MasterlistId' AND object_id = OBJECT_ID(N'dbo.Records'))
     CREATE INDEX IX_Records_MasterlistId ON dbo.Records (MasterlistId);");
-
-            // AddSessionCache — same shape Microsoft.Extensions.Caching.SqlServer
-            // requires (AddDistributedSqlServerCache in Program.cs). Without this
-            // table every request that touches Session throws, which breaks
-            // login entirely, so this one matters more than the others here.
-            await db.Database.ExecuteSqlRawAsync(@"
-IF OBJECT_ID(N'dbo.SessionCache', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.SessionCache (
-        Id                         NVARCHAR(449)       NOT NULL,
-        Value                      VARBINARY(MAX)      NOT NULL,
-        ExpiresAtTime              DATETIMEOFFSET(7)   NOT NULL,
-        SlidingExpirationInSeconds BIGINT               NULL,
-        AbsoluteExpiration         DATETIMEOFFSET(7)    NULL,
-        CONSTRAINT PK_SessionCache PRIMARY KEY CLUSTERED (Id ASC)
-    );
-    CREATE NONCLUSTERED INDEX IX_SessionCache_ExpiresAtTime ON dbo.SessionCache (ExpiresAtTime);
-END");
         }
     }
 }
