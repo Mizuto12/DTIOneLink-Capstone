@@ -189,6 +189,13 @@ html, body {
     padding-right: 42px;
 }
 
+/* Edge/IE add their own built-in reveal-password icon on top of ours —
+   hide it so the custom eye toggle below isn't duplicated. */
+.text-input::-ms-reveal,
+.text-input::-ms-clear {
+    display: none;
+}
+
 .toggle-password {
     position: absolute;
     right: 10px;

@@ -1012,5 +1012,150 @@ WHERE MasterlistId = @Id AND CreatedByUserId = @UserId", conn);
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
+
+        // GET: /Records/PrintMasterlist?id= — a PDF of the saved masterlist,
+        // built server-side (Services/RecordMasterlistPdf.cs) from the exact
+        // same layout as the Excel file, opened inline so the browser's own
+        // PDF viewer prints it pixel-for-pixel instead of an HTML approximation.
+        [HttpGet]
+        public IActionResult PrintMasterlist(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access == RecordsAccess.NotLoggedIn)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasMasterlists(conn))
+                {
+                    return NotFound();
+                }
+
+                string division;
+                DateTime createdAtUtc;
+                RecordMasterlistExcel.Signatory prepared, reviewed, noted;
+                using (var cmd = new SqlCommand(@"
+SELECT OwningDepartment, CreatedAt,
+       PreparedByName, PreparedByPosition, ReviewedByName, ReviewedByPosition, NotedByName, NotedByPosition
+FROM dbo.RecordMasterlists
+WHERE MasterlistId = @Id AND CreatedByUserId = @UserId", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    using var reader = cmd.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        return NotFound();
+                    }
+                    division = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    createdAtUtc = DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc);
+                    prepared = new RecordMasterlistExcel.Signatory(reader.GetString(2), reader.GetString(3));
+                    reviewed = new RecordMasterlistExcel.Signatory(reader.GetString(4), reader.GetString(5));
+                    noted = new RecordMasterlistExcel.Signatory(reader.GetString(6), reader.GetString(7));
+                }
+
+                var rows = new List<RecordMasterlistExcel.Row>();
+                using (var cmd = new SqlCommand(@"
+SELECT Code, Title, Medium, Location, PeriodCovered, FilingSystem, AccessControl, RetentionPeriod
+FROM dbo.Records
+WHERE MasterlistId = @Id AND CreatedByUserId = @UserId
+ORDER BY RecordId", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        rows.Add(new RecordMasterlistExcel.Row(
+                            reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
+                            reader.GetString(4), reader.GetString(5), reader.GetString(6), reader.GetString(7)));
+                    }
+                }
+
+                var pdf = RecordMasterlistPdf.Build(new RecordMasterlistExcel.Sheet(
+                    division, TimeZoneHelper.ToPhilippineTime(createdAtUtc).Date, prepared, reviewed, noted, rows));
+
+                Response.Headers.Append("Content-Disposition", "inline; filename=masterlist.pdf");
+                return File(pdf, RecordMasterlistPdf.ContentType);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to print masterlist {MasterlistId} for user {UserId}.", id, user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+        }
+
+        public sealed class RenameMasterlistRequest
+        {
+            public string? FileName { get; set; }
+        }
+
+        // POST: /Records/RenameMasterlist?id= — renames a saved masterlist entry.
+        // The file itself is a database blob (see SaveMasterlist); only the
+        // FileName shown in Saved Masterlists and used on download changes.
+        [HttpPost]
+        public IActionResult RenameMasterlist(int id, [FromBody] RenameMasterlistRequest? request)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            var newName = request?.FileName?.Trim() ?? "";
+            if (newName.Length == 0)
+            {
+                return BadRequest(new { message = "Please enter a file name." });
+            }
+            if (newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                return BadRequest(new { message = "That file name has characters that aren't allowed." });
+            }
+            if (!newName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                newName += ".xlsx";
+            }
+            if (newName.Length > 150)
+            {
+                return BadRequest(new { message = "That file name is too long." });
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasMasterlists(conn))
+                {
+                    return NotFound();
+                }
+
+                using var cmd = new SqlCommand(@"
+UPDATE dbo.RecordMasterlists SET FileName = @FileName
+WHERE MasterlistId = @Id AND CreatedByUserId = @UserId", conn);
+                cmd.Parameters.Add("@FileName", SqlDbType.NVarChar, 150).Value = newName;
+                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                var rows = cmd.ExecuteNonQuery();
+                if (rows == 0)
+                {
+                    return NotFound(new { message = "That masterlist could not be found." });
+                }
+
+                return Json(new { fileName = newName });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to rename masterlist {MasterlistId} for user {UserId}.", id, user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericMasterlistError });
+            }
+        }
     }
 }

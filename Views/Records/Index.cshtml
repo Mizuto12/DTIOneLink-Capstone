@@ -7,25 +7,14 @@
             : "~/Views/Employee/EmployeeLayout.cshtml";
     ViewData["Title"] = "Records Management";
     ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
+    var userDivision = Context.Session.GetString("UserDepartment") ?? "";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/records.css" asp-append-version="true">
 }
 
-<main class="records-page">
-
-  <!-- Page Header -->
-  <header class="page-header">
-    <div class="header-actions">
-      <button class="btn btn-outline" type="button">
-        <span class="material-symbols-outlined">download</span> Export List
-      </button>
-      <button class="btn btn-primary" type="button">
-        <span class="material-symbols-outlined">print</span> Print Log
-      </button>
-    </div>
-  </header>
+<main class="records-page" data-division="@userDivision">
 
   <!-- Add New Entry Card -->
   <section class="card">
@@ -299,6 +288,23 @@
         <button class="btn btn-outline" type="button" id="masterlist-cancel-btn">Cancel</button>
         <button class="btn btn-primary" type="submit" id="masterlist-confirm-btn">
           <span class="material-symbols-outlined">download</span> Save and Download
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Rename Masterlist form (opened by the pencil icon in Saved Masterlists) -->
+  <dialog class="rename-dialog" id="rename-masterlist-dialog" aria-labelledby="rename-dialog-title">
+    <form method="dialog" id="rename-masterlist-form">
+      <h2 class="card-title" id="rename-dialog-title">Rename File</h2>
+      <div class="field">
+        <label for="rename-masterlist-input">File name</label>
+        <input id="rename-masterlist-input" type="text" name="fileName" maxlength="140" required>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-outline" type="button" id="rename-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="rename-confirm-btn">
+          <span class="material-symbols-outlined">done</span> Save
         </button>
       </div>
     </form>

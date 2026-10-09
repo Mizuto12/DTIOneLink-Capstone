@@ -5,6 +5,11 @@ using DTIOneLink.Services;
 using DTIOneLink.Services.Email;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
+
+// Free for a government office (Community license: non-profit / < $1M USD
+// annual revenue). Required once at startup by QuestPDF itself.
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 

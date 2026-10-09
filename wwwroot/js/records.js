@@ -521,19 +521,117 @@ function renderMasterlists(items) {
            <span class="material-symbols-outlined">add</span> Add Records
          </button>`;
     li.innerHTML = `
-      <div>
-        <div class="masterlist-name">${escapeHtml(item.fileName)}${item.isOpen ? '<span class="masterlist-open-tag">Adding records</span>' : ''}</div>
+      <div class="masterlist-info">
+        <div class="masterlist-name" data-name-text>${escapeHtml(item.fileName)}${item.isOpen ? '<span class="masterlist-open-tag">Adding records</span>' : ''}</div>
         <div class="masterlist-meta">Last saved ${escapeHtml(item.savedAt)} · ${item.recordCount} ${recordWord}</div>
       </div>
       <div class="masterlist-actions">
+        <button class="btn btn-icon" type="button" data-rename="${item.id}" aria-label="Rename ${escapeHtml(item.fileName)}" title="Rename">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+        <button class="btn btn-icon" type="button" data-print="${item.id}" aria-label="Print ${escapeHtml(item.fileName)}" title="Print">
+          <span class="material-symbols-outlined">print</span>
+        </button>
         ${addButton}
-        <a class="btn btn-outline" href="/Records/DownloadMasterlist?id=${encodeURIComponent(item.id)}">
+        <a class="btn btn-outline" href="/Records/DownloadMasterlist?id=${encodeURIComponent(item.id)}" data-download="${item.id}">
           <span class="material-symbols-outlined">download</span> Download
         </a>
       </div>`;
     const add = li.querySelector('[data-add-records]');
     if (add) add.addEventListener('click', () => reopenMasterlist(item));
+    const rename = li.querySelector('[data-rename]');
+    if (rename) rename.addEventListener('click', () => openRenameMasterlist(item));
+    const print = li.querySelector('[data-print]');
+    if (print) print.addEventListener('click', () => printSavedMasterlist(item.id));
+    const download = li.querySelector('[data-download]');
+    // Chrome/Edge: let the user pick where to save instead of it silently
+    // landing in Downloads. The href stays as a plain-download fallback for
+    // browsers without the File System Access API (Firefox, Safari).
+    if (download && supportsSaveFilePicker) {
+      download.addEventListener('click', e => {
+        e.preventDefault();
+        downloadMasterlistWithPicker(item.id, item.fileName);
+      });
+    }
     masterlistList.appendChild(li);
+  });
+}
+
+// ---------- Download: let the user choose where to save (Chrome/Edge) ----------
+// The File System Access API cannot reveal or open a file's location in
+// Explorer (no browser exposes real filesystem paths to a web page) — it can
+// only let the user pick a save destination up front, which is what this does.
+const supportsSaveFilePicker = typeof window.showSaveFilePicker === 'function';
+
+async function downloadMasterlistWithPicker(id, fileName) {
+  const url = `/Records/DownloadMasterlist?id=${encodeURIComponent(id)}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(await readErrorMessage(res));
+    const blob = await res.blob();
+    const handle = await window.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [{
+        description: 'Excel Workbook',
+        accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
+      }]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // user closed the picker
+    window.location.href = url; // picker failed for some other reason — fall back
+  }
+}
+
+// ---------- Rename Masterlist ----------
+// A small dialog (same pattern as Save Masterlist) so renaming never has to
+// fight for space inside the narrow Saved Masterlists row.
+const renameDialog = document.getElementById('rename-masterlist-dialog');
+const renameForm = document.getElementById('rename-masterlist-form');
+const renameInput = document.getElementById('rename-masterlist-input');
+let renamingItem = null;
+
+function openRenameMasterlist(item) {
+  if (!renameDialog) return;
+  renamingItem = item;
+  const baseName = item.fileName.replace(/\.xlsx$/i, '');
+  renameInput.value = baseName;
+  renameDialog.showModal();
+  renameInput.focus();
+  renameInput.select();
+}
+
+if (renameDialog && renameForm) {
+  document.getElementById('rename-cancel-btn').addEventListener('click', () => renameDialog.close());
+
+  renameForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!renamingItem) return;
+    const newBaseName = renameInput.value.trim();
+    if (!newBaseName) { renameInput.focus(); return; }
+    const newFileName = newBaseName.toLowerCase().endsWith('.xlsx') ? newBaseName : `${newBaseName}.xlsx`;
+
+    const confirmBtn = document.getElementById('rename-confirm-btn');
+    const original = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = `<span class="material-symbols-outlined animate-spin">sync</span> Saving...`;
+    confirmBtn.disabled = true;
+    try {
+      const res = await fetch(`/Records/RenameMasterlist?id=${encodeURIComponent(renamingItem.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+        body: JSON.stringify({ fileName: newFileName })
+      });
+      if (!res.ok) throw new Error(await readErrorMessage(res));
+      renameDialog.close();
+      loadMasterlists();
+    } catch (err) {
+      showError('Could not rename file', errorMessage(err));
+    } finally {
+      confirmBtn.innerHTML = original;
+      confirmBtn.disabled = false;
+    }
   });
 }
 
@@ -657,6 +755,34 @@ if (saveMasterlistBtn && masterlistDialog) {
       masterlistConfirmBtn.disabled = false;
     }
   });
+}
+
+// A Saved Masterlists row's print icon: loads a server-built PDF of that
+// file (Services/RecordMasterlistPdf.cs mirrors the Excel layout exactly)
+// into a hidden iframe and triggers the browser's print dialog directly,
+// instead of opening a new tab the user has to print from themselves.
+function printSavedMasterlist(id) {
+  const url = `/Records/PrintMasterlist?id=${encodeURIComponent(id)}`;
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.src = url;
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch {
+      window.open(url, '_blank'); // fallback if the browser blocks printing from the iframe
+    }
+  };
+  document.body.appendChild(iframe);
+  // No reliable cross-browser "print dialog closed" event for a PDF inside
+  // an iframe, so just clean it up well after the dialog would be done.
+  window.setTimeout(() => iframe.remove(), 60000);
 }
 
 loadMasterlists();
