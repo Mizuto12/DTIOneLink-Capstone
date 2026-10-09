@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using DTIOneLink.Data;
+using System.Diagnostics;
 
 namespace DTIOneLink.Controllers
 {
@@ -25,6 +26,31 @@ namespace DTIOneLink.Controllers
             }
 
             var result = new Dictionary<string, object?>();
+
+            try
+            {
+                var baseDir = AppContext.BaseDirectory;
+                result["baseDirectory"] = baseDir;
+
+                var allCopies = Directory.GetFiles(baseDir, "System.Configuration.ConfigurationManager.dll", SearchOption.AllDirectories);
+                result["configurationManagerDllCopies"] = allCopies.Select(p => new
+                {
+                    path = p[baseDir.Length..],
+                    fileVersion = FileVersionInfo.GetVersionInfo(p).FileVersion,
+                    productVersion = FileVersionInfo.GetVersionInfo(p).ProductVersion
+                }).ToArray();
+
+                var sqlClientCopies = Directory.GetFiles(baseDir, "Microsoft.Data.SqlClient.dll", SearchOption.AllDirectories);
+                result["sqlClientDllCopies"] = sqlClientCopies.Select(p => new
+                {
+                    path = p[baseDir.Length..],
+                    fileVersion = FileVersionInfo.GetVersionInfo(p).FileVersion
+                }).ToArray();
+            }
+            catch (Exception ex)
+            {
+                result["fileCheckError"] = ex.GetType().Name + ": " + ex.Message;
+            }
 
             try
             {
