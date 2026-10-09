@@ -531,6 +531,17 @@ namespace DTIOneLink.Controllers
                     .SetProperty(u => u.LastLoginAtUtc, now)
                     .SetProperty(u => u.LastSeenAtUtc, now));
 
+            // Close out any row Logout never got to reach — a session that
+            // ended by inactivity timeout or just closing the browser, not
+            // the Logout button, leaves TimeOutUtc null forever otherwise.
+            // Signing back in is the clearest sign that old session is over,
+            // so this is the backstop; the session store itself no longer
+            // disappearing mid-use (see Program.cs, AddDistributedSqlServerCache)
+            // is the actual fix for why these piled up in the first place.
+            _db.TimeLogs
+                .Where(t => t.UserId == user.Id && t.TimeOutUtc == null)
+                .ExecuteUpdate(s => s.SetProperty(t => t.TimeOutUtc, now));
+
             // One row per sign-in session, for the user's own Time Logs page.
             // Logout fills in TimeOutUtc on whichever row this leaves open.
             _db.TimeLogs.Add(new TimeLog { UserId = user.Id, TimeInUtc = now });

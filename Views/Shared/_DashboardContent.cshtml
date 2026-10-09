@@ -126,6 +126,35 @@
     <!-- ============================= CENTER COLUMN ============================= -->
     <div class="dashboard__center custom-scrollbar">
 
+        <!-- Records Overview: retention summary for the records this viewer
+             has logged (RecordsController.Overview). Filled in by
+             records-overview.js; records only notify for disposal here,
+             audits/IPCR are out of scope (DTI's PGS Dashboard). -->
+        <section class="records-overview" id="recordsOverview" aria-label="Records overview">
+            <div class="records-overview__header">
+                <div class="records-overview__title-group">
+                    <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+                    <div>
+                        <h3 class="records-overview__title">Records Overview</h3>
+                        <p class="records-overview__sub">Retention status of the records you've logged.</p>
+                    </div>
+                </div>
+                <a class="records-overview__link" href="@Url.Action("Index", "Records")">View Records</a>
+            </div>
+            <div class="records-overview__cards" id="recordsOverviewCards" aria-busy="true">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="ro-card ro-card--skeleton" aria-hidden="true">
+                        <span class="ro-card__icon skeleton skeleton-circle"></span>
+                        <div>
+                            <span class="skeleton ro-skel-value"></span>
+                            <span class="skeleton ro-skel-label"></span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+
         <!-- Task Ledger -->
         <section class="ledger">
             <div class="ledger__header">

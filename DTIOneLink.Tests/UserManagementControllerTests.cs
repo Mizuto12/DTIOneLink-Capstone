@@ -25,7 +25,7 @@ public class UserManagementControllerTests
     private const string UnreachableConnectionString =
         "Server=127.0.0.1,1;Database=unreachable;Connect Timeout=1;TrustServerCertificate=True;";
 
-    private static UserManagementController BuildController(string? callerRole)
+    private static UserManagementController BuildController(string? callerRole, string? callerDepartment = null)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -39,6 +39,10 @@ public class UserManagementControllerTests
         if (callerRole != null)
         {
             httpContext.Session.SetString("UserRole", callerRole);
+        }
+        if (callerDepartment != null)
+        {
+            httpContext.Session.SetString("UserDepartment", callerDepartment);
         }
 
         var controller = new UserManagementController(new DatabaseHelper(config), NullLogger<UserManagementController>.Instance)
@@ -91,8 +95,10 @@ public class UserManagementControllerTests
     public async Task Create_AdminRequestingEmployeeRole_PassesTheGuard()
     {
         // Admins creating plain Employee accounts is the one case that must
-        // keep working - this is the controller's everyday job.
-        var controller = BuildController("Admin");
+        // keep working - this is the controller's everyday job. Department
+        // must match the new employee's (Admins only add within their own
+        // division - see the division guard added alongside this test).
+        var controller = BuildController("Admin", UserManagementController.Divisions[0]);
 
         // No real DB is reachable, so a successful pass through the guard
         // shows up as a DB connection failure, not as the "Only the OPD..."
@@ -109,5 +115,34 @@ public class UserManagementControllerTests
         var controller = BuildController("SuperAdmin");
 
         await Assert.ThrowsAsync<SqlException>(() => controller.Create(ValidNewUser("SuperAdmin")));
+    }
+
+    [Fact]
+    public async Task Create_AdminRequestingDifferentDivision_IsRejectedBeforeTouchingTheDatabase()
+    {
+        // An Admin only manages their own division - posting any other
+        // division's name (even for a plain Employee) must be refused, not
+        // silently honored.
+        var controller = BuildController("Admin", UserManagementController.Divisions[0]);
+        var newUser = ValidNewUser("Employee");
+        newUser.Department = UserManagementController.Divisions[1];
+
+        var result = await controller.Create(newUser);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(UserManagementController.Index), redirect.ActionName);
+        Assert.Equal("You can only add employees to your own division.", controller.TempData["ErrorMessage"]);
+    }
+
+    [Fact]
+    public async Task Create_SuperAdminRequestingAnyDivision_PassesTheGuard()
+    {
+        // SuperAdmin (the OPD) is office-wide and must not be restricted to
+        // one division the way a plain Admin is.
+        var controller = BuildController("SuperAdmin", UserManagementController.Divisions[0]);
+        var newUser = ValidNewUser("Employee");
+        newUser.Department = UserManagementController.Divisions[1];
+
+        await Assert.ThrowsAsync<SqlException>(() => controller.Create(newUser));
     }
 }

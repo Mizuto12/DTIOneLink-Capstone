@@ -71,6 +71,13 @@ namespace DTIOneLink.Controllers
             var department = HttpContext.Session.GetString("UserDepartment");
             var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
             var isOfficeWide = RolePermissions.Has(role, Permissions.ViewOfficeWideSummaries);
+            // Plain Employee: ScopedTasks already limits tasks to ones they're
+            // assigned to, but a SHARED task still carried a co-assignee's
+            // name (Owner) and activity (Task History) into their Reports.
+            // Same rule the Dashboard already applies to a shared task card —
+            // only their own name/activity, never a co-assignee's.
+            var isEmployeeOnly = !isAdmin && !isOfficeWide;
+            var viewerName = HttpContext.Session.GetString("FullName") ?? "You";
             var now = DateTime.UtcNow;
             var items = new List<ReportItem>();
 
@@ -104,12 +111,17 @@ namespace DTIOneLink.Controllers
             foreach (var t in tasks)
             {
                 var completed = TaskWorkflow.Normalize(t.Status) == TaskWorkflow.Completed;
-                var owner = t.AssigneeNames.Count switch
-                {
-                    0 => t.TaskLevel == TaskLevels.Main ? (t.OwningDepartment ?? "OPD") : "Unassigned",
-                    1 => t.AssigneeNames[0],
-                    _ => $"{t.AssigneeNames[0]} +{t.AssigneeNames.Count - 1} more"
-                };
+                // An Employee only reaches this task because they're one of
+                // its assignees (ScopedTasks) — show their own name, never a
+                // co-assignee's, even on a task shared with other people.
+                var owner = isEmployeeOnly
+                    ? viewerName
+                    : t.AssigneeNames.Count switch
+                    {
+                        0 => t.TaskLevel == TaskLevels.Main ? (t.OwningDepartment ?? "OPD") : "Unassigned",
+                        1 => t.AssigneeNames[0],
+                        _ => $"{t.AssigneeNames[0]} +{t.AssigneeNames.Count - 1} more"
+                    };
 
                 string tag, icon, tone;
                 string? badge = null;
@@ -157,6 +169,9 @@ namespace DTIOneLink.Controllers
             var activityQuery = _context.TaskActivities
                 .AsNoTracking()
                 .Where(a => taskIds.Contains(a.TaskId));
+            // Same reasoning as Owner above: on a shared task, only the
+            // employee's own activity — never a co-assignee's.
+            if (isEmployeeOnly) activityQuery = activityQuery.Where(a => a.PerformedByUserId == userId);
             if (fromUtc != null) activityQuery = activityQuery.Where(a => a.OccurredAt >= fromUtc.Value);
             if (toUtc != null) activityQuery = activityQuery.Where(a => a.OccurredAt < toUtc.Value);
             var activities = await activityQuery

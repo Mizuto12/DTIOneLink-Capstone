@@ -85,6 +85,126 @@
   border-radius: var(--dash-radius-full);
 }
 
+/* ---- Records Overview ----------------------------------------------
+   Retention summary for the records the viewer has logged (see
+   RecordsController.Overview). Filled in by records-overview.js. */
+.records-overview {
+  margin-bottom: 24px;
+  background: var(--dash-surface-container-lowest);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 30, 101, 0.06), 0 4px 12px rgba(0, 30, 101, 0.04);
+  padding: 20px;
+}
+
+.records-overview__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.records-overview__title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.records-overview__title-group > .material-symbols-outlined {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--dash-radius-full);
+  background: var(--dash-surface-container);
+  color: var(--dash-primary);
+  font-size: 22px;
+}
+
+.records-overview__title {
+  margin: 0;
+  font-family: var(--dash-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dash-on-surface);
+}
+
+.records-overview__sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--dash-secondary);
+}
+
+.records-overview__link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dash-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.records-overview__link:hover { text-decoration: underline; }
+
+.records-overview__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.ro-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--dash-surface-container-low);
+  border-radius: 14px;
+}
+
+.ro-card__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--dash-radius-full);
+  background: var(--ro-tone-soft, var(--dash-surface-container));
+  color: var(--ro-tone, var(--dash-primary));
+  font-size: 20px;
+}
+
+.ro-card__value {
+  margin: 0;
+  font-family: var(--dash-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ro-tone, var(--dash-on-surface));
+}
+
+.ro-card__label {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--dash-secondary);
+}
+
+.ro-tone-total    { --ro-tone: var(--dash-primary);  --ro-tone-soft: var(--dash-surface-container); }
+.ro-tone-due-soon { --ro-tone: #d97706;              --ro-tone-soft: #fff3dc; }
+.ro-tone-overdue  { --ro-tone: #dc2626;              --ro-tone-soft: #fee4e2; }
+.ro-tone-saved    { --ro-tone: #16a34a;              --ro-tone-soft: #e3f8ea; }
+
+.records-overview__cards .ro-card--skeleton .ro-card__icon { background: none; }
+.records-overview__cards .ro-skel-value { width: 36px; height: 18px; margin-bottom: 6px; }
+.records-overview__cards .ro-skel-label { width: 64px; height: 11px; }
+
+.records-overview__empty {
+  padding: 8px 4px;
+  color: var(--dash-secondary);
+  font-size: 13px;
+}
+
 /* ---- Banner -------------------------------------------------------- */
 .banner {
   margin-bottom: 32px;

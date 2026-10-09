@@ -61,7 +61,32 @@ builder.Services.AddAntiforgery(options =>
 });
 
 // ── Session (needed to persist login state) ─────────────────
-builder.Services.AddDistributedMemoryCache();
+// Backed by SQL Server (dbo.SessionCache, see migration AddSessionCache),
+// not AddDistributedMemoryCache(): the in-memory store is wiped whenever the
+// host recycles or restarts the app's process (which managed/shared hosting
+// does periodically even with traffic), silently signing everyone out mid-use
+// — they'd re-login a few minutes later, and because that isn't a real
+// Logout, their previous Time Log entry stayed stuck on "Still signed in"
+// forever. A DB-backed cache survives process restarts, so a session only
+// really ends on an explicit Logout or genuine 30-minute inactivity.
+//
+// Skipped in "Testing" for the same reason as the migration below: the
+// integration-test host (DTIOneLink.Tests' CustomWebApplicationFactory) runs
+// on SQLite and deliberately points "DefaultConnection" at an unreachable SQL
+// Server address, so a SQL-backed cache would break every session there.
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+else
+{
+    builder.Services.AddDistributedSqlServerCache(options =>
+    {
+        options.ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        options.SchemaName = "dbo";
+        options.TableName = "SessionCache";
+    });
+}
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);

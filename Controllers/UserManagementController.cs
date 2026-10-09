@@ -96,13 +96,25 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             return RedirectToAction(nameof(Index));
         }
 
+        var actorRole = HttpContext.Session.GetString("UserRole");
+        var actorIsSuperAdmin = string.Equals(actorRole, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+
         // Only the OPD (SuperAdmin) may hand out SuperAdmin or Admin rights.
         // A plain Admin reaches this same action and could otherwise grant
         // themselves (or anyone) office-wide access by posting Role=SuperAdmin.
-        if (role != "Employee"
-            && !string.Equals(HttpContext.Session.GetString("UserRole"), "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        if (role != "Employee" && !actorIsSuperAdmin)
         {
             TempData["ErrorMessage"] = "Only the OPD can create Admin or SuperAdmin accounts.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // An Admin only manages their own division (same scope CanSetActive
+        // already enforces for status/role changes), so they can only add
+        // employees into it — not post an arbitrary Division value.
+        if (!actorIsSuperAdmin
+            && !string.Equals(department, HttpContext.Session.GetString("UserDepartment"), StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["ErrorMessage"] = "You can only add employees to your own division.";
             return RedirectToAction(nameof(Index));
         }
 

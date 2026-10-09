@@ -131,18 +131,29 @@
                 <p class="um-role-help" id="newUserRoleHelp"></p>
             </div>
 
-            <!-- Division -->
+            <!-- Division: an Admin only manages their own division (enforced
+                 again in UserManagementController.Create), so their dropdown
+                 only offers that one division instead of all of them. -->
             <div class="um-field-group">
                 <label class="um-label" for="newUserDepartment">Division</label>
                 <div class="um-input-wrap um-select-wrap">
                     <span class="material-symbols-outlined um-input-icon" aria-hidden="true">group</span>
-                    <select class="um-select" name="Department" id="newUserDepartment" required>
-                        <option value="">Select Division</option>
-                        @foreach (var division in DTIOneLink.Controllers.UserManagementController.Divisions)
-                        {
-                            <option value="@division" selected="@(division == formDepartment)">@division</option>
-                        }
-                    </select>
+                    @if (currentRole == "SuperAdmin")
+                    {
+                        <select class="um-select" name="Department" id="newUserDepartment" required>
+                            <option value="">Select Division</option>
+                            @foreach (var division in DTIOneLink.Controllers.UserManagementController.Divisions)
+                            {
+                                <option value="@division" selected="@(division == formDepartment)">@division</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <select class="um-select" name="Department" id="newUserDepartment" required>
+                            <option value="@currentDepartment" selected>@currentDepartment</option>
+                        </select>
+                    }
                     <span class="material-symbols-outlined um-select-caret" aria-hidden="true">expand_more</span>
                 </div>
             </div>

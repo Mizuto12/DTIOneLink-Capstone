@@ -27,9 +27,38 @@
         </div>
     </header>
 
+    <form class="time-logs-filter" method="get">
+        <div class="field">
+            <label for="filter-from">From</label>
+            <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate" max="@DateTime.Today.ToString("yyyy-MM-dd")">
+        </div>
+        <div class="field">
+            <label for="filter-to">To</label>
+            <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate" max="@DateTime.Today.ToString("yyyy-MM-dd")">
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">
+                <span class="material-symbols-outlined">filter_list</span> Filter
+            </button>
+            @if (ViewBag.FromDate != null || ViewBag.ToDate != null)
+            {
+                <a class="btn btn-outline" href="@Url.Action("Index")">Clear</a>
+            }
+        </div>
+    </form>
+
+    @{
+        var filterActive = ViewBag.FromDate != null || ViewBag.ToDate != null;
+    }
+
     <section class="card">
         <div class="table-wrapper">
             <table>
+                <colgroup>
+                    <col style="width:34%">
+                    <col style="width:33%">
+                    <col style="width:33%">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Date</th>
@@ -43,7 +72,15 @@
                         <tr class="empty-row">
                             <td colspan="3" class="empty-state">
                                 <span class="material-symbols-outlined">history</span>
-                                <span>No time logs yet.</span>
+                                @if (filterActive)
+                                {
+                                    <span>No time logs in this date range.</span>
+                                    <a class="empty-state-clear" href="@Url.Action("Index")">Clear the filter</a>
+                                }
+                                else
+                                {
+                                    <span>No time logs yet.</span>
+                                }
                             </td>
                         </tr>
                     }

@@ -58,6 +58,85 @@
     margin: 2px 0 0;
 }
 
+/* ---------- Date filter ---------- */
+.time-logs-page .time-logs-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.time-logs-page .time-logs-filter .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.time-logs-page .time-logs-filter label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+}
+
+.time-logs-page .time-logs-filter input[type="date"] {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+}
+
+.time-logs-page .time-logs-filter input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.time-logs-page .filter-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.time-logs-page .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    border: none;
+    cursor: pointer;
+    padding: 10px 18px;
+    text-decoration: none;
+}
+
+.time-logs-page .btn .material-symbols-outlined { font-size: 18px; }
+
+.time-logs-page .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+}
+.time-logs-page .btn-primary:hover { background: #0c2450; }
+
+.time-logs-page .btn-outline {
+    background: var(--surface);
+    color: var(--on-surface);
+    border: 1px solid var(--outline-variant);
+}
+.time-logs-page .btn-outline:hover { background: var(--surface-container-low); }
+
+@media (max-width: 640px) {
+    .time-logs-page .time-logs-filter { flex-direction: column; align-items: stretch; }
+    .time-logs-page .time-logs-filter .field { width: 100%; }
+    .time-logs-page .filter-actions { width: 100%; }
+    .time-logs-page .filter-actions .btn { flex: 1 1 0; justify-content: center; }
+}
+
 /* ---------- Card ---------- */
 .time-logs-page .card {
     background: var(--surface);
@@ -145,6 +224,14 @@
     font-size: 32px;
     color: var(--outline-variant);
 }
+
+.time-logs-page .empty-state-clear {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    text-decoration: none;
+}
+.time-logs-page .empty-state-clear:hover { text-decoration: underline; }
 
 /* ---------- Phones: each log becomes a card ---------- */
 @media (max-width: 640px) {

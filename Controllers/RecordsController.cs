@@ -339,6 +339,65 @@ namespace DTIOneLink.Controllers
             return View();
         }
 
+        // GET: /Records/Overview — a compact summary for the Dashboard: how
+        // many active records this user has logged, how many are due for
+        // disposal review soon or already overdue (same thresholds as the
+        // per-row reminder colours, see RetentionState), and how many
+        // masterlists they've saved. Scoped the same as everywhere else in
+        // Records: only the records this user logged (VisibilityClause).
+        [HttpGet]
+        public IActionResult Overview()
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                var source = HasSystemColumns(conn) ? "Records r" : LegacyRecordsSource;
+                var today = PhilippineToday();
+
+                int total, dueSoon, overdue;
+                using (var cmd = new SqlCommand($@"
+SELECT
+    COUNT(*),
+    SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate <= @Today THEN 1 ELSE 0 END),
+    SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate > @Today AND r.RetentionDueDate <= @SoonLimit THEN 1 ELSE 0 END)
+FROM {source}
+WHERE {VisibilityClause} AND r.RecordStatus = 'Active'", conn))
+                {
+                    AddVisibilityParameters(cmd, user);
+                    cmd.Parameters.Add("@Today", SqlDbType.Date).Value = today;
+                    cmd.Parameters.Add("@SoonLimit", SqlDbType.Date).Value = today.AddMonths(RecordRetentionReminder.ReminderMonths);
+                    using var reader = cmd.ExecuteReader();
+                    reader.Read();
+                    total = reader.GetInt32(0);
+                    overdue = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                    dueSoon = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                }
+
+                var savedMasterlists = 0;
+                if (HasMasterlists(conn))
+                {
+                    using var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM dbo.RecordMasterlists WHERE CreatedByUserId = @UserId", conn);
+                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    savedMasterlists = (int)cmd.ExecuteScalar();
+                }
+
+                return Json(new { total, dueSoon, overdue, savedMasterlists });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load records overview for user {UserId}.", user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericLoadError });
+            }
+        }
+
         // GET: /Records/GetAll?q=&medium=&access=&retention=
         // Loads the list, filtered on the server. Every filter is optional.
         [HttpGet]
