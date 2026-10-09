@@ -519,6 +519,11 @@ namespace DTIOneLink.Controllers
     // AssigneeIds is locked in the view when this is true, and
     // re-enforced server-side in the POST action below.
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
+    // Narrower than IsAssignmentOnly: only true when this Edit page IS the
+    // Main Task itself (a zero-subtask Department Directive), never when
+    // editing one of its subtasks — AddSubtask takes a Main Task id, so the
+    // "Add Subtask" button must only ever show up here.
+    ViewBag.IsDirectMainTaskAssignment = isDirectMainTaskAssignment;
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
     // Due soon or overdue: the OPD deadline is shown but no longer a limit.
     ViewBag.CanPassOpdDueDate = TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate);
@@ -1257,6 +1262,51 @@ public IActionResult SuggestPriority(DateTime dueDate)
 
     var suggestion = PrioritySuggestionService.Suggest(dueDate);
     return Json(new { priority = suggestion.Priority, reason = suggestion.Reason });
+}
+
+// POST: /Tasks/AddSubtask/5 — adds one more subtask to an already-created
+// Department Directive. Available to OPD and to the Admin/Supervisor the
+// directive belongs to (same scope as MainTaskDetails/IsWithinMainTaskScope) —
+// a directive doesn't support subtasks any other way, so without this a
+// directive already in flight could never pick up additional work.
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> AddSubtask(int id, string subtaskName)
+{
+    if (!CanAccessTaskManagement())
+    {
+        return StatusCode(403);
+    }
+
+    var mainTask = await _context.TaskItems
+        .FirstOrDefaultAsync(t => t.Id == id && t.TaskLevel == TaskLevels.Main);
+    if (mainTask == null)
+    {
+        return NotFound();
+    }
+
+    if (!IsWithinMainTaskScope(mainTask))
+    {
+        return NotFound();
+    }
+
+    if (mainTask.TaskType != TaskTypes.DepartmentDirective)
+    {
+        TempData["ErrorMessage"] = "Subtasks can only be added to a Department Directive.";
+        return RedirectToAction(nameof(MainTaskDetails), new { id });
+    }
+
+    if (string.IsNullOrWhiteSpace(subtaskName))
+    {
+        TempData["ErrorMessage"] = "Type a name for the subtask.";
+        return RedirectToAction(nameof(MainTaskDetails), new { id });
+    }
+
+    var createdByUserId = HttpContext.Session.GetInt32("UserId");
+    await _opdTasks.AddSubtaskAsync(mainTask, subtaskName.Trim(), createdByUserId);
+
+    TempData["SuccessMessage"] = "Subtask added.";
+    return RedirectToAction(nameof(MainTaskDetails), new { id });
 }
 
 // GET: /Tasks/MainTaskDetails/5

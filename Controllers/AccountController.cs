@@ -146,6 +146,19 @@ namespace DTIOneLink.Controllers
                 var now = DateTime.UtcNow;
                 await _db.Users.Where(u => u.Id == userId)
                     .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLogoutAtUtc, now));
+
+                // Close out this session's Time Log row. Ordered by TimeInUtc
+                // descending in case something left more than one open (should
+                // not normally happen since each Logout closes the latest one).
+                var openLog = await _db.TimeLogs
+                    .Where(t => t.UserId == userId && t.TimeOutUtc == null)
+                    .OrderByDescending(t => t.TimeInUtc)
+                    .FirstOrDefaultAsync();
+                if (openLog != null)
+                {
+                    openLog.TimeOutUtc = now;
+                    await _db.SaveChangesAsync();
+                }
             }
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
@@ -517,6 +530,11 @@ namespace DTIOneLink.Controllers
                 .ExecuteUpdate(s => s
                     .SetProperty(u => u.LastLoginAtUtc, now)
                     .SetProperty(u => u.LastSeenAtUtc, now));
+
+            // One row per sign-in session, for the user's own Time Logs page.
+            // Logout fills in TimeOutUtc on whichever row this leaves open.
+            _db.TimeLogs.Add(new TimeLog { UserId = user.Id, TimeInUtc = now });
+            _db.SaveChanges();
 
             _logger.LogInformation("User {UserId} signed in.", user.Id);
         }

@@ -86,8 +86,11 @@
     });
 
     // Capture phase: runs before the page's own submit handlers read the values.
+    // form.elements also covers boxes linked with form="…" from elsewhere.
     document.addEventListener("submit", function (e) {
-        e.target.querySelectorAll(SELECTOR).forEach(format);
+        Array.prototype.forEach.call(e.target.elements, function (el) {
+            if (el.matches(SELECTOR)) format(el);
+        });
     }, true);
 
     window.TextFormat = { title: toTitle, sentence: toSentence };

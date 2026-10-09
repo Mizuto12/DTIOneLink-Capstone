@@ -1,0 +1,192 @@
+/* ==========================================================
+   DTI Laguna OneLink — Time Logs page
+   ========================================================== */
+
+.time-logs-page {
+    --primary: #001e65;
+    --surface: #ffffff;
+    --surface-container-low: #eff4ff;
+    --surface-container: #e5eeff;
+    --outline-variant: #c5c5d2;
+    --on-surface: #0b1c30;
+    --on-surface-variant: #444651;
+    --shadow-md: 0 4px 14px rgba(16, 24, 40, 0.06);
+    --radius-lg: 20px;
+    --radius-full: 999px;
+
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--on-surface);
+    width: 100%;
+}
+
+.time-logs-page * { box-sizing: border-box; }
+
+/* ---------- Page Header ---------- */
+.time-logs-page .page-header {
+    margin-bottom: 24px;
+}
+
+.time-logs-page .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.time-logs-page .icon-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-container);
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.time-logs-page .page-title {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0;
+}
+
+.time-logs-page .page-subtitle {
+    font-size: 14px;
+    color: var(--on-surface-variant);
+    margin: 2px 0 0;
+}
+
+/* ---------- Card ---------- */
+.time-logs-page .card {
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 24px;
+}
+
+.time-logs-page .table-wrapper {
+    overflow-x: auto;
+}
+
+.time-logs-page table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.time-logs-page thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    padding: 0 16px 8px;
+}
+
+.time-logs-page tbody td {
+    background: var(--surface-container-low);
+    font-size: 14px;
+    padding: 14px 16px;
+}
+
+.time-logs-page tbody td:first-child {
+    border-top-left-radius: var(--radius-full);
+    border-bottom-left-radius: var(--radius-full);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.time-logs-page tbody td:last-child {
+    border-top-right-radius: var(--radius-full);
+    border-bottom-right-radius: var(--radius-full);
+}
+
+/* ---------- Status badge ---------- */
+.time-logs-page .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+}
+
+.time-logs-page .badge-active {
+    background: #e7f6ec;
+    color: #16a34a;
+}
+
+.time-logs-page .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16a34a;
+}
+
+/* ---------- Empty state ---------- */
+.time-logs-page .empty-row .empty-state {
+    background: transparent;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 16px;
+    color: var(--on-surface-variant);
+}
+
+.time-logs-page .empty-row .material-symbols-outlined {
+    font-size: 32px;
+    color: var(--outline-variant);
+}
+
+/* ---------- Phones: each log becomes a card ---------- */
+@media (max-width: 640px) {
+    .time-logs-page tbody,
+    .time-logs-page table { display: block; }
+    .time-logs-page thead { display: none; }
+
+    .time-logs-page tbody tr.pill-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: var(--surface-container-low);
+    }
+
+    .time-logs-page tbody tr.pill-row td {
+        display: block;
+        padding: 0;
+        border-radius: 0;
+        background: transparent !important;
+    }
+
+    .time-logs-page tbody tr.pill-row td.title-cell {
+        grid-column: 1 / -1;
+        font-size: 15px;
+    }
+
+    .time-logs-page tbody td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 2px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--on-surface-variant);
+    }
+
+    .time-logs-page tbody tr:not(.pill-row) { display: block; }
+    .time-logs-page tbody tr:not(.pill-row) > td { display: block; }
+
+    .time-logs-page .card { padding: 16px; }
+}

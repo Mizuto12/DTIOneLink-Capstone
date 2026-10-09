@@ -159,5 +159,36 @@ namespace DTIOneLink.Services
 
             return (mainTask, subtaskNames.Count);
         }
+
+        // Adds one more subtask to an already-created Department Directive —
+        // the directive doesn't have to be re-created just to break out
+        // another piece of work. Left unassigned, same as a subtask created
+        // at CreateAsync time; the receiving Admin assigns it afterward.
+        public async Task<TaskItem> AddSubtaskAsync(TaskItem mainTask, string subtaskName, int? createdByUserId)
+        {
+            var subtask = new TaskItem
+            {
+                TaskName = subtaskName,
+                DueDate = mainTask.DueDate,
+                Priority = mainTask.Priority,
+                Description = $"Subtask of: {mainTask.TaskName}",
+                CreatedByUserId = createdByUserId,
+                TaskLevel = TaskLevels.Subtask,
+                OwningDepartment = mainTask.OwningDepartment,
+                ResponsibleAdminUserId = null,
+                ParentTaskId = mainTask.Id
+            };
+
+            _context.TaskItems.Add(subtask);
+            await _context.SaveChangesAsync();
+
+            if (createdByUserId.HasValue)
+            {
+                TaskActivityLogger.Log(_context, mainTask.Id, createdByUserId.Value, "updated", $"Added a new subtask: {subtaskName}.");
+                await _context.SaveChangesAsync();
+            }
+
+            return subtask;
+        }
     }
 }

@@ -237,12 +237,22 @@
     </section>
 
     <!-- ── Employee workload ─────────────────────────────── -->
-    <section class="sa-section">
+    <section class="sa-section" id="saWorkload">
         <div class="sa-section__head">
             <div>
                 <h4 class="sa-section__title">Employee Workload</h4>
                 <p class="sa-section__sub">How many tasks each person has, and where they stand.</p>
             </div>
+            @if (Model.EmployeeWorkloads.Any())
+            {
+                <div class="sa-chips" role="group" aria-label="Filter by division">
+                    <button type="button" class="sa-chip is-active" data-division="">All divisions</button>
+                    @foreach (var d in divisions)
+                    {
+                        <button type="button" class="sa-chip" data-division="@d.Name" title="@d.Name">@d.Short</button>
+                    }
+                </div>
+            }
         </div>
         @if (!Model.EmployeeWorkloads.Any())
         {
@@ -256,6 +266,7 @@
                     <thead>
                         <tr>
                             <th>Employee</th>
+                            <th>Division</th>
                             <th>Assigned</th>
                             <th>To Do</th>
                             <th>In Progress</th>
@@ -269,13 +280,14 @@
                     <tbody>
                         @foreach (var w in Model.EmployeeWorkloads)
                         {
-                            <tr>
+                            <tr data-division="@w.Division">
                                 <td>
                                     <span class="sa-person">
                                         <span class="sa-avatar">@Initials(w.FullName)</span>
                                         <span class="td--strong">@w.FullName</span>
                                     </span>
                                 </td>
+                                <td class="td--muted" title="@w.Division">@(ShortDivision(w.Division) is { Length: > 0 } s ? s : "—")</td>
                                 <td class="td--strong">@w.TotalAssigned</td>
                                 <td class="@Num(w.ToDo)">@w.ToDo</td>
                                 <td class="@Num(w.InProgress)">@w.InProgress</td>
@@ -286,6 +298,9 @@
                                 <td class="@Num(w.AtRisk, "td--risk-count")">@w.AtRisk</td>
                             </tr>
                         }
+                        <tr class="sa-table__empty" hidden>
+                            <td colspan="9">No one in this division has assigned tasks.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

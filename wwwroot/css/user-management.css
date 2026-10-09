@@ -727,6 +727,14 @@
     font-size: 14px;
 }
 
+.um-directory-banner-link {
+    margin-left: auto;
+    font-weight: 700;
+    text-decoration: underline;
+    color: inherit;
+    white-space: nowrap;
+}
+
 /* ── Change Role dialog, easier layout ───────────────────── */
 .um-dialog-head { display: flex; align-items: center; justify-content: space-between; }
 .um-dialog-close {
@@ -1323,3 +1331,5 @@
 .um-notice-close:hover { background: rgba(0, 0, 0, 0.07); }
 .um-notice-close:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .um-notice-close .material-symbols-outlined { font-size: 18px; }
+/* The "View their tasks" link already sits at the right; the × follows it. */
+.um-directory-banner-link + .um-notice-close { margin-left: 0; }

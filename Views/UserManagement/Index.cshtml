@@ -197,6 +197,10 @@
             <p class="um-form-error um-directory-banner um-notice">
                 <span class="material-symbols-outlined">error</span>
                 <span>@directoryError</span>
+                @if (TempData["DirectoryErrorTaskLink"] is string directoryErrorTaskLink)
+                {
+                    <a href="@directoryErrorTaskLink" class="um-directory-banner-link">@TempData["DirectoryErrorTaskLinkLabel"]</a>
+                }
                 <button type="button" class="um-notice-close" aria-label="Dismiss"><span class="material-symbols-outlined">close</span></button>
             </p>
         }

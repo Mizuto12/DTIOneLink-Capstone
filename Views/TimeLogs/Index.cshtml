@@ -1,0 +1,82 @@
+@model List<DTIOneLink.Models.TimeLog>
+@{
+    var userRole = Context.Session.GetString("UserRole");
+    Layout = userRole == "SuperAdmin"
+        ? "~/Views/SuperAdmin/SuperAdminLayout.cshtml"
+        : userRole == "Admin"
+            ? "~/Views/Admin/AdminLayout.cshtml"
+            : "~/Views/Employee/EmployeeLayout.cshtml";
+    ViewData["Title"] = "Time Logs";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/time-logs.css" asp-append-version="true">
+}
+
+<main class="time-logs-page">
+
+    <header class="page-header">
+        <div class="header-left">
+            <div class="icon-badge">
+                <span class="material-symbols-outlined">schedule</span>
+            </div>
+            <div>
+                <h1 class="page-title">Time Logs</h1>
+                <p class="page-subtitle">Your own sign-in and sign-out history.</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="card">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr class="empty-row">
+                            <td colspan="3" class="empty-state">
+                                <span class="material-symbols-outlined">history_toggle_off</span>
+                                <span>No time logs yet.</span>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var log in Model)
+                        {
+                            var timeIn = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(log.TimeInUtc);
+                            var timeOut = log.TimeOutUtc.HasValue
+                                ? DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(log.TimeOutUtc.Value)
+                                : (DateTime?)null;
+
+                            <tr class="pill-row">
+                                <td data-label="Date" class="title-cell">@timeIn.ToString("MMM d, yyyy")</td>
+                                <td data-label="Time In">@timeIn.ToString("h:mm tt")</td>
+                                <td data-label="Time Out">
+                                    @if (timeOut.HasValue)
+                                    {
+                                        @timeOut.Value.ToString("h:mm tt")
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-active">
+                                            <span class="badge-dot"></span> Still signed in
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</main>

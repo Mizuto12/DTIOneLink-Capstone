@@ -39,6 +39,13 @@
             <span>@mtdSuccess</span>
         </div>
     }
+    @if (TempData["ErrorMessage"] is string mtdError)
+    {
+        <div class="success-banner error-banner" role="alert">
+            <span class="material-symbols-outlined">error</span>
+            <span>@mtdError</span>
+        </div>
+    }
     <nav class="mtd-breadcrumb">
         <a asp-controller="Tasks" asp-action="Index">Task Management</a>
         <span>/</span>
@@ -191,6 +198,17 @@
     <div class="glass-card">
         <div class="card-toolbar">
             <h3 style="margin:0;">Subtasks (@subtasks.Count)</h3>
+            @if (DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
+            {
+                <form asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@task.Id" method="post" class="mtd-add-subtask">
+                    @Html.AntiForgeryToken()
+                    <input type="text" name="subtaskName" data-capitalize="title" placeholder="New subtask name" maxlength="200" required>
+                    <button type="submit" class="et-btn et-btn-outline">
+                        <span class="material-symbols-outlined">add</span>
+                        Add Subtask
+                    </button>
+                </form>
+            }
         </div>
         <div class="table-scroll">
             <table class="task-table">

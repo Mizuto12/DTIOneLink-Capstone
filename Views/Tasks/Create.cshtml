@@ -78,6 +78,9 @@
                             <span class="material-symbols-outlined select-icon">expand_more</span>
                         </div>
                         <span asp-validation-for="TaskType" class="field-error"></span>
+                        <p class="modal-sub" style="margin-top:4px;">
+                            Only a Department Directive breaks into subtasks — a Direct Admin Task or Whole Office task is worked and submitted directly by its assignee(s), so there's nothing to break down.
+                        </p>
                         <p class="modal-sub" id="wholeOfficeNote" style="margin-top:4px;" hidden>
                             Every active Division Chief and employee (@ViewBag.WholeOfficeCount people) gets this task and submits their own. You review each submission.
                         </p>

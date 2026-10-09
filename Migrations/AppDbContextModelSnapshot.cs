@@ -406,6 +406,30 @@ namespace DTIOneLink.Migrations
                     b.ToTable("TaskSubmissions");
                 });
 
+            modelBuilder.Entity("DTIOneLink.Models.TimeLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("TimeInUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("TimeOutUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "TimeInUtc");
+
+                    b.ToTable("TimeLogs");
+                });
+
             modelBuilder.Entity("DTIOneLink.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -683,6 +707,17 @@ namespace DTIOneLink.Migrations
                     b.Navigation("TaskAssignment");
 
                     b.Navigation("ValidatedBy");
+                });
+
+            modelBuilder.Entity("DTIOneLink.Models.TimeLog", b =>
+                {
+                    b.HasOne("DTIOneLink.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DTIOneLink.Models.TaskItem", b =>

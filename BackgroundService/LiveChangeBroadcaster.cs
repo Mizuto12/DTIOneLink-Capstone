@@ -4,16 +4,22 @@ namespace DTIOneLink.Services
 {
     // Pushes live updates to open pages through SignalR (LiveHub).
     //
-    // Every couple of seconds, while anyone is connected, it reads the data
+    // Once a minute, while anyone is connected, it reads the data
     // fingerprints once for everybody (LiveVersionService, a few ms) and
     // pushes only what changed: "dataChanged" to all pages, and
     // "notificationsChanged" to just the user who got a notification.
     // Watching the database rather than each save means every change is
     // caught — EF, raw SQL, background jobs — without touching the code
     // that saves it.
+    //
+    // Deliberately a minute, not a few seconds: this also coalesces bursts —
+    // if everyone updates their task progress around the same time (e.g.
+    // right before a deadline), that only ever costs one check and one
+    // broadcast per minute, not one for every save, so the server and
+    // everyone's browser aren't fighting to keep up with each other.
     public class LiveChangeBroadcaster : BackgroundService
     {
-        private static readonly TimeSpan CheckEvery = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan CheckEvery = TimeSpan.FromMinutes(1);
 
         private readonly LiveVersionService _versions;
         private readonly IHubContext<LiveHub> _hub;

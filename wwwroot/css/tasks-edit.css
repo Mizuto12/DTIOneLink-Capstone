@@ -418,6 +418,8 @@
 .edit-task .et-ca-reassign-label { font-size: 13px; font-weight: 600; }
 .edit-task .et-current-assignee.is-reassigning { background: #fff8e6; border-color: #e0b44a; }
 .edit-task .et-ca-note { margin: 0 0 8px; font-size: 13px; color: #5f6368; }
+.edit-task .et-add-subtask { display: flex; flex-wrap: wrap; gap: 8px; }
+.edit-task .et-add-subtask .et-input { flex: 1 1 220px; }
 
 /* Phones */
 @media (max-width: 640px) {

@@ -3,6 +3,7 @@ using DTIOneLink.Security;
 using DTIOneLink.Controllers;
 using DTIOneLink.Services;
 using DTIOneLink.Services.Email;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,6 +62,14 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    // Always in production (real traffic is HTTPS). Local dev and the
+    // integration-test host ("Testing") both run over plain http://, where
+    // "Always" would silently drop the cookie - dev logins would loop
+    // forever, and every test past the login step would see a signed-out
+    // session.
+    options.Cookie.SecurePolicy = builder.Environment.IsProduction()
+        ? CookieSecurePolicy.Always
+        : CookieSecurePolicy.SameAsRequest;
 });
 
 var app = builder.Build();
@@ -75,6 +84,12 @@ var app = builder.Build();
 //
 // Always the plain MigrateAsync(): it only moves forward. Migrating to a named
 // target would roll back any later migration already applied.
+//
+// Skipped in the "Testing" environment (DTIOneLink.Tests' integration
+// tests): migrations target SQL Server specifically, and the test host's
+// database is created fresh from the current EF model instead (see
+// CustomWebApplicationFactory), so there is nothing to migrate.
+if (!app.Environment.IsEnvironment("Testing"))
 using (var scope = app.Services.CreateScope())
 {
     var errorFile = Path.Combine(app.Environment.ContentRootPath, "App_Data", "database-update-error.txt");
@@ -115,6 +130,10 @@ using (var scope = app.Services.CreateScope())
 // Codes are checked with a key that exists only in memory (OneTimeCodeHasher),
 // so codes from before this start can never match. Mark them used, so the
 // code page sends a fresh code instead of waiting on one that can't work.
+//
+// Skipped in "Testing" for the same reason as the migration above - the
+// test database doesn't exist yet at this point in startup.
+if (!app.Environment.IsEnvironment("Testing"))
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -132,9 +151,11 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsProduction())
 {
     app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
 // The server is in Germany (~0.25 s each way from the Philippines), so every
@@ -252,3 +273,9 @@ app.MapGet("/health", async (AppDbContext db, HttpContext context, CancellationT
 });
 
 app.Run();
+
+// Exposes the top-level Program as a type WebApplicationFactory<Program>
+// (DTIOneLink.Tests) can boot a real in-process test server from. No
+// behavior change — top-level statements already compile to a Program
+// class; this just makes it a public one other assemblies can reference.
+public partial class Program { }

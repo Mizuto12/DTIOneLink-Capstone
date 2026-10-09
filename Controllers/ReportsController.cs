@@ -69,7 +69,7 @@ namespace DTIOneLink.Controllers
             }
 
             var department = HttpContext.Session.GetString("UserDepartment");
-            var isAdmin = role == "Admin";
+            var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
             var isOfficeWide = RolePermissions.Has(role, Permissions.ViewOfficeWideSummaries);
             var now = DateTime.UtcNow;
             var items = new List<ReportItem>();
@@ -252,7 +252,8 @@ namespace DTIOneLink.Controllers
         }
 
         private static bool IsAllowedRole(string? role) =>
-            role == "Admin" || role == "Employee" ||
+            string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase) ||
             RolePermissions.Has(role, Permissions.ViewOfficeWideSummaries);
 
         // Same visibility rules as EmployeeController.AccessibleTasksQuery.
