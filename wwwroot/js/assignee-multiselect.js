@@ -75,7 +75,7 @@
                 });
 
             if (names.length === 0) {
-                label.textContent = 'Select assignees';
+                label.textContent = 'Select Assignees';
                 label.classList.add('is-placeholder');
             } else if (names.length <= 2) {
                 label.textContent = names.join(', ');

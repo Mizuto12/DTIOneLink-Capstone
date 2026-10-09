@@ -81,11 +81,11 @@
 
             @if (TempData["SuccessMessage"] is string successMessage)
             {
-                <p class="um-form-success">@successMessage</p>
+                <p class="um-form-success um-notice"><span>@successMessage</span><button type="button" class="um-notice-close" aria-label="Dismiss"><span class="material-symbols-outlined">close</span></button></p>
             }
             @if (TempData["ErrorMessage"] is string errorMessage)
             {
-                <p class="um-form-error">@errorMessage</p>
+                <p class="um-form-error um-notice"><span>@errorMessage</span><button type="button" class="um-notice-close" aria-label="Dismiss"><span class="material-symbols-outlined">close</span></button></p>
             }
 
             <div class="um-field-grid">
@@ -105,7 +105,7 @@
                 <label class="um-label" for="newUserFullName">Full Name</label>
                 <div class="um-input-wrap">
                     <span class="material-symbols-outlined um-input-icon">badge</span>
-                    <input class="um-input@(nameError != null ? " um-input-invalid" : "")" name="FullName" type="text" id="newUserFullName"
+                    <input class="um-input@(nameError != null ? " um-input-invalid" : "")" name="FullName" type="text" id="newUserFullName" data-capitalize="title"
                            value="@formFullName" placeholder="Juan Dela Cruz" required />
                 </div>
                 <p class="um-field-error" id="newUserFullNameError" hidden="@(nameError == null)">@nameError</p>
@@ -174,9 +174,10 @@
 
         @if (TempData["DirectoryMessage"] is string directoryMessage)
         {
-            <p class="um-form-success um-directory-banner">
+            <p class="um-form-success um-directory-banner um-notice">
                 <span class="material-symbols-outlined">check_circle</span>
                 <span>@directoryMessage</span>
+                <button type="button" class="um-notice-close" aria-label="Dismiss"><span class="material-symbols-outlined">close</span></button>
             </p>
         }
         @if (TempData["TempPassword"] is string tempPassword)
@@ -193,9 +194,10 @@
         }
         @if (TempData["DirectoryError"] is string directoryError)
         {
-            <p class="um-form-error um-directory-banner">
+            <p class="um-form-error um-directory-banner um-notice">
                 <span class="material-symbols-outlined">error</span>
                 <span>@directoryError</span>
+                <button type="button" class="um-notice-close" aria-label="Dismiss"><span class="material-symbols-outlined">close</span></button>
             </p>
         }
 

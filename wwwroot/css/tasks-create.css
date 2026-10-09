@@ -446,6 +446,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transition: background 0.15s;
 }
 .subtask-remove-btn:hover { background: var(--surface-variant); color: var(--error); }
+/* Same footprint as the remove button on the permanent first row. */
+.subtask-remove-spacer { flex-shrink: 0; width: 36px; height: 36px; }
 
 .subtask-add-btn {
     display: inline-flex;

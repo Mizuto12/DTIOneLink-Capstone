@@ -1045,6 +1045,19 @@ a.page-btn { text-decoration: none; }
         --tm-row-h: 82.8px;  /* one task row + the gap under it (measured) */
     }
     .tm-list .task-table { padding: 8px 24px; }
+    /* Priority and Status: header and badge centered in their columns. */
+    .tm-list .task-table .th-priority,
+    .tm-list .task-table .th-status,
+    .tm-list .task-row .td-priority,
+    .tm-list .task-row .td-status { text-align: center; }
+    .tm-list .task-row .td-status .risk-badge { margin-left: auto; margin-right: auto; }
+    /* Narrow columns: a little less side padding, and a long status
+       ("Returned for Correction") wraps inside its column instead of
+       spilling into Priority. */
+    .tm-list .task-table .th-priority, .tm-list .task-table .th-status,
+    .tm-list .task-row .td-priority, .tm-list .task-row .td-status { padding-left: 8px; padding-right: 8px; }
+    /* The progress bar shrinks to its column instead of running under Priority. */
+    .tm-list .task-row .progress-cell { min-width: 0; }
     .tm-list .table-scroll {
         min-height: calc(16px + var(--tm-head-h) + 5 * var(--tm-row-h));
     }
@@ -1061,12 +1074,15 @@ a.page-btn { text-decoration: none; }
 @media (min-width: 1200px) {
     .tm-list .task-table { table-layout: fixed; }
     .tm-list .col-employee { width: 17%; }
-    .tm-list .col-task     { width: 25%; }
+    .tm-list .col-task     { width: 24%; }
     .tm-list .col-due      { width: 11%; }
     .tm-list .col-progress { width: 14%; }
     .tm-list .col-priority { width: 9%; }
-    .tm-list .col-status   { width: 12%; }
+    .tm-list .col-status   { width: 13%; } /* "Returned for Correction" fits on two lines */
     .tm-list .col-actions  { width: 112px; }
+    /* Fixed columns: a long status ("Returned for Correction") wraps inside
+       its column instead of spilling into Priority. */
+    .tm-list .task-row .td-status .status-badge { white-space: normal; max-width: 100%; }
 }
 
 /* Phones: filters stack; keep equal space above and below them. */

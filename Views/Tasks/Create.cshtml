@@ -50,7 +50,7 @@
                 <!-- Task Name -->
                 <div class="field-group">
                     <label class="field-label" for="taskName">TASK NAME <span class="required-star">*</span></label>
-                    <input class="pill-input" id="taskName" asp-for="TaskName" type="text"
+                    <input class="pill-input" id="taskName" asp-for="TaskName" type="text" data-capitalize="title"
                            placeholder="e.g. MSME Development Seminar Coordination" />
                     <span asp-validation-for="TaskName" class="field-error"></span>
                 </div>
@@ -58,7 +58,7 @@
                 <!-- Description -->
                 <div class="field-group">
                     <label class="field-label" for="description">TASK DESCRIPTION <span class="required-star">*</span></label>
-                    <textarea class="pill-input" id="description" asp-for="Description" rows="4"
+                    <textarea class="pill-input" id="description" asp-for="Description" rows="4" data-capitalize="sentence"
                               placeholder="Describe the task scope, objectives, and any specific requirements..."></textarea>
                     <span asp-validation-for="Description" class="field-error"></span>
                 </div>
@@ -70,7 +70,7 @@
                         <label class="field-label" for="taskType">TASK TYPE <span class="required-star">*</span></label>
                         <div class="select-wrap">
                             <select class="pill-input" id="taskType" asp-for="TaskType">
-                                <option value="">Select task type</option>
+                                <option value="">Select Task Type</option>
                                 <option value="direct-admin">Direct Admin Task — assigned straight to one Admin</option>
                                 <option value="department-directive">Department Directive — sent to the department</option>
                                 <option value="whole-office">Whole Office — everyone submits (e.g. Monthly CSF Report)</option>
@@ -88,7 +88,7 @@
                         <label class="field-label" for="targetDepartment">TARGET DEPARTMENT <span class="required-star">*</span></label>
                         <div class="select-wrap">
                             <select class="pill-input" id="targetDepartment" asp-for="OwningDepartment">
-                                <option value="">Select department</option>
+                                <option value="">Select Department</option>
                                 @foreach (var dept in (string[])ViewBag.TargetDepartments)
                                 {
                                     <option value="@dept">@dept</option>
@@ -108,7 +108,7 @@
                         <label class="field-label" for="responsibleAdmin">RESPONSIBLE ADMIN <span class="required-star">*</span></label>
                         <div class="select-wrap">
                             <select class="pill-input" id="responsibleAdmin" asp-for="ResponsibleAdminUserId" data-responsible-admin-select>
-                                <option value="">Select responsible Admin</option>
+                                <option value="">Select Responsible Admin</option>
                                 @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
                                 {
                                     <option value="@admin.Id" data-department="@admin.Department">@admin.FullName (@admin.Department)</option>
@@ -148,11 +148,11 @@
                         <label class="field-label" for="recurrence">REPEAT</label>
                         <div class="select-wrap">
                             <select class="pill-input" id="recurrence" asp-for="Recurrence">
-                                <option value="">Does not repeat</option>
-                                <option value="daily">Every day</option>
-                                <option value="weekly">Every week</option>
-                                <option value="monthly">Every month</option>
-                                <option value="quarterly">Every quarter</option>
+                                <option value="">Does Not Repeat</option>
+                                <option value="daily">Every Day</option>
+                                <option value="weekly">Every Week</option>
+                                <option value="monthly">Every Month</option>
+                                <option value="quarterly">Every Quarter</option>
                             </select>
                             <span class="material-symbols-outlined select-icon">expand_more</span>
                         </div>

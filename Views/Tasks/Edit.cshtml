@@ -71,7 +71,7 @@
                         <label asp-for="TaskName" class="et-label">
                             Task Name <span class="et-required">*</span>
                         </label>
-                        <input asp-for="TaskName" class="et-input" readonly="@(isAssignmentOnly ? "readonly" : null)" />
+                        <input asp-for="TaskName" class="et-input" data-capitalize="title" readonly="@(isAssignmentOnly ? "readonly" : null)" />
                         <span asp-validation-for="TaskName" class="et-error-text"></span>
                     </div>
 
@@ -112,7 +112,7 @@
                                                 <label class="et-ca-reassign-label" for="reassign-@a.UserId">Give @a.Name's part (@a.Progress%) to</label>
                                                 <select id="reassign-@a.UserId" name="ReassignTo[@a.UserId]" class="et-input"
                                                         data-reassign-select required disabled="@(reassigning ? null : "disabled")">
-                                                    <option value="">Choose a person…</option>
+                                                    <option value="">Select Person</option>
                                                     @foreach (var emp in reassignOptions)
                                                     {
                                                         <option value="@emp.Value" selected="@(pickedId?.ToString() == emp.Value ? "selected" : null)">@emp.Text</option>
@@ -133,7 +133,7 @@
                                     aria-haspopup="true"
                                     aria-expanded="false"
                                     aria-labelledby="assigneeLabel assigneeTrigger">
-                                <span class="assignee-select-label is-placeholder" data-assignee-label>@(Model.AssigneeIds.Any() ? "Add another person" : "Select assignees")</span>
+                                <span class="assignee-select-label is-placeholder" data-assignee-label>@(Model.AssigneeIds.Any() ? "Add Another Person" : "Select Assignees")</span>
                                 <span class="material-symbols-outlined assignee-select-chevron">expand_more</span>
                             </button>
                             <div class="assignee-select-panel" data-assignee-panel role="group" aria-label="Employees" hidden>
@@ -214,7 +214,7 @@
                     <!-- Description -->
                     <div class="et-field et-field-full">
                         <label asp-for="Description" class="et-label">Task Description</label>
-                        <textarea asp-for="Description" rows="6" class="et-textarea" readonly="@(isAssignmentOnly ? "readonly" : null)"></textarea>
+                        <textarea asp-for="Description" rows="6" class="et-textarea" data-capitalize="sentence" readonly="@(isAssignmentOnly ? "readonly" : null)"></textarea>
                         <span asp-validation-for="Description" class="et-error-text"></span>
                     </div>
                 </div>

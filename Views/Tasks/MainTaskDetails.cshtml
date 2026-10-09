@@ -54,8 +54,10 @@
                 <p class="mtd-desc">@task.Description</p>
             }
         </div>
-        @* Admins can't reassign a task the OPD gave straight to people. *@
-        @if (isOpd || !isAssignedByOpd)
+        @* Edit only opens for an Admin assigning people to a department task
+           with no subtasks; in every other case TasksController.Edit sends
+           them straight back here, so the button isn't shown. *@
+        @if (!isOpd && !isAssignedByOpd && !subtasks.Any())
         {
             <div class="mtd-header-actions">
                 <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="et-btn et-btn-outline">
@@ -248,7 +250,7 @@
                                 <div class="empty-state-content">
                                     <span class="material-symbols-outlined empty-icon">assignment</span>
                                     <p class="empty-text">No subtasks yet</p>
-                                    @if (!isAssignedByOpd)
+                                    @if (!isOpd && !isAssignedByOpd)
                                     {
                                         <p class="empty-sub">Click Edit above to assign employees to this directive directly.</p>
                                     }

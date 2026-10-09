@@ -13,6 +13,7 @@
     --mtd-on-surface: #0b1c30;
     width: 100%;
     box-sizing: border-box;
+    padding-top: 32px; /* space below the top bar (same as Task Management) */
     font-family: 'Hanken Grotesk', sans-serif;
     color: var(--mtd-on-surface);
 }

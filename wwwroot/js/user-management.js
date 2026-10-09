@@ -221,6 +221,16 @@
             el.addEventListener("change", queueFit); // role help text changes the form height
         });
 
+        // ── Notices: the × only removes the message from the page ──
+        // (nothing is sent to the server). The panels change height, so refit.
+        document.addEventListener("click", function (e) {
+            var btn = e.target.closest(".um-notice-close");
+            if (!btn) return;
+            var notice = btn.closest(".um-notice");
+            if (notice) notice.remove();
+            queueFit();
+        });
+
         // ── Role dropdowns: show what the chosen role means under the box ──
         document.querySelectorAll(".um-role-select").forEach(function (select) {
             var help = document.getElementById(select.dataset.help);

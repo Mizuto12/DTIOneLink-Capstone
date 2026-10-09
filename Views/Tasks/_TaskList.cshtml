@@ -57,7 +57,7 @@
                     <span class="filter-select-label">Sort</span>
                     <select name="sort" data-autosubmit>
                         <option value="newest" selected="@(Model.Sort == "newest")">Newest</option>
-                        <option value="due-asc" selected="@(Model.Sort == "due-asc")">Due date</option>
+                        <option value="due-asc" selected="@(Model.Sort == "due-asc")">Due Date</option>
                         <option value="priority-desc" selected="@(Model.Sort == "priority-desc")">Priority</option>
                     </select>
                 </label>
@@ -119,8 +119,8 @@
                 <select name="due" data-autosubmit>
                     <option value="all" selected="@(Model.Due == "all")">Any</option>
                     <option value="today" selected="@(Model.Due == "today")">Today</option>
-                    <option value="next7" selected="@(Model.Due == "next7")">Next 7 days</option>
-                    <option value="this-month" selected="@(Model.Due == "this-month")">This month</option>
+                    <option value="next7" selected="@(Model.Due == "next7")">Next 7 Days</option>
+                    <option value="this-month" selected="@(Model.Due == "this-month")">This Month</option>
                 </select>
             </label>
             @if (Model.HasActiveFilters)
@@ -148,8 +148,8 @@
                     <th>Tasks</th>
                     <th>Due Date</th>
                     <th>Task Progress</th>
-                    <th>Priority</th>
-                    <th>Status</th>
+                    <th class="th-priority">Priority</th>
+                    <th class="th-status">Status</th>
                     <th></th>
                 </tr>
             </thead>

@@ -1111,8 +1111,8 @@
 
 /* ==========================================================
    User Management v2 — one connected module (approved mockup)
-   Header strip, identical form fields, Save pinned level with the
-   pagination bar, fixed proportional table columns, fixed 6-row frame,
+   Header strip, identical form fields, evenly spaced Save,
+   fixed proportional table columns, fixed 6-row frame,
    compact icon + text actions.
    ========================================================== */
 
@@ -1141,7 +1141,7 @@
     flex-direction: column;
     background: #fafbff;
 }
-.um-form-pane #addUserForm { flex: 1; display: flex; flex-direction: column; }
+.um-form-pane #addUserForm { flex: 1; display: flex; flex-direction: column; gap: 24px; justify-content: space-evenly; }
 .um-field-grid { display: grid; gap: 16px; }
 
 /* Every box identical: same height, border, radius, icon spot and text start. */
@@ -1163,15 +1163,10 @@
     color: var(--secondary);
     pointer-events: none;
 }
-.um-form-pane .um-default-password-note { margin-top: 20px; }
-
-/* Save sits at the bottom of the panel, level with the table's pagination bar. */
-.um-form-foot { margin-top: auto; padding-top: 20px; }
-.um-form-pane .um-btn-save { width: 100%; height: 46px; padding: 0 24px; }
-
-@media (min-width: 1800px) {
-    .um-form-pane { padding-bottom: 12px; }
-}
+/* Fields, notice and Save are spaced by the form's 24px gap (the same as the
+   panel's padding). When the table beside it is taller, the extra height is
+   shared evenly above, between and below them, so Save never sinks. */
+.um-form-pane .um-btn-save { width: 100%; height: 46px; padding: 0 24px; margin-top: 0; }
 
 /* Stacked (narrower than 1800px): two fields per row, Save bottom-right. */
 @media (max-width: 1799px) {
@@ -1209,6 +1204,9 @@
     /* Row height comes from user-management.js (--um-row-h): six rows
        exactly fill the accounts area, the same on every page. */
     .um-row td { height: var(--um-row-h, 64px); padding: 0 14px; font-size: 14px; vertical-align: middle; }
+    /* Action column: extra room on the right so buttons never meet the frame. */
+    .um-row td.um-td-actions,
+    .um-table thead th:last-child { padding-right: 20px; }
     .um-td-status { overflow: hidden; }
     .um-td-status .um-status-badge { max-width: 100%; white-space: nowrap; }
     /* "Last active …" ends in "…" if needed; the full date is its tooltip. */
@@ -1271,6 +1269,32 @@
     .um-col-action   { width: 15%; }
 }
 
+/* Form beside the table: a wider Action column for the labelled buttons. */
+@media (min-width: 1800px) {
+    .um-col-name     { width: 17%; }
+    .um-col-email    { width: 21%; }
+    .um-col-division { width: 16%; }
+    .um-col-action   { width: 23%; }
+}
+
+/* Safety net: if the table itself is too narrow for the labelled buttons
+   (window size, zoom), they switch to the icon-only style above. */
+.um-table-pane .um-table-scroll { container-type: inline-size; }
+@media (min-width: 1600px) and (max-width: 1799px) {
+    @container (max-width: 1330px) {
+        .um-btn-txt { display: none; }
+        .um-actions .um-btn-change,
+        .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
+    }
+}
+@media (min-width: 1800px) {
+    @container (max-width: 1100px) {
+        .um-btn-txt { display: none; }
+        .um-actions .um-btn-change,
+        .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
+    }
+}
+
 /* Phones: cards, one field per row; long values wrap instead of "…". */
 @media (max-width: 767px) {
     .um-field-grid { grid-template-columns: 1fr; }
@@ -1278,3 +1302,24 @@
     .um-form-pane .um-btn-save { width: 100%; }
     .um-ell { white-space: normal; overflow: visible; }
 }
+
+/* Closeable notices (same × as Task Management's banners). */
+.um-notice { display: flex; align-items: center; gap: 8px; }
+.um-notice > span:not(.material-symbols-outlined) { flex: 1; min-width: 0; }
+.um-notice-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 4px;
+    border: none;
+    border-radius: 9999px;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.um-notice-close:hover { background: rgba(0, 0, 0, 0.07); }
+.um-notice-close:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.um-notice-close .material-symbols-outlined { font-size: 18px; }
