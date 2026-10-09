@@ -18,6 +18,7 @@ jobs:
       BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
       BREVO_SENDER_EMAIL: ${{ secrets.BREVO_SENDER_EMAIL }}
       APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+      DIAGNOSTICS_TOKEN: ${{ secrets.DIAGNOSTICS_TOKEN }}
 
     steps:
       - name: Get source code
@@ -53,6 +54,9 @@ jobs:
             }
             App = @{
               BaseUrl = $env:APP_BASE_URL
+            }
+            Diagnostics = @{
+              Token = $env:DIAGNOSTICS_TOKEN
             }
           } | ConvertTo-Json -Depth 3
 

@@ -217,6 +217,14 @@ app.UseSession();
 // account's password or email last changed (security stamp no longer matches).
 app.Use(async (context, next) =>
 {
+    // TEMPORARY: lets /Diagnostics/Status run (and report) even if touching
+    // Session here is exactly what's throwing — see DiagnosticsController.
+    if (context.Request.Path.StartsWithSegments("/Diagnostics"))
+    {
+        await next();
+        return;
+    }
+
     var userId = context.Session.GetInt32("UserId");
     if (userId != null)
     {
