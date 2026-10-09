@@ -89,6 +89,14 @@ jobs:
           $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
           $publishPath = "$env:GITHUB_WORKSPACE\publish"
 
+          # -retryAttempts/-retryInterval: MonsterASP's worker process can still
+          # have some DLLs (e.g. Microsoft.Data.SqlClient, its transitive
+          # System.Configuration.ConfigurationManager) locked for a moment
+          # after AppOffline takes effect. Without a retry, Web Deploy silently
+          # leaves THOSE specific files at their old version while everything
+          # else updates fine — exactly what happened on 2026-10-09: two full
+          # "successful" deploys in a row left stale SqlClient/ConfigurationManager
+          # DLLs in place, breaking every database connection (including login).
           & $msdeploy `
             -verb:sync `
             "-source:contentPath=$publishPath" `
@@ -99,6 +107,8 @@ jobs:
             -disableLink:AppPoolExtension `
             -disableLink:ContentExtension `
             -disableLink:CertificateExtension `
+            -retryAttempts:30 `
+            -retryInterval:3000 `
             -verbose
 
           if ($LASTEXITCODE -ne 0) {
