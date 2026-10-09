@@ -15,14 +15,6 @@
 
 <div class="reports-page">
 
-  <!-- Header Section -->
-  <div class="page-header">
-    <button class="btn-primary" type="button">
-      <span class="material-symbols-outlined icon-20">download</span>
-      Export Data
-    </button>
-  </div>
-
   <!-- Dashboard Style Container -->
   <div class="reports-card">
 
@@ -31,7 +23,7 @@
       <div class="toolbar-left">
         <div class="search-pill">
           <span class="material-symbols-outlined search-icon">search</span>
-          <input id="report-search" type="text" placeholder="Search report items...">
+          <input id="report-search" type="text" placeholder="Search reports or filter by keyword..." aria-label="Search reports">
         </div>
 
         <div class="filter-dropdown-wrapper">
@@ -59,8 +51,7 @@
           <span class="visually-hidden">Period</span>
           <select id="period-select" aria-label="Period">
             <option value="all">All Time</option>
-            <option value="this-month">This Month</option>
-            <option value="last-month">Last Month</option>
+            @* January–December of the current year, filled in by reports.js. *@
             <optgroup label="Month" id="period-months"></optgroup>
             <option value="custom">Custom Dates…</option>
           </select>
@@ -70,6 +61,11 @@
           <label>To <input type="date" id="period-to" required></label>
           <button type="submit" class="period-apply">Apply</button>
         </form>
+        @* Downloads what is listed now (reports.js). *@
+        <button class="btn-primary" type="button" id="export-btn">
+          <span class="material-symbols-outlined icon-20">download</span>
+          Export Data
+        </button>
       </div>
     </div>
 

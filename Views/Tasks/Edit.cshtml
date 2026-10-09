@@ -141,7 +141,7 @@
                                 <div class="assignee-select-search-wrap">
                                     <span class="material-symbols-outlined assignee-select-search-icon">search</span>
                                     <input type="text" class="assignee-select-search" data-assignee-search
-                                           placeholder="Search employees..." aria-label="Search employees" />
+                                           placeholder="Search Employees..." aria-label="Search employees" />
                                 </div>
                                 <div class="assignee-select-options">
                                     @* People already assigned are not offered again. *@
@@ -174,10 +174,10 @@
                             @* Belongs to #addSubtaskForm (after the save form below): a form
                                can't sit inside another, so the box and button point to it. *@
                             <div class="et-add-subtask">
-                                <input type="text" name="subtaskName" form="addSubtaskForm" data-capitalize="title" class="et-input" placeholder="New subtask name" maxlength="200" required>
-                                <button type="submit" form="addSubtaskForm" class="et-btn et-btn-outline">
+                                <input type="text" name="subtaskName" form="addSubtaskForm" data-capitalize="title" class="et-input" placeholder="New Subtask Name" maxlength="200" required aria-label="New subtask name">
+                                <button type="submit" form="addSubtaskForm" class="et-btn et-btn-primary">
                                     <span class="material-symbols-outlined">add</span>
-                                    Add Subtask
+                                    ADD SUBTASK
                                 </button>
                             </div>
                         </div>
@@ -190,11 +190,11 @@
                                max="@(canPassOpdDueDate ? null : opdDueDate?.ToString("yyyy-MM-dd"))" />
                         @if (opdDueDate.HasValue && canPassOpdDueDate)
                         {
-                            <span class="et-ca-note">This task is due soon or overdue, so you may set a date after the OPD's deadline (@opdDueDate.Value.ToString("MMM d, yyyy")). The OPD will be notified.</span>
+                            <span class="et-ca-note">This task is due soon or overdue, so you may set a date after the OPD's deadline (@DTIOneLink.Helpers.DisplayHelpers.FormalDate(opdDueDate.Value)). The OPD will be notified.</span>
                         }
                         else if (opdDueDate.HasValue)
                         {
-                            <span class="et-ca-note">No later than the OPD's deadline: @opdDueDate.Value.ToString("MMM d, yyyy")</span>
+                            <span class="et-ca-note">No later than the OPD's deadline: @DTIOneLink.Helpers.DisplayHelpers.FormalDate(opdDueDate.Value)</span>
                         }
                         <span asp-validation-for="DueDate" class="et-error-text"></span>
                     </div>

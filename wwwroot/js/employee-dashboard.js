@@ -337,9 +337,10 @@
         return new Date(+p[0], +p[1] - 1, +p[2]);
     }
 
+    // "October 05" — same compact form as the board cards (DisplayHelpers.FormalMonthDay).
     function shortDate(key) {
         var d = parseKey(key);
-        return MONTHS[d.getMonth()].slice(0, 3) + " " + d.getDate();
+        return MONTHS[d.getMonth()] + " " + pad(d.getDate());
     }
 
     function pad(n) { return n < 10 ? "0" + n : String(n); }

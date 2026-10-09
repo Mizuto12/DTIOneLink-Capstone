@@ -1,4 +1,5 @@
 // Helpers/DisplayHelpers.cs
+using System.Globalization;
 using System.Linq;
 
 namespace DTIOneLink.Helpers
@@ -26,6 +27,15 @@ namespace DTIOneLink.Helpers
 
             return "??";
         }
+
+        // Formal date for display only: "October 05, 2026". The stored value,
+        // deadlines, overdue checks and sorting are untouched (no time zone math).
+        public static string FormalDate(DateTime date) =>
+            date.ToString("MMMM dd, yyyy", CultureInfo.InvariantCulture);
+
+        // Compact form for narrow board cards: "October 05".
+        public static string FormalMonthDay(DateTime date) =>
+            date.ToString("MMMM dd", CultureInfo.InvariantCulture);
 
         public static string GetReadableRole(string? role) => role?.Trim().ToLowerInvariant() switch
         {

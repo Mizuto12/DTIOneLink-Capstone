@@ -88,7 +88,7 @@
             -1 => "1 day late",
             0 => "Due today",
             1 => "Due tomorrow",
-            _ => $"Due {due:MMM d}"
+            _ => "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(due)
         };
     }
 
@@ -201,7 +201,7 @@
                                                 <p class="gantt-row__meta">
                                                     <span>@(AssigneeName(task) ?? "Unassigned")</span>
                                                     <span class="gantt-row__due @(overdue ? "is-late" : "")">
-                                                        @(IsCompleted(task) ? $"Due {task.DueDate:MMM d}" : DueText(task.DueDate))
+                                                        @(IsCompleted(task) ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(task.DueDate) : DueText(task.DueDate))
                                                     </span>
                                                 </p>
                                             </div>
@@ -209,7 +209,7 @@
                                         <div class="gantt-row__track">
                                             <div class="gantt-bar tone-@ToneOf(task) @(overdue ? "is-overdue" : "")"
                                                  style="left:@leftPct%; width:@widthPct%;"
-                                                 title="@LabelOf(task) · @progress% done · @start.ToString("MMM d") – @task.DueDate.ToString("MMM d, yyyy")">
+                                                 title="@LabelOf(task) · @progress% done · @start.ToString("MMM d") – @DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)">
                                                 <div class="gantt-bar__fill" style="width:@progress%;"></div>
                                                 <span class="gantt-bar__label">@(overdue ? "Overdue" : LabelOf(task)) · @progress%</span>
                                             </div>
@@ -294,7 +294,7 @@
                                                 <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
                                             </span>
                                             <span class="kanban-card__due @(overdue ? "is-late" : "")">
-                                                @(IsCompleted(task) ? $"Due {task.DueDate:MMM d}" : DueText(task.DueDate))
+                                                @(IsCompleted(task) ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(task.DueDate) : DueText(task.DueDate))
                                             </span>
                                         </div>
                                     </div>

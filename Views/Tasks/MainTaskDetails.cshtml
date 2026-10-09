@@ -91,7 +91,7 @@
         </div>
         <div class="mtd-summary-card">
             <span class="mtd-summary-label">Due Date</span>
-            <span>@task.DueDate.ToString("MMM d, yyyy")</span>
+            <span>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</span>
         </div>
         <div class="mtd-summary-card">
             <span class="mtd-summary-label">Responsible Admin</span>
@@ -195,26 +195,31 @@
         </div>
     }
 
-    <div class="glass-card">
-        <div class="card-toolbar">
-            <h3 style="margin:0;">Subtasks (@subtasks.Count)</h3>
-            @if (DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
-            {
+    @* Subtasks frame: the add row at the top (directives only), the count in
+       the first column header, and the same minimum height (3 rows) whether
+       there are 0, 1 or 3 subtasks. *@
+    <div class="glass-card mtd-subtasks">
+        @if (DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
+        {
+            <div class="card-toolbar mtd-subtask-toolbar">
                 <form asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@task.Id" method="post" class="mtd-add-subtask">
                     @Html.AntiForgeryToken()
-                    <input type="text" name="subtaskName" data-capitalize="title" placeholder="New subtask name" maxlength="200" required>
-                    <button type="submit" class="et-btn et-btn-outline">
+                    <input type="text" name="subtaskName" data-capitalize="title" placeholder="New Subtask Name" maxlength="200" required aria-label="New subtask name">
+                    @* Same pill as Task Management's CREATE TASK button. *@
+                    <button type="submit" class="btn-primary-pill">
                         <span class="material-symbols-outlined">add</span>
-                        Add Subtask
+                        ADD SUBTASK
                     </button>
                 </form>
-            }
-        </div>
+            </div>
+        }
+        @* Phones hide the table's column headers, so the count shows here instead. *@
+        <p class="mtd-subtask-count">Subtasks (@subtasks.Count)</p>
         <div class="table-scroll">
             <table class="task-table">
                 <thead>
                     <tr>
-                        <th>Subtask</th>
+                        <th>Subtasks (@subtasks.Count)</th>
                         <th>Assignees</th>
                         <th>Assigned By</th>
                         <th>Due Date</th>
@@ -243,7 +248,7 @@
                                 <td class="td-first td-task-name">@sub.TaskName</td>
                                 <td class="td-task" data-label="Assignees"><span class="td-muted">@assigneeNames</span></td>
                                 <td data-label="Assigned by"><span class="td-muted">@assignedByNames</span></td>
-                                <td data-label="Due date"><span class="td-date">@sub.DueDate.ToString("MMM dd, yyyy")</span></td>
+                                <td data-label="Due date"><span class="td-date">@DTIOneLink.Helpers.DisplayHelpers.FormalDate(sub.DueDate)</span></td>
                                 <td class="td-progress" data-label="Progress">
                                     <div class="progress-cell">
                                         <div class="progress-track">

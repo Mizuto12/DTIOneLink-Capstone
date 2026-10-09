@@ -60,7 +60,7 @@
 <div class="um-module-head">
     <div>
         <h2 class="um-module-title">User Management</h2>
-        <p class="um-module-sub">@(canChangeStanding ? "Create staff accounts and manage their role, division and access." : "Create staff accounts and manage their access.")</p>
+        <p class="um-module-sub">@(canChangeStanding ? "Manage user accounts, roles, and access permissions." : "Manage user accounts and access permissions.")</p>
     </div>
 </div>
 
@@ -73,7 +73,10 @@
             <div class="um-section-icon">
                 <span class="material-symbols-outlined">person_add</span>
             </div>
-            <h3 class="um-section-title">Add a New Account</h3>
+            <div>
+                <h3 class="um-section-title">Add a New Account</h3>
+                <p class="um-section-desc">Fill in the details to create a staff account</p>
+            </div>
         </div>
 
         <form id="addUserForm" asp-controller="UserManagement" asp-action="Create" method="post">
@@ -145,6 +148,7 @@
             </div>
             </div>
 
+            <div class="um-form-actions">
             <p class="um-default-password-note">
                 <span class="material-symbols-outlined">key</span>
                 <span>They will sign in with this email and the default password <strong>@DTIOneLink.Security.AccountDefaults.DefaultPassword</strong>. On their first sign-in they confirm their email with a code and choose their own password.</span>
@@ -156,6 +160,7 @@
                     <span class="material-symbols-outlined">check_circle</span>
                 </button>
             </div>
+            </div>
         </form>
     </section>
 
@@ -163,8 +168,13 @@
     <section class="um-pane um-table-pane">
         <div class="um-table-header">
             <div class="um-table-title-row">
-                <span class="material-symbols-outlined">groups</span>
-                <h3 class="um-section-title">All Accounts</h3>
+                <div class="um-section-icon">
+                    <span class="material-symbols-outlined">groups</span>
+                </div>
+                <div>
+                    <h3 class="um-section-title">All Accounts</h3>
+                    <p class="um-section-desc">@(canChangeStanding ? "Manage each account's role, division and access" : "Manage staff accounts and their access")</p>
+                </div>
             </div>
             <div class="um-total-badge">
                 <span class="um-total-label">Total:</span>
@@ -209,7 +219,7 @@
         <div class="um-search-bar">
             <span class="material-symbols-outlined um-search-icon">search</span>
             <input type="search" class="um-search-input" id="userSearchInput"
-                   placeholder="Search by name, email, division or role"
+                   placeholder="Search by Name, Email, Division or Role"
                    aria-label="Search accounts" />
             <button type="button" class="um-search-clear" id="userSearchClear" hidden aria-label="Clear search">
                 <span class="material-symbols-outlined">close</span>

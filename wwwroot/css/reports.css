@@ -550,3 +550,27 @@
   .reports-page .period-apply { flex: 1 1 100%; min-height: 46px; }
   .reports-page .period-summary { padding: 12px 16px; }
 }
+
+/* ---------- Layout refinements ----------
+   No separate header row: the card starts 32px under the top bar, like
+   Dashboard and Task Management, and Export Data sits right of the period
+   dropdown at the same height. */
+.reports-page { padding-top: 32px; }
+.reports-page #export-btn { min-height: 46px; padding: 0 24px; }
+
+/* Six rows per page. The list frame always holds six, so the last page
+   (even with one report) keeps the same size; an empty list centers its
+   message in the same space. */
+.reports-page {
+  --rp-row: 96px;   /* one report row (measured) */
+  --rp-gap: 16px;   /* space between rows */
+}
+@media (min-width: 641px) {
+  .reports-page .report-list { min-height: calc(48px + 6 * var(--rp-row) + 5 * var(--rp-gap)); }
+}
+.reports-page .report-list > .empty-state,
+.reports-page .report-list > .load-error { flex: 1; }
+
+/* Red is reserved for Overdue. */
+.reports-page .item-icon.tone-overdue { background: #ba1a1a; color: #ffffff; }
+.reports-page .meta-badge.is-overdue { background: #ffdad6; color: #93000a; }

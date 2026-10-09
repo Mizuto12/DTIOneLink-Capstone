@@ -145,16 +145,14 @@
 
             <a asp-controller="Dashboard" asp-action="SuperAdminDashboard"
                class="nav-item @(IsActive("Dashboard") ? "active" : "")">
-                <span class="material-symbols-outlined"
-                      style="@(IsActive("Dashboard") ? "font-variation-settings:'FILL' 1;" : "")">dashboard</span>
+                <span class="material-symbols-outlined">dashboard</span>
                 <span>Dashboard</span>
             </a>
               @if (RolePermissions.Has(sessRole, Permissions.ManageOfficeWideTasks))
             {
              <a asp-controller="Tasks" asp-action="Index"
                class="nav-item @(IsActive("Tasks") ? "active" : "")">
-                <span class="material-symbols-outlined"
-                      style="@(IsActive("Tasks") ? "font-variation-settings:'FILL' 1;" : "")">assignment</span>
+                <span class="material-symbols-outlined">assignment</span>
                 <span>Task Management</span>
             </a>
             }

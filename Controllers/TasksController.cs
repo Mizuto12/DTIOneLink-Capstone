@@ -261,6 +261,22 @@ namespace DTIOneLink.Controllers
                 .AsNoTracking() // read-only list
                 .ToListAsync();
 
+            // Subtask count per Department Directive on this page, shown under
+            // the assignee ("Assignee · Subtasks: 3"). One small read-only query.
+            var directiveIds = model.Tasks
+                .Where(t => t.TaskLevel == TaskLevels.Main && t.TaskType == TaskTypes.DepartmentDirective)
+                .Select(t => t.Id)
+                .ToList();
+            if (directiveIds.Count > 0)
+            {
+                var counts = await _context.TaskItems
+                    .Where(s => s.ParentTaskId.HasValue && directiveIds.Contains(s.ParentTaskId.Value))
+                    .GroupBy(s => s.ParentTaskId!.Value)
+                    .Select(g => new { ParentId = g.Key, Count = g.Count() })
+                    .ToListAsync();
+                model.SubtaskCounts = directiveIds.ToDictionary(id => id, id => counts.FirstOrDefault(c => c.ParentId == id)?.Count ?? 0);
+            }
+
             return model;
         }
 

@@ -166,7 +166,7 @@
                     </div>
                     <div>
                         <h3>Due Date</h3>
-                        <p>@task.DueDate.ToString("MMM d, yyyy")</p>
+                        <p>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</p>
                     </div>
                     <div>
                         <h3>Progress</h3>
@@ -331,7 +331,7 @@
                 </div>
                 <div>
                     <dt>Due date</dt>
-                    <dd>@task.DueDate.ToString("MMM d, yyyy")</dd>
+                    <dd>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</dd>
                 </div>
                 <div>
                     <dt>Created</dt>

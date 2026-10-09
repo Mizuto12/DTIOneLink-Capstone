@@ -1333,3 +1333,124 @@
 .um-notice-close .material-symbols-outlined { font-size: 18px; }
 /* The "View their tasks" link already sits at the right; the × follows it. */
 .um-directory-banner-link + .um-notice-close { margin-left: 0; }
+
+/* ==========================================================
+   Records-style frame (matches Records Management): a plain page
+   header, then two separate cards — Add a New Account on top,
+   All Accounts below — 24px apart at every width. Each card has
+   Records' border, 20px corners, soft shadow and 24px padding, with
+   an icon-badge header. Fonts, fields, table and actions unchanged.
+   ========================================================== */
+.um-module-head {
+    margin: 32px 0 24px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+}
+
+.um-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.um-layout > .um-pane {
+    background: #ffffff;
+    border: 1px solid #e2e6f0;
+    border-radius: 20px;
+    box-shadow: 0 4px 14px rgba(16, 24, 40, 0.06);
+    padding: 24px;
+    min-width: 0;
+}
+
+/* Card headers: Records' rounded-square icon badge, title and description. */
+.um-pane .um-section-head { align-items: flex-start; margin-bottom: 20px; }
+.um-pane .um-section-icon { border-radius: 12px; background: #eef1f8; }
+.um-section-desc { margin: 2px 0 0; font-family: var(--font-ui); font-size: 13px; color: var(--secondary); }
+.um-table-title-row { align-items: flex-start; }
+
+/* Add a New Account: fields in a row like Records' form (4 / 2 / 1 columns),
+   then the default-password note and Save on one line. */
+.um-form-pane #addUserForm { gap: 16px; justify-content: flex-start; }
+.um-field-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 16px; }
+.um-form-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+}
+.um-form-pane .um-form-actions .um-default-password-note { margin-top: 0; }
+.um-form-pane .um-form-foot { margin: 0; display: flex; justify-content: flex-end; }
+.um-form-pane .um-btn-save { width: auto; padding: 0 32px; }
+
+/* All Accounts: header, search, table and pagination sit inside the card's
+   padding (no tinted strips running to the edge). */
+.um-table-pane .um-table-header { padding: 0 0 20px; background: none; border-bottom: none; }
+.um-table-pane .um-search-bar { padding: 0 0 16px; background: none; border-bottom: none; }
+.um-table-pane .um-directory-banner { margin: 0 0 16px; }
+.um-table-pane .um-pagination-bar { padding: 16px 0 0; background: none; }
+
+@media (max-width: 1099px) {
+    .um-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+    .um-layout > .um-pane { padding: 16px; }
+    .um-field-grid { grid-template-columns: 1fr; }
+    .um-form-actions { grid-template-columns: 1fr; }
+    .um-form-pane .um-btn-save { width: 100%; }
+}
+
+/* Side by side from 1600px (the table stays readable, about 840px+):
+   Add a New Account (380px) on the left, All Accounts on the right, same
+   card design and 24px gap. Both cards share one height — user-management.js
+   sizes six rows to fill it, and any spare form height is spread evenly.
+   Narrower screens keep the stacked layout above. */
+@media (min-width: 1600px) {
+    .um-layout { grid-template-columns: 380px minmax(0, 1fr); align-items: stretch; }
+    .um-field-grid { grid-template-columns: 1fr; }
+    .um-form-actions { grid-template-columns: 1fr; }
+    .um-form-pane .um-form-foot { justify-content: stretch; }
+    .um-form-pane .um-btn-save { width: 100%; }
+    .um-form-pane #addUserForm { justify-content: space-evenly; }
+}
+
+/* One shared frame: the title row and both sections sit inside a single
+   border (Records' colour and 20px corners) with one soft shadow. The
+   sections have no frames of their own — a thin line separates them:
+   vertical when side by side (1600px+), horizontal when stacked. */
+.um-module-head {
+    margin: 32px 0 0;
+    padding: 24px 24px 20px;
+    background: #ffffff;
+    border: 1px solid #e2e6f0;
+    /* thin line between the title row and the two sections */
+    border-bottom: 1px solid #e2e6f0;
+    border-radius: 20px 20px 0 0;
+}
+.um-layout {
+    gap: 0;
+    background: #ffffff;
+    border: 1px solid #e2e6f0;
+    border-top: none;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 14px rgba(16, 24, 40, 0.06);
+    /* keep the shadow off the top edge, where the title row joins on */
+    clip-path: inset(0 -24px -24px -24px);
+    overflow: hidden;
+}
+.um-layout > .um-pane { border: none; border-radius: 0; box-shadow: none; }
+.um-layout > .um-form-pane { border-bottom: 1px solid #e2e6f0; }
+
+@media (min-width: 1600px) {
+    .um-layout > .um-form-pane { border-bottom: none; border-right: 1px solid #e2e6f0; }
+}
+@media (max-width: 767px) {
+    .um-module-head { padding: 16px 16px 14px; }
+}

@@ -1,5 +1,5 @@
 (function () {
-  const PAGE_SIZE = 4; // pagination only kicks in once there are more than 4 (filtered) reports
+  const PAGE_SIZE = 6; // six rows per page; the list frame always holds six (reports.css)
 
   // ---------- Data layer ----------
   // Starts empty. Each report: { id, title, owner, tag, badge, icon, tone, time, category }
@@ -38,8 +38,13 @@
   function renderReportItem(r) {
     const el = document.createElement('div');
     el.className = 'report-item';
+    // Red is reserved for Overdue. Every row has the same structure:
+    // owner · details, plus a badge only when there is one.
+    const overdue = r.badge === 'Overdue';
+    const tone = overdue ? 'overdue' : r.tone;
+    const showBadge = r.badge && r.badge !== r.tag;
     el.innerHTML = `
-      <div class="item-icon tone-${r.tone}">
+      <div class="item-icon tone-${tone}">
         <span class="material-symbols-outlined filled-icon">${r.icon}</span>
       </div>
       <div class="item-info">
@@ -47,18 +52,16 @@
         <div class="item-meta">
           <span class="meta-owner">${escapeHtml(r.owner)}</span>
           <span class="meta-dot"></span>
-          ${r.badge
-            ? `<span class="meta-badge">${escapeHtml(r.badge)}</span>`
-            : `<span class="meta-tag">${escapeHtml(r.tag)}</span>`}
+          ${overdue
+            ? `<span class="meta-badge is-overdue">${escapeHtml(r.badge)}</span>`
+            : `<span class="meta-tag">${escapeHtml(r.tag || '—')}</span>`}
+          ${showBadge && !overdue ? `<span class="meta-badge">${escapeHtml(r.badge)}</span>` : ''}
         </div>
       </div>
       <div class="item-right">
         <span class="item-time">${escapeHtml(r.time)}</span>
         <span class="item-id">ID: #${escapeHtml(r.id)}</span>
       </div>
-      <button class="item-menu-btn" type="button" aria-label="More options">
-        <span class="material-symbols-outlined">more_vert</span>
-      </button>
     `;
     return el;
   }
@@ -194,6 +197,33 @@
     }
   };
 
+  // ---------- Export Data ----------
+  // Downloads exactly what is listed now (search, category and period
+  // applied) as a CSV file that opens in Excel.
+  const exportBtn = document.getElementById('export-btn');
+  function csvCell(value) {
+    const s = String(value ?? '');
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const rows = getFilteredReports();
+      const lines = [['ID', 'Title', 'Owner', 'Details', 'Badge', 'Category', 'Last Activity']]
+        .concat(rows.map(r => [r.id, r.title, r.owner, r.tag, r.badge || '', r.category, r.time]))
+        .map(cols => cols.map(csvCell).join(','));
+      // BOM so Excel reads names with ñ and other accents correctly.
+      const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const t = manilaToday();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `onelink-reports-${iso(t.y, t.m, t.d)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    });
+  }
+
   // ---------- Load real data from the server ----------
   // ReportsController.Data returns only what this user is allowed to see.
   function renderLoadError() {
@@ -220,7 +250,6 @@
 
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
     'August', 'September', 'October', 'November', 'December'];
-  const MONTHS_LISTED = 24;
 
   function manilaToday() {
     // en-CA formats as yyyy-mm-dd.
@@ -243,14 +272,16 @@
     return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${y}`;
   }
 
-  // The last MONTHS_LISTED months, newest first, as "2026-09" options.
+  // January–December of the current year as "2026-09" options, grouped
+  // under the year. Months still to come are shown but can't be picked.
   (function fillMonths() {
     const t = manilaToday();
-    for (let i = 0; i < MONTHS_LISTED; i++) {
-      const { y, m } = shiftMonth(t.y, t.m, -i);
+    periodMonths.label = String(t.y);
+    for (let m = 1; m <= 12; m++) {
       const opt = document.createElement('option');
-      opt.value = `${y}-${pad(m)}`;
-      opt.textContent = `${MONTH_NAMES[m - 1]} ${y}`;
+      opt.value = `${t.y}-${pad(m)}`;
+      opt.textContent = MONTH_NAMES[m - 1];
+      if (m > t.m) opt.disabled = true;
       periodMonths.appendChild(opt);
     }
   })();

@@ -1058,6 +1058,20 @@ a.page-btn { text-decoration: none; }
     .tm-list .task-row .td-priority, .tm-list .task-row .td-status { padding-left: 8px; padding-right: 8px; }
     /* The progress bar shrinks to its column instead of running under Priority. */
     .tm-list .task-row .progress-cell { min-width: 0; }
+    /* Due Date: same 8px side padding as Priority/Status, so the full date fits. */
+    .tm-list .task-table .th-due,
+    .tm-list .task-row .td-due { padding-left: 8px; padding-right: 8px; }
+    /* Long names and titles stop at two lines ("…"); the full text is the tooltip. */
+    .tm-list .employee-cell > div:last-child { min-width: 0; }
+    .tm-list .emp-name,
+    .tm-list .td-task .td-muted {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+    }
     .tm-list .table-scroll {
         min-height: calc(16px + var(--tm-head-h) + 5 * var(--tm-row-h));
     }
@@ -1073,10 +1087,11 @@ a.page-btn { text-decoration: none; }
 /* Wide screens: fixed column widths so columns don't shift between pages. */
 @media (min-width: 1200px) {
     .tm-list .task-table { table-layout: fixed; }
-    .tm-list .col-employee { width: 17%; }
-    .tm-list .col-task     { width: 24%; }
-    .tm-list .col-due      { width: 11%; }
-    .tm-list .col-progress { width: 14%; }
+    .tm-list .col-employee { width: 16%; } /* long names stop at two lines */
+    .tm-list .col-task     { width: 19%; } /* long titles stop at two lines */
+    .tm-list .col-due      { width: 16%; } /* "September 30, 2026" on one line */
+    .tm-list .col-progress { width: 15%; } /* fits the "TASK PROGRESS" header */
+    .tm-list .task-table .th-progress { padding-right: 8px; }
     .tm-list .col-priority { width: 9%; }
     .tm-list .col-status   { width: 13%; } /* "Returned for Correction" fits on two lines */
     .tm-list .col-actions  { width: 112px; }
@@ -1089,4 +1104,12 @@ a.page-btn { text-decoration: none; }
 @media (max-width: 767px) {
     .tm-list .card-toolbar { padding: 16px; }
     .tm-list .filter-row { padding: 16px; }
+}
+
+/* Tablets (768–1199px, columns sized by content): the full date and a long
+   status may wrap onto two lines so Task Name keeps a readable width. */
+@media (min-width: 768px) and (max-width: 1199px) {
+    .tm-list .task-row .td-date { white-space: normal; }
+    .tm-list .task-row .td-status .status-badge { white-space: normal; max-width: 100%; }
+    .tm-list .task-row .td-task { min-width: 140px; }
 }

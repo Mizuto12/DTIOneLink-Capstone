@@ -60,7 +60,7 @@
                         <tr class="task-row">
                             <td class="td-first"><span class="td-muted">@t.TaskName</span></td>
                             <td><span class="td-muted">@t.Description</span></td>
-                            <td><span class="td-date">@t.DueDate.ToString("MMM dd, yyyy")</span></td>
+                            <td><span class="td-date">@DTIOneLink.Helpers.DisplayHelpers.FormalDate(t.DueDate)</span></td>
                             <td><span class="badge @priorityBadgeClass">@t.Priority</span></td>
                             <td><span class="td-muted">@t.Department</span></td>
                             <td><span class="status-badge @statusBadgeClass">@displayLabel</span></td>

@@ -146,13 +146,12 @@
 
             <a asp-controller="Employee" asp-action="Index"
                class="nav-item @(IsActiveAction("Employee", "Index") ? "active" : "")">
-                <span class="material-symbols-outlined"
-                      style="@(IsActiveAction("Employee", "Index") ? "font-variation-settings:'FILL' 1;" : "")">dashboard</span>
+                <span class="material-symbols-outlined">dashboard</span>
                 <span>Dashboard</span>
             </a>
 
             <a asp-controller="Employee" asp-action="TaskManagement"
-               class="nav-item @(IsActiveAction("Employee", "TaskManagement") ? "active" : "")">
+               class="nav-item @(IsActive("Employee") && !IsActiveAction("Employee", "Index") ? "active" : "")">
                 <span class="material-symbols-outlined">assignment</span>
                 <span>Task Management</span>
             </a>

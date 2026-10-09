@@ -35,21 +35,30 @@
 }
 .mtd-breadcrumb a:hover { color: var(--mtd-primary); }
 
+/* Subtasks card: heading, then the add row on the left underneath. */
+.mtd .mtd-subtask-toolbar { flex-direction: column; align-items: flex-start; }
+
 .mtd-add-subtask {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
+    width: 100%;
 }
 
+/* Same height and pill shape as the ADD SUBTASK button beside it. */
 .mtd-add-subtask input[type="text"] {
-    padding: 8px 12px;
+    flex: 0 1 420px;
+    min-width: 220px;
+    height: 40px;
+    padding: 0 16px;
     border: 1px solid var(--mtd-outline-variant);
-    border-radius: 8px;
+    border-radius: 9999px;
     font-family: inherit;
     font-size: 14px;
-    min-width: 220px;
+    color: var(--mtd-on-surface);
 }
+.mtd-add-subtask input[type="text"]:focus { outline: 2px solid var(--mtd-primary); outline-offset: 1px; }
 
 .mtd-header {
     display: flex;
@@ -158,4 +167,43 @@
     .mtd-header-actions { width: 100%; }
     .mtd-header-actions .et-btn { width: 100%; justify-content: center; min-height: 44px; }
     .mtd-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+
+/* ── Subtasks frame ──────────────────────────────────────────
+   No heading: the add row sits at the top. The count lives in the first
+   column header. The table area is at least three rows tall, so 0, 1, 2
+   or 3 subtasks give the same frame; more rows grow it normally. */
+.mtd-subtasks {
+    --mtd-sub-head: 40px;   /* column header row (measured) */
+    --mtd-sub-row: 63px;    /* one subtask row + the 8px gap under it (measured) */
+}
+.mtd-subtask-count { display: none; }
+
+@media (min-width: 768px) {
+    .mtd-subtasks .table-scroll {
+        min-height: calc(16px + var(--mtd-sub-head) + 3 * var(--mtd-sub-row));
+    }
+    /* No subtasks: icon and message centered in the same three-row space. */
+    .mtd-subtasks .task-table td.empty-state {
+        height: calc(3 * var(--mtd-sub-row) - 16px);
+        vertical-align: middle;
+        padding-top: 16px !important;
+        padding-bottom: 16px !important;
+    }
+}
+
+/* Phones: rows become cards and the column headers are hidden, so the
+   count is shown as a small label styled like a column header. */
+@media (max-width: 767px) {
+    .mtd-subtask-count {
+        display: block;
+        margin: 0;
+        padding: 16px 16px 0;
+        font-family: var(--font-ui, inherit);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--mtd-primary);
+    }
 }

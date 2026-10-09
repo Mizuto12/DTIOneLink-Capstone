@@ -50,7 +50,7 @@
             <div class="search-wrap">
                 <span class="material-symbols-outlined search-icon">search</span>
                 <input type="search" name="q" value="@Model.Search" maxlength="100" class="search-input"
-                       placeholder="Search tasks, assignees, or employee names..." aria-label="Search tasks" />
+                       placeholder="Search Tasks, Assignees, or Employee Names..." aria-label="Search tasks" />
             </div>
             <div class="toolbar-filters">
                 <label class="filter-select">
@@ -146,8 +146,8 @@
                 <tr>
                     <th>Employee</th>
                     <th>Task Name</th>
-                    <th>Due Date</th>
-                    <th>Task Progress</th>
+                    <th class="th-due">Due Date</th>
+                    <th class="th-progress">Task Progress</th>
                     <th class="th-priority">Priority</th>
                     <th class="th-status">Status</th>
                     <th></th>
@@ -201,13 +201,13 @@
                                 <div class="employee-cell">
                                     <div class="emp-avatar">@initials</div>
                                     <div>
-                                       <div class="emp-name">@assigneeName</div>
-                                        <div class="emp-role">Assignee</div>
+                                        <div class="emp-name" title="@assigneeName">@assigneeName</div>
+                                        <div class="emp-role">Assignee@(Model.SubtaskCounts.TryGetValue(task.Id, out var subtaskCount) ? $" · Subtasks: {subtaskCount}" : "")</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="td-task" data-label="Task"><span class="td-muted">@task.TaskName</span></td>
-                            <td class="td-due" data-label="Due date"><span class="td-date">@task.DueDate.ToString("MMM dd, yyyy")</span></td>
+                            <td class="td-task" data-label="Task"><span class="td-muted" title="@task.TaskName">@task.TaskName</span></td>
+                            <td class="td-due" data-label="Due date"><span class="td-date">@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</span></td>
                             <td class="td-progress" data-label="Progress">
                                 <div class="progress-cell">
                                     <div class="progress-track">

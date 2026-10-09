@@ -52,6 +52,10 @@ namespace DTIOneLink.Models
         // current view to that status.
         public Dictionary<string, int> StatusCounts { get; set; } = new();
 
+        // Subtask count for each Department Directive on the current page
+        // (only directives have subtasks; other tasks aren't listed here).
+        public Dictionary<int, int> SubtaskCounts { get; set; } = new();
+
         public bool HasActiveFilters =>
             !string.IsNullOrEmpty(Search) || Status != "all" || Priority != "all" ||
             !string.IsNullOrEmpty(Department) || EmployeeId.HasValue || Due != "all";

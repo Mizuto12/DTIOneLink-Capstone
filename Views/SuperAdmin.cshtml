@@ -51,7 +51,7 @@
             -1 => "1 day late",
             0 => "Due today",
             1 => "Due tomorrow",
-            _ => $"Due {due:MMM d}"
+            _ => "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(due)
         };
     }
 }
@@ -169,7 +169,7 @@
                                         <span class="sa-person__name">@i.AssigneeName</span>
                                     </span>
                                     <span class="sa-due @(i.IsOverdue ? "is-late" : "")">
-                                        @(col.Status == TaskWorkflow.Completed ? $"Due {i.DueDate:MMM d}" : DueText(i.DueDate))
+                                        @(col.Status == TaskWorkflow.Completed ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(i.DueDate) : DueText(i.DueDate))
                                     </span>
                                 </div>
                             </a>
@@ -219,7 +219,7 @@
                                 </td>
                                 <td class="td--muted" data-label="Division" title="@t.Division">@(ShortDivision(t.Division) is { Length: > 0 } s ? s : "—")</td>
                                 <td data-label="Due date">
-                                    <span class="td--overdue">@t.DueDate.ToString("MMM d, yyyy")</span>
+                                    <span class="td--overdue">@DTIOneLink.Helpers.DisplayHelpers.FormalDate(t.DueDate)</span>
                                     <span class="sa-late">@DueText(t.DueDate)</span>
                                 </td>
                                 <td class="td--progress" data-label="Progress">
