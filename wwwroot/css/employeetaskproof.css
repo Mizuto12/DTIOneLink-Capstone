@@ -43,7 +43,9 @@
     border: 1px solid var(--tp-outline-variant); border-radius: var(--tp-radius);
     padding: 10px 12px; font-family: inherit; font-size: 14px;
 }
-.task-proof .tp-hint { font-size: 12px; color: var(--tp-on-surface-variant); }
+.task-proof .tp-hint { font-size: 12px; color: var(--tp-on-surface-variant); min-height: 16px; }
+.task-proof .tp-hint.is-saved { color: #1a7f37; }
+.task-proof .tp-hint.is-error { color: var(--tp-error, #ba1a1a); }
 
 .task-proof .tp-actions { display: flex; gap: 12px; }
 .task-proof .btn {

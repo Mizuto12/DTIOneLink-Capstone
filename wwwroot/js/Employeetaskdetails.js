@@ -186,6 +186,16 @@ function initProgressSlider() {
             })
             .catch(function (err) {
                 // fetch() throws a TypeError when the server can't be reached.
+                // Rather than discard the change, queue it for offline-sync.js
+                // to replay automatically once the connection returns — the
+                // slider keeps the value the user set instead of reverting.
+                if (err instanceof TypeError && window.DTIOffline) {
+                    window.DTIOffline.queueProgress({ taskId: Number(taskId), progress: value });
+                    savedValue = value;
+                    setHint('Saved offline — will sync automatically when you\'re back online.', 'saved');
+                    return;
+                }
+
                 var message = err instanceof TypeError
                     ? 'Unable to reach the server. Please check your connection and try again.'
                     : err.message;

@@ -178,6 +178,50 @@ body {
   display: none;
 }
 
+/* ── Offline sync status pill (Employee task pages) ───────────────── */
+.offline-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.offline-status-pill.is-online {
+  background: var(--surface-container-low);
+  color: var(--secondary);
+  border: 1px solid var(--outline-variant);
+}
+
+.offline-status-pill.is-offline {
+  background: #fff4e5;
+  color: #8a5a00;
+  border: 1px solid #f3c983;
+}
+
+.offline-status-pill.is-syncing {
+  background: var(--surface-container);
+  color: var(--primary);
+  border: 1px solid var(--primary-container);
+}
+
+.offline-status-pill.is-warning {
+  background: #fdeaea;
+  color: var(--error);
+  border: 1px solid #f3b4b4;
+}
+
+@media (max-width: 640px) {
+  .offline-status-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}
+
 .notif-panel {
   display: none;
   position: absolute;

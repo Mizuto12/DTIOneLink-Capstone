@@ -35,7 +35,7 @@
             </div>
         }
 
-        <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data">
+        <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data" id="tpForm" data-task-id="@task.Id">
             @Html.AntiForgeryToken()
             <input type="hidden" name="Id" value="@task.Id" />
 
@@ -52,12 +52,14 @@
                           placeholder="Describe what was completed..."></textarea>
             </section>
 
+            <p class="tp-hint" id="tpStatusHint" aria-live="polite"></p>
+
             <div class="tp-actions">
                 <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="btn btn-secondary">
                     <span class="material-symbols-outlined">arrow_back</span>
                     Cancel
                 </a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="tpSubmitBtn">
                     <span class="material-symbols-outlined">upload</span>
                     Submit for Review
                 </button>
@@ -65,3 +67,7 @@
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/employeesubmitproof.js" asp-append-version="true"></script>
+}

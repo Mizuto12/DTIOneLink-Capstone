@@ -1,0 +1,16 @@
+{
+  "name": "DTI OneLink",
+  "short_name": "DTI OneLink",
+  "start_url": "/Employee/TaskManagement",
+  "scope": "/Employee/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#001e65",
+  "icons": [
+    {
+      "src": "/images/dti-logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
