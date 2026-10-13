@@ -4,7 +4,7 @@
 // its own "no internet" error page. It does NOT do background sync itself —
 // offline-sync.js handles queuing and replay once the page is open and the
 // browser fires the 'online' event.
-var CACHE_NAME = 'dti-onelink-shell-v2';
+var CACHE_NAME = 'dti-onelink-shell-v3';
 var CACHE_URLS = [
     '/Employee/TaskManagement',
     '/Dashboard/AdminDashboard',
@@ -63,15 +63,26 @@ self.addEventListener('fetch', function (event) {
         return; // let the browser handle it normally
     }
 
+    // Cache.put() throws a TypeError if given a Request whose mode is
+    // "navigate" (which event.request always is for a page navigation) — so
+    // the cache key here is the URL STRING, never event.request directly.
+    // Getting this wrong is what broke every page load in production: the
+    // throw inside this .then() rejected the respondWith() promise, which
+    // is exactly what produces net::ERR_FAILED on an otherwise-successful
+    // navigation.
+    var cacheKey = url.pathname;
+
     event.respondWith(
         fetch(event.request)
             .then(function (response) {
                 var copy = response.clone();
-                caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
+                caches.open(CACHE_NAME).then(function (cache) {
+                    cache.put(cacheKey, copy).catch(function () { /* best-effort cache; never fail the real navigation for it */ });
+                });
                 return response;
             })
             .catch(function () {
-                return caches.match(event.request).then(function (cached) {
+                return caches.match(cacheKey).then(function (cached) {
                     if (cached) {
                         return cached;
                     }
