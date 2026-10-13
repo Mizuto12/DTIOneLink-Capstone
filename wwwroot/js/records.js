@@ -341,9 +341,24 @@ form.addEventListener('submit', async (e) => {
     }, 1200);
 
   } catch (err) {
+    // fetch() throws a TypeError when offline. Rather than lose what was
+    // typed, queue it — offline-sync.js replays it as a normal
+    // /Records/Save call once the connection returns, since a new record
+    // never conflicts with anyone else's (owner-scoped, no shared state).
+    if (err instanceof TypeError && window.DTIOffline) {
+      window.DTIOffline.queueRecord(payload);
+      btn.innerHTML = `<span class="material-symbols-outlined">cloud_off</span> Saved offline`;
+      setTimeout(() => {
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+        form.reset();
+      }, 1500);
+      return;
+    }
+
     // The button is too small for a full sentence, so it shows a short
     // status and the full reason appears in a dialog that stays until
-    // the user closes it. (fetch() throws a TypeError when offline.)
+    // the user closes it.
     btn.innerHTML = `<span class="material-symbols-outlined">error</span> Not saved`;
     showError('Record not saved', errorMessage(err));
     setTimeout(() => {
@@ -351,6 +366,12 @@ form.addEventListener('submit', async (e) => {
       btn.disabled = false;
     }, 1500);
   }
+});
+
+// A queued record synced successfully in the background (offline-sync.js) —
+// reload the list so it appears without the user having to refresh manually.
+window.addEventListener('dti-offline-record-synced', () => {
+  loadRecords();
 });
 
 if (filterForm) {

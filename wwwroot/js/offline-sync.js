@@ -1,25 +1,34 @@
 // ==========================================================================
-// Offline task sync (Employee role only).
+// Offline sync engine — Employee task actions + Records creation, all roles.
 //
-// Scope: queues two kinds of actions locally (IndexedDB) when the network is
-// unreachable — progress/status updates and proof-of-completion submissions
-// — and replays them against the SAME endpoints the live UI already uses
-// (/Employee/UpdateProgress, /Employee/SubmitProof) once the connection
-// returns. No new server endpoints or DB columns: the existing workflow
-// guards in EmployeeController (e.g. "already completed", "awaiting review")
-// are what reject a stale queued action if the task changed while offline —
-// this module just surfaces that rejection instead of retrying forever.
+// Scope: queues actions locally (IndexedDB) when the network is unreachable,
+// and replays them against the SAME endpoints the live UI already uses
+// (/Employee/UpdateProgress, /Employee/SubmitProof, /Records/Save) once the
+// connection returns. No new server endpoints or DB columns: the existing
+// workflow guards in EmployeeController (e.g. "already completed", "awaiting
+// review") are what reject a stale queued action if the task changed while
+// offline — this module just surfaces that rejection instead of retrying
+// forever. Records creation has no such guard because it needs none: a new
+// record is owner-scoped and never conflicts with anyone else's data.
+//
+// Deliberately NOT handled here (see the plan file for why): Admin task
+// creation, Admin Review/Approve/Return, and SuperAdmin User Management.
 //
 // Exposed globally as window.DTIOffline for other page scripts to call:
 //   DTIOffline.queueProgress({ taskId, progress, requestedStatus })
 //   DTIOffline.queueProof({ taskId, remarks, file })
+//   DTIOffline.queueRecord({ code, title, medium, location, periodCovered,
+//                            filingSystem, accessControl, retentionPeriod })
 //   DTIOffline.trySync()
+// Fires a 'dti-offline-record-synced' event on window after a queued record
+// is successfully saved, so records.js can refresh its list.
 // ==========================================================================
 (function () {
     var DB_NAME = 'dti-onelink-offline';
-    var DB_VERSION = 1;
+    var DB_VERSION = 2;
     var STORE_PROGRESS = 'progressQueue';
     var STORE_PROOF = 'proofQueue';
+    var STORE_RECORD = 'recordQueue';
 
     var dbPromise = null;
     var syncing = false;
@@ -41,6 +50,9 @@
                 }
                 if (!db.objectStoreNames.contains(STORE_PROOF)) {
                     db.createObjectStore(STORE_PROOF, { keyPath: 'id', autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains(STORE_RECORD)) {
+                    db.createObjectStore(STORE_RECORD, { keyPath: 'id', autoIncrement: true });
                 }
             };
             req.onsuccess = function () { resolve(req.result); };
@@ -86,9 +98,10 @@
     }
 
     function countAll() {
-        return Promise.all([getAll(STORE_PROGRESS), getAll(STORE_PROOF)]).then(function (results) {
-            return results[0].length + results[1].length;
-        });
+        return Promise.all([getAll(STORE_PROGRESS), getAll(STORE_PROOF), getAll(STORE_RECORD)])
+            .then(function (results) {
+                return results[0].length + results[1].length + results[2].length;
+            });
     }
 
     function getCsrfToken() {
@@ -113,6 +126,20 @@
             remarks: entry.remarks,
             fileBlob: entry.file,
             fileName: entry.file ? entry.file.name : null,
+            queuedAt: new Date().toISOString()
+        }).then(updatePill);
+    }
+
+    function queueRecord(entry) {
+        return addRecord(STORE_RECORD, {
+            code: entry.code,
+            title: entry.title,
+            medium: entry.medium,
+            location: entry.location,
+            periodCovered: entry.periodCovered,
+            filingSystem: entry.filingSystem,
+            accessControl: entry.accessControl,
+            retentionPeriod: entry.retentionPeriod,
             queuedAt: new Date().toISOString()
         }).then(updatePill);
     }
@@ -147,8 +174,31 @@
         }).then(function (res) { return classifySyncResponse(res); });
     }
 
+    // Records has no workflow-state guard to reject a "stale" entry — a new
+    // record never conflicts with anything, so the only real outcomes are
+    // 'ok', a genuine validation failure (missing field), or session expiry.
+    function replayRecord(record) {
+        var payload = {
+            code: record.code,
+            title: record.title,
+            medium: record.medium,
+            location: record.location,
+            periodCovered: record.periodCovered,
+            filingSystem: record.filingSystem,
+            accessControl: record.accessControl,
+            retentionPeriod: record.retentionPeriod
+        };
+
+        return fetch('/Records/Save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+            body: JSON.stringify(payload)
+        }).then(function (res) { return classifySyncResponse(res); });
+    }
+
     // Three outcomes: 'ok' (applied), 'rejected' (the task changed while
-    // offline — the controller's own workflow guard said no), or
+    // offline — the controller's own workflow guard said no; for Records
+    // this means a validation error, e.g. a required field), or
     // 'session-expired' ([RequireLogin] redirected to the login page
     // instead of answering the request at all).
     function classifySyncResponse(res) {
@@ -159,7 +209,7 @@
             return { outcome: 'ok' };
         }
         return res.json().catch(function () { return null; }).then(function (data) {
-            return { outcome: 'rejected', message: data && data.message ? data.message : 'This task changed while you were offline.' };
+            return { outcome: 'rejected', message: data && data.message ? data.message : 'This change could not be synced.' };
         });
     }
 
@@ -170,30 +220,43 @@
         syncing = true;
         setStatus('syncing');
 
-        return Promise.all([getAll(STORE_PROGRESS), getAll(STORE_PROOF)])
+        return Promise.all([getAll(STORE_PROGRESS), getAll(STORE_PROOF), getAll(STORE_RECORD)])
             .then(function (results) {
                 var progressItems = results[0].sort(function (a, b) { return a.id - b.id; });
                 var proofItems = results[1].sort(function (a, b) { return a.id - b.id; });
+                var recordItems = results[2].sort(function (a, b) { return a.id - b.id; });
                 var chain = Promise.resolve();
                 var stoppedForSession = false;
                 var conflicts = [];
+                var anyRecordSynced = false;
 
-                progressItems.concat(proofItems).forEach(function (record) {
-                    var isProof = proofItems.indexOf(record) !== -1;
+                function kindOf(record) {
+                    if (proofItems.indexOf(record) !== -1) { return STORE_PROOF; }
+                    if (recordItems.indexOf(record) !== -1) { return STORE_RECORD; }
+                    return STORE_PROGRESS;
+                }
+
+                progressItems.concat(proofItems).concat(recordItems).forEach(function (record) {
+                    var storeName = kindOf(record);
                     chain = chain.then(function () {
                         if (stoppedForSession) {
                             return;
                         }
-                        var replay = isProof ? replayProof(record) : replayProgress(record);
+                        var replay = storeName === STORE_PROOF ? replayProof(record)
+                            : storeName === STORE_RECORD ? replayRecord(record)
+                            : replayProgress(record);
                         return replay.then(function (result) {
                             if (result.outcome === 'ok') {
-                                return deleteRecord(isProof ? STORE_PROOF : STORE_PROGRESS, record.id);
+                                if (storeName === STORE_RECORD) {
+                                    anyRecordSynced = true;
+                                }
+                                return deleteRecord(storeName, record.id);
                             }
                             if (result.outcome === 'rejected') {
-                                conflicts.push({ taskId: record.taskId, message: result.message });
+                                conflicts.push({ label: record.taskId || record.code || 'item', message: result.message });
                                 // Remove it — retrying a rejected action forever
                                 // would just repeat the same rejection.
-                                return deleteRecord(isProof ? STORE_PROOF : STORE_PROGRESS, record.id);
+                                return deleteRecord(storeName, record.id);
                             }
                             // session-expired: leave every remaining item queued
                             // and stop, rather than losing offline work.
@@ -203,11 +266,14 @@
                 });
 
                 return chain.then(function () {
-                    return { stoppedForSession: stoppedForSession, conflicts: conflicts };
+                    return { stoppedForSession: stoppedForSession, conflicts: conflicts, anyRecordSynced: anyRecordSynced };
                 });
             })
             .then(function (outcome) {
                 syncing = false;
+                if (outcome.anyRecordSynced) {
+                    window.dispatchEvent(new CustomEvent('dti-offline-record-synced'));
+                }
                 return countAll().then(function (remaining) {
                     if (outcome.stoppedForSession) {
                         setStatus('session-expired', remaining);
@@ -246,7 +312,7 @@
             label = 'Sign in again to sync ' + queuedCount + ' queued change' + (queuedCount === 1 ? '' : 's');
         } else if (kind === 'conflicts') {
             pill.classList.add('is-warning');
-            label = conflicts.length + ' change' + (conflicts.length === 1 ? '' : 's') + " couldn't sync — review task" + (conflicts.length === 1 ? '' : 's');
+            label = conflicts.length + ' change' + (conflicts.length === 1 ? '' : 's') + " couldn't sync — please review";
             if (conflicts.length > 0) {
                 console.warn('DTIOffline: sync conflicts', conflicts);
             }
@@ -290,6 +356,7 @@
     window.DTIOffline = {
         queueProgress: queueProgress,
         queueProof: queueProof,
+        queueRecord: queueRecord,
         trySync: trySync
     };
 })();

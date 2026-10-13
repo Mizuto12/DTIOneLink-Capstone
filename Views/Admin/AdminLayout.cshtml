@@ -22,8 +22,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - DTI Laguna OneLink</title>
     <link rel="icon" type="image/png" href="~/images/dti-logo.png" asp-append-version="true" />
+    <link rel="manifest" href="~/manifest.json" />
 
-    
+
     <link rel="preload" href="/fonts/material-symbols/MaterialSymbolsOutlined.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/css/fonts.css" asp-append-version="true" />
     @* Hide icons until their font is ready (see fonts.css); give up after 10s. *@
@@ -51,6 +52,9 @@
         </div>
 
         <div class="topbar-right">
+            <!-- Offline sync status — updated by offline-sync.js; hidden while online with nothing queued. -->
+            <span class="offline-status-pill is-online" id="offlineStatusPill" hidden>Online</span>
+
             <!-- Notification bell -->
             <div class="notif-wrapper">
                 <button class="notif-btn" id="notifBtn" data-user-id="@Context.Session.GetInt32("UserId")" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
@@ -191,6 +195,7 @@
     <script src="~/js/text-format.js" asp-append-version="true"></script>
     <script src="~/lib/microsoft-signalr/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/live-refresh.js" asp-append-version="true"></script>
+    <script src="~/js/offline-sync.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
