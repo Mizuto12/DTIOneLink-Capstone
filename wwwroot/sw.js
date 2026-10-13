@@ -4,12 +4,14 @@
 // its own "no internet" error page. It does NOT do background sync itself —
 // offline-sync.js handles queuing and replay once the page is open and the
 // browser fires the 'online' event.
-var CACHE_NAME = 'dti-onelink-shell-v3';
+var CACHE_NAME = 'dti-onelink-shell-v4';
+var OFFLINE_FALLBACK = '/offline.html';
 var CACHE_URLS = [
     '/Employee/TaskManagement',
     '/Dashboard/AdminDashboard',
     '/Dashboard/SuperAdminDashboard',
     '/Records',
+    OFFLINE_FALLBACK,
     '/css/adminlayout.css',
     '/js/adminlayout.js',
     '/js/offline-sync.js',
@@ -86,11 +88,32 @@ self.addEventListener('fetch', function (event) {
                     if (cached) {
                         return cached;
                     }
-                    // No cached copy of this exact page — fall back to
-                    // whichever role's shell page was cached, since it's
-                    // better than the browser's own offline error page.
-                    return caches.match('/Employee/TaskManagement')
-                        .then(function (fallback) { return fallback || caches.match('/Records'); });
+                    // No cached copy of THIS page. Previously this silently
+                    // served a different cached page's real content under
+                    // the requested URL, which looked like a broken
+                    // redirect (e.g. clicking Reports while offline showed
+                    // Task Management). Showing an honest "not available
+                    // offline" page instead — only for a real navigation,
+                    // never for a missing CSS/JS asset.
+                    if (isNavigation) {
+                        return caches.match(OFFLINE_FALLBACK).then(function (offlinePage) {
+                            // Absolute last resort: never resolve a
+                            // navigation's respondWith() with undefined,
+                            // even if offline.html itself somehow wasn't
+                            // cached — that undefined-response bug is
+                            // exactly what caused net::ERR_FAILED before.
+                            return offlinePage || new Response(
+                                '<h1>Offline</h1><p>This page is not available offline.</p>',
+                                { headers: { 'Content-Type': 'text/html' } }
+                            );
+                        });
+                    }
+                    // A missing CSS/JS asset, offline: resolve with a real
+                    // "network error" Response rather than undefined —
+                    // respondWith() resolving to undefined is itself a bug
+                    // (it's what net::ERR_FAILED means), so this fails that
+                    // one resource cleanly instead of breaking the page.
+                    return Response.error();
                 });
             })
     );
