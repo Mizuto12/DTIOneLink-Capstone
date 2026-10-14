@@ -564,6 +564,26 @@ WHERE ").Append(VisibilityClause);
                 return BadRequest(new { message = "Please fill in every field." });
             }
 
+            var result = TryInsertRecord(entry, user);
+            return result.Status switch
+            {
+                RecordInsertStatus.Ok => Json(ToClientRow(result.Saved!, user)),
+                RecordInsertStatus.Conflict => Conflict(new { message = result.ErrorMessage }),
+                RecordInsertStatus.ServerError => StatusCode(StatusCodes.Status500InternalServerError, new { message = result.ErrorMessage }),
+                _ => BadRequest(new { message = result.ErrorMessage })
+            };
+        }
+
+        private enum RecordInsertStatus { Ok, BadRequest, Conflict, ServerError }
+
+        private sealed record RecordInsertResult(RecordInsertStatus Status, RecordRow? Saved, string? ErrorMessage);
+
+        // The actual validation-and-insert logic behind Save, extracted so
+        // ImportMasterlist can run the exact same rules per row instead of a
+        // separate, looser copy. Every status/message here is unchanged from
+        // the single-entry Save path that existed before this was extracted.
+        private RecordInsertResult TryInsertRecord(RecordEntry entry, RecordsUser user)
+        {
             var code = entry.Code?.Trim() ?? "";
             var title = entry.Title?.Trim() ?? "";
             var location = entry.Location?.Trim() ?? "";
@@ -577,25 +597,25 @@ WHERE ").Append(VisibilityClause);
                 ?? CheckText(retentionPeriod, "Retention Period", MaxRetentionPeriodLength);
             if (textError != null)
             {
-                return BadRequest(new { message = textError });
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, textError);
             }
 
             var medium = NormalizeChoice(entry.Medium, Media);
             if (medium == null)
             {
-                return BadRequest(new { message = "Please choose or type a Medium." });
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "Please choose or type a Medium.");
             }
 
             var filingSystem = NormalizeChoice(entry.FilingSystem, FilingSystems);
             if (filingSystem == null)
             {
-                return BadRequest(new { message = "Please choose or type a Filing System." });
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "Please choose or type a Filing System.");
             }
 
             var accessControl = NormalizeChoice(entry.AccessControl, AccessLevels);
             if (accessControl == null)
             {
-                return BadRequest(new { message = "Please choose or type an Access Control." });
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "Please choose or type an Access Control.");
             }
 
             var recordDate = PhilippineToday();
@@ -619,7 +639,7 @@ WHERE ").Append(VisibilityClause);
                         _logger.LogError(
                             "Refused to save record {Code} for user {UserId}: Records owner column is missing. " +
                             "Apply migration 20260925000000_AddRecordSystemFields.", code, user.UserId);
-                        return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+                        return new RecordInsertResult(RecordInsertStatus.ServerError, null, GenericSaveError);
                     }
 
                     // Original columns only, unless the system columns exist.
@@ -675,17 +695,17 @@ WHERE ").Append(VisibilityClause);
                     RetentionDueDate = savedSystemFields ? retentionDueDate : null
                 };
 
-                return Json(ToClientRow(saved, user));
+                return new RecordInsertResult(RecordInsertStatus.Ok, saved, null);
             }
             catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
             {
                 // Unique constraint violation on Code
-                return Conflict(new { message = $"The Code \"{code}\" already exists. Please use a different Code." });
+                return new RecordInsertResult(RecordInsertStatus.Conflict, null, $"The Code \"{code}\" already exists. Please use a different Code.");
             }
             catch (SqlException ex) when (ex.Number == 8152 || ex.Number == 2628)
             {
                 // String or binary data would be truncated
-                return BadRequest(new { message = "One of the entries is too long. Please shorten it and try again." });
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "One of the entries is too long. Please shorten it and try again.");
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
@@ -698,17 +718,128 @@ WHERE ").Append(VisibilityClause);
                     "Database constraint rejected record {Code} for user {UserId} " +
                     "(Medium={Medium}, FilingSystem={FilingSystem}, AccessControl={AccessControl}).",
                     code, user.UserId, medium, filingSystem, accessControl);
-                return BadRequest(new
-                {
-                    message = "The database does not accept one of the selected Medium, Filing System, or Access Control values yet. Please contact the administrator."
-                });
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null,
+                    "The database does not accept one of the selected Medium, Filing System, or Access Control values yet. Please contact the administrator.");
             }
             catch (Exception ex)
             {
                 // Full details go to the server log only (SqlException messages
                 // carry no connection string); the user gets a generic message.
                 _logger.LogError(ex, "Failed to save record with Code {Code} for user {UserId}.", code, user.UserId);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+                return new RecordInsertResult(RecordInsertStatus.ServerError, null, GenericSaveError);
+            }
+        }
+
+        // ── Masterlist import ───────────────────────────────────────────
+        // POST: /Records/ImportMasterlist — reads an uploaded .xlsx built in
+        // the exact layout RecordMasterlistExcel produces (title block, a
+        // header row with CODE/TITLE OF RECORD/.../RETENTION PERIOD, data
+        // rows, then a Prepared/Reviewed/Noted-by block) and inserts each
+        // data row through the same TryInsertRecord path Save uses — so a
+        // row that would be rejected by hand is rejected the same way here.
+        private const long MaxImportFileBytes = 10 * 1024 * 1024; // 10 MB, same figure already used for proof uploads
+        private const int MaxHeaderScanRows = 20;
+        private static readonly string[] ExpectedHeaders =
+        {
+            "CODE", "TITLE OF RECORD", "MEDIUM", "LOCATION", "PERIOD COVERED",
+            "FILING SYSTEM", "ACCESS CONTROL", "RETENTION PERIOD"
+        };
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ImportMasterlist(IFormFile? file)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "Please choose an Excel (.xlsx) masterlist file to import." });
+            }
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Only .xlsx files are supported." });
+            }
+            if (file.Length > MaxImportFileBytes)
+            {
+                return BadRequest(new { message = "That file is too large (maximum 10 MB)." });
+            }
+
+            ClosedXML.Excel.IXLWorksheet worksheet;
+            try
+            {
+                using var stream = file.OpenReadStream();
+                using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+                worksheet = workbook.Worksheets.First();
+
+                var headerRow = 0;
+                for (var r = 1; r <= MaxHeaderScanRows; r++)
+                {
+                    if (string.Equals(worksheet.Cell(r, 1).GetString().Trim(), "CODE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        headerRow = r;
+                        break;
+                    }
+                }
+                if (headerRow == 0)
+                {
+                    return BadRequest(new { message = "Could not find the masterlist header row (expecting CODE, TITLE OF RECORD, ...). Please use a masterlist exported from this system." });
+                }
+
+                for (var c = 0; c < ExpectedHeaders.Length; c++)
+                {
+                    var actual = worksheet.Cell(headerRow, c + 1).GetString().Trim();
+                    if (!string.Equals(actual, ExpectedHeaders[c], StringComparison.OrdinalIgnoreCase))
+                    {
+                        return BadRequest(new { message = $"Unexpected column \"{actual}\" where \"{ExpectedHeaders[c]}\" was expected. Please use a masterlist exported from this system." });
+                    }
+                }
+
+                var imported = new List<object>();
+                var skipped = new List<object>();
+                var row = headerRow + 1;
+                while (true)
+                {
+                    var codeCell = worksheet.Cell(row, 1).GetString().Trim();
+                    if (string.IsNullOrEmpty(codeCell) || string.Equals(codeCell, "Prepared by:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        break;
+                    }
+
+                    var entry = new RecordEntry
+                    {
+                        Code = codeCell,
+                        Title = worksheet.Cell(row, 2).GetString().Trim(),
+                        Medium = worksheet.Cell(row, 3).GetString().Trim(),
+                        Location = worksheet.Cell(row, 4).GetString().Trim(),
+                        PeriodCovered = worksheet.Cell(row, 5).GetString().Trim(),
+                        FilingSystem = worksheet.Cell(row, 6).GetString().Trim(),
+                        AccessControl = worksheet.Cell(row, 7).GetString().Trim(),
+                        RetentionPeriod = worksheet.Cell(row, 8).GetString().Trim()
+                    };
+
+                    var result = TryInsertRecord(entry, user);
+                    if (result.Status == RecordInsertStatus.Ok)
+                    {
+                        imported.Add(ToClientRow(result.Saved!, user));
+                    }
+                    else
+                    {
+                        skipped.Add(new { row, reason = result.ErrorMessage });
+                    }
+
+                    row++;
+                }
+
+                return Json(new { imported, skipped });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to read uploaded masterlist file {FileName} for user {UserId}.", file.FileName, user.UserId);
+                return BadRequest(new { message = "Could not read that file. Please confirm it's a masterlist exported from this system (.xlsx)." });
             }
         }
 

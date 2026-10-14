@@ -385,6 +385,64 @@ if (filterForm) {
   });
 }
 
+// ---------- Import Masterlist ----------
+// Lets a user upload a masterlist .xlsx file (in the same layout this system
+// exports) and have its rows become real records, instead of retyping each
+// one by hand. Every row goes through the exact same validation as the
+// single-entry form (TryInsertRecord server-side) — bulk data gets no looser
+// or stricter rules than manual entry.
+const importMasterlistBtn = document.getElementById('import-masterlist-btn');
+const importMasterlistInput = document.getElementById('import-masterlist-input');
+
+if (importMasterlistBtn && importMasterlistInput) {
+  importMasterlistBtn.addEventListener('click', () => importMasterlistInput.click());
+
+  importMasterlistInput.addEventListener('change', async () => {
+    const file = importMasterlistInput.files[0];
+    if (!file) return;
+
+    const originalContent = importMasterlistBtn.innerHTML;
+    importMasterlistBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Importing...';
+    importMasterlistBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/Records/ImportMasterlist', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': getCsrfToken() },
+        body: formData
+      });
+
+      if (!res.ok) {
+        throw new Error(await readErrorMessage(res));
+      }
+
+      const result = await res.json();
+      entries.push(...result.imported);
+      currentPage = totalPages();
+      render();
+
+      const skippedSteps = (result.skipped || []).map(s => `Row ${s.row}: ${s.reason}`);
+      await showNotice({
+        tone: result.skipped && result.skipped.length ? 'warning' : 'success',
+        icon: result.skipped && result.skipped.length ? 'warning' : 'check_circle',
+        title: 'Import complete',
+        message: `Imported ${result.imported.length} record${result.imported.length === 1 ? '' : 's'}.` +
+          (skippedSteps.length ? ` ${skippedSteps.length} row${skippedSteps.length === 1 ? '' : 's'} were skipped:` : ''),
+        steps: skippedSteps
+      });
+    } catch (err) {
+      showError('Import not completed', errorMessage(err));
+    } finally {
+      importMasterlistBtn.innerHTML = originalContent;
+      importMasterlistBtn.disabled = false;
+      importMasterlistInput.value = '';
+    }
+  });
+}
+
 // ---------- Save Masterlist ----------
 // Saves every record on the table (all of the user's new records, whatever
 // the search shows) into one Excel masterlist, downloads it, and clears the
