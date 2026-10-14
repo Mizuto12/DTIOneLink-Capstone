@@ -463,6 +463,86 @@ namespace DTIOneLink.Controllers
 
             return RedirectToAction(nameof(MainTaskDetails), new { id });
         }
+
+        // POST: /Tasks/ReassignResponsibleAdmin/5 — OPD only. Hands a Main
+        // Task to a different Admin (e.g. covering for one on leave).
+        // Deliberately no department filter on the new Admin, unlike
+        // ValidateResponsibleAdminAsync used at creation — the Admin's
+        // personal ResponsibleAdminUserId match in IsWithinMainTaskScope
+        // already grants them access to this one task regardless of their
+        // own department, so this works safely across divisions too.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReassignResponsibleAdmin(int id, int newResponsibleAdminUserId)
+        {
+            if (!IsOfficeWideTaskManager())
+            {
+                return StatusCode(403);
+            }
+
+            var task = await _context.TaskItems
+                .Include(t => t.Assignments).ThenInclude(a => a.User)
+                .FirstOrDefaultAsync(t => t.Id == id && t.TaskLevel == TaskLevels.Main);
+            if (task == null)
+            {
+                return NotFound();
+            }
+
+            if (task.TaskType == TaskTypes.WholeOffice || !task.ResponsibleAdminUserId.HasValue)
+            {
+                TempData["ErrorMessage"] = "This task has no single Responsible Admin to reassign.";
+                return RedirectToAction(nameof(MainTaskDetails), new { id });
+            }
+
+            var newAdmin = await _context.Users.FirstOrDefaultAsync(u =>
+                u.Id == newResponsibleAdminUserId && u.IsActive && u.Role == "Admin");
+            if (newAdmin == null)
+            {
+                TempData["ErrorMessage"] = "Select an active Admin to hand this task to.";
+                return RedirectToAction(nameof(MainTaskDetails), new { id });
+            }
+
+            if (newAdmin.Id == task.ResponsibleAdminUserId.Value)
+            {
+                TempData["ErrorMessage"] = "This Admin is already responsible for this task.";
+                return RedirectToAction(nameof(MainTaskDetails), new { id });
+            }
+
+            var oldAdminId = task.ResponsibleAdminUserId.Value;
+            var changedByUserId = HttpContext.Session.GetInt32("UserId");
+
+            if (task.TaskType == TaskTypes.DirectAdmin)
+            {
+                var assignment = task.Assignments.FirstOrDefault(a => a.UserId == oldAdminId);
+                if (assignment == null)
+                {
+                    TempData["ErrorMessage"] = "Could not find this task's current assignment to reassign.";
+                    return RedirectToAction(nameof(MainTaskDetails), new { id });
+                }
+                if (!TaskAssignmentService.CanReassign(assignment))
+                {
+                    TempData["ErrorMessage"] = "This task is awaiting review or already completed, so it can't be reassigned.";
+                    return RedirectToAction(nameof(MainTaskDetails), new { id });
+                }
+                _taskAssignments.Reassign(task, assignment, newAdmin, changedByUserId);
+                _taskAssignments.RecalculateOverallStatus(task);
+            }
+
+            task.ResponsibleAdminUserId = newAdmin.Id;
+
+            if (changedByUserId.HasValue)
+            {
+                TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, "updated",
+                    $"Reassigned the responsible Admin to {newAdmin.FullName}.");
+            }
+
+            await _notifications.NotifyAdminDirectiveReceivedAsync(newAdmin.Id, task.Id, task.TaskName);
+
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"This task is now the responsibility of {newAdmin.FullName}.";
+            return RedirectToAction(nameof(MainTaskDetails), new { id });
+        }
+
         // GET: /Tasks/Edit/5
  [HttpGet]
  public async Task<IActionResult> Edit(int id)
@@ -1363,6 +1443,11 @@ public async Task<IActionResult> MainTaskDetails(int id)
     if (!IsWithinMainTaskScope(mainTask))
     {
         return NotFound();
+    }
+
+    if (IsOfficeWideTaskManager())
+    {
+        await PopulateResponsibleAdminsAsync();
     }
 
     return View(mainTask);

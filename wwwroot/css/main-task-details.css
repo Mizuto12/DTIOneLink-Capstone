@@ -144,6 +144,33 @@
 }
 .mtd-stop-repeat:hover { background: #ffdad6; }
 
+/* Reassign Responsible Admin (OPD only) inside the Responsible Admin card */
+.mtd-reassign-admin {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+.mtd-reassign-select {
+    padding: 5px 8px;
+    border: 1px solid #c5c5d2;
+    border-radius: 8px;
+    font-size: 12px;
+    max-width: 220px;
+}
+.mtd-reassign-btn {
+    padding: 6px 12px;
+    border: 1px solid #001e65;
+    border-radius: 9999px;
+    background: #ffffff;
+    color: #001e65;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.mtd-reassign-btn:hover { background: #e5eeff; }
+
 /* Per-person Review link (OPD, Direct Admin / Whole Office tasks) */
 .mtd-review-btn {
     display: inline-flex;
