@@ -79,11 +79,30 @@ namespace DTIOneLink.Services
                 .Include(t => t.Subtasks)
                 .FirstOrDefaultAsync(t => t.Id == taskId, stoppingToken);
 
-            var isWholeOffice = previous?.TaskType == TaskTypes.WholeOffice;
-            if (previous?.Recurrence == null || !TaskRecurrence.IsValid(previous.Recurrence)
+            if (previous == null)
+            {
+                // Deleted between the query that found it due and now —
+                // nothing to log, there's no task left to warn about.
+                return;
+            }
+
+            var isWholeOffice = previous.TaskType == TaskTypes.WholeOffice;
+            if (previous.Recurrence == null || !TaskRecurrence.IsValid(previous.Recurrence)
                 || previous.TaskType == null || previous.OwningDepartment == null
                 || (previous.ResponsibleAdminUserId == null && !isWholeOffice))
             {
+                // Previously silent: a task with a missing/invalid TaskType,
+                // OwningDepartment, Recurrence or ResponsibleAdminUserId was
+                // found due every single hourly run, forever, with no record
+                // anywhere that anything was wrong or that it was never sent
+                // out. Logging here doesn't fix the data, but it means this
+                // is at least visible instead of invisible.
+                _logger.LogWarning(
+                    "Repeating task {TaskId} was not sent out: its data is incomplete or invalid for repeating " +
+                    "(Recurrence={Recurrence}, TaskType={TaskType}, OwningDepartment={OwningDepartment}, " +
+                    "ResponsibleAdminUserId={ResponsibleAdminUserId}). It will keep being skipped every run until " +
+                    "this is corrected or its repeat is stopped.",
+                    previous.Id, previous.Recurrence, previous.TaskType, previous.OwningDepartment, previous.ResponsibleAdminUserId);
                 return;
             }
 
