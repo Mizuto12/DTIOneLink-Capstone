@@ -37,12 +37,14 @@
 }
 .task-proof .tp-alert ul { margin: 0; padding-left: 18px; }
 
+#tpForm { display: flex; flex-direction: column; gap: 20px; }
 .task-proof .tp-field { display: flex; flex-direction: column; gap: 8px; }
 .task-proof .tp-field label { font-weight: 600; font-size: 14px; }
 .task-proof input[type="file"], .task-proof textarea {
     border: 1px solid var(--tp-outline-variant); border-radius: var(--tp-radius);
     padding: 10px 12px; font-family: inherit; font-size: 14px;
 }
+.task-proof textarea { resize: vertical; }
 .task-proof .tp-hint { font-size: 12px; color: var(--tp-on-surface-variant); min-height: 16px; }
 .task-proof .tp-hint.is-saved { color: #1a7f37; }
 .task-proof .tp-hint.is-error { color: var(--tp-error, #ba1a1a); }
