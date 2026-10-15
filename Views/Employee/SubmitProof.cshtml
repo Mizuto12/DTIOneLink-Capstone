@@ -7,12 +7,18 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/employeetaskdetails.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/employeetaskproof.css" asp-append-version="true" />
 }
 
-<!-- ── Submit Proof Modal (native dialog, opened by employeesubmitproof.js) ──
-     No real page rendered behind it — just the dialog's own dim backdrop. ── -->
+<!-- ── The real Task Details page, behind the form ───── -->
+@* inert: it can't be clicked or tabbed into while the dialog is open. *@
+<div class="task-list-behind" inert aria-hidden="true">
+    <partial name="_TaskDetails" model="task" />
+</div>
+
+<!-- ── Submit Proof Modal (native dialog, opened by employeesubmitproof.js) ── -->
 <dialog class="modal-overlay" id="submitProofModal" aria-labelledby="tpModalTitle"
         data-close-url="@Url.Action("Details", "Employee", new { id = task.Id })">
     <div class="modal">
