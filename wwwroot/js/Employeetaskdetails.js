@@ -81,6 +81,29 @@ function initProgressSlider() {
     var savedValue = Number(range.value);
     var saveTimer = null;
 
+    var submitGate = document.getElementById('tdSubmitGate');
+    var submitBtn = document.getElementById('tdSubmitProofBtn');
+    var submitHint = document.getElementById('tdSubmitHint');
+    var minProgress = submitGate ? Number(submitGate.getAttribute('data-min-progress')) : null;
+
+    // Mirrors TaskWorkflow.CanSubmitProof: locked unless progress has reached
+    // the threshold (status is always pending/in-progress here — the gate
+    // markup only renders in that branch; Returned-for-correction resubmits
+    // through a separate, always-enabled link).
+    function updateSubmitGate(progress) {
+        if (!submitGate || !submitBtn || minProgress === null) {
+            return;
+        }
+        var unlocked = progress >= minProgress;
+        submitBtn.classList.toggle('is-locked', !unlocked);
+        submitBtn.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
+        submitBtn.setAttribute('tabindex', unlocked ? '0' : '-1');
+        submitBtn.title = unlocked ? '' : 'Reach at least ' + minProgress + '% progress to submit proof.';
+        if (submitHint) {
+            submitHint.hidden = unlocked;
+        }
+    }
+
     var statusLabels = {
         'pending': 'To Do',
         'in-progress': 'In Progress',
@@ -177,6 +200,7 @@ function initProgressSlider() {
                     metaProgress.textContent = data.taskProgress + '%';
                 }
                 applyStatus(data.taskStatus);
+                updateSubmitGate(data.progress);
                 setHint('Saved — progress is now ' + data.progress + '%.', 'saved');
                 setTimeout(function () {
                     if (hint && hint.classList.contains('is-saved')) {
@@ -192,6 +216,7 @@ function initProgressSlider() {
                 if (err instanceof TypeError && window.DTIOffline) {
                     window.DTIOffline.queueProgress({ taskId: Number(taskId), progress: value });
                     savedValue = value;
+                    updateSubmitGate(value);
                     setHint('Saved offline — will sync automatically when you\'re back online.', 'saved');
                     return;
                 }

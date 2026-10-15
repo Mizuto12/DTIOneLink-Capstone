@@ -636,9 +636,10 @@ body{
     gap: 4px;
 }
 
-.task-details .td-submit-gate .btn:disabled {
+.task-details .td-submit-gate .btn.is-locked {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 .task-details .td-submit-hint {

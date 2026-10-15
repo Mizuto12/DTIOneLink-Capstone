@@ -209,24 +209,24 @@
                         {
                             var myProgress = myAssignment?.Progress ?? task.Progress;
                             var canSubmitProof = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(status, myProgress);
-                            if (canSubmitProof)
-                            {
-                                <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
+                            var minProgress = DTIOneLink.Services.TaskWorkflow.MinProgressToSubmitProof;
+                            @* Same element either way — JS flips the lock state live as the
+                               progress slider moves (data-min-progress), instead of needing
+                               a page reload once the threshold is crossed. *@
+                            <div class="td-submit-gate" id="tdSubmitGate" data-min-progress="@minProgress">
+                                <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id"
+                                   id="tdSubmitProofBtn"
+                                   class="btn btn-primary @(canSubmitProof ? "" : "is-locked")"
+                                   aria-disabled="@(canSubmitProof ? "false" : "true")"
+                                   tabindex="@(canSubmitProof ? "0" : "-1")"
+                                   title="@(canSubmitProof ? "" : $"Reach at least {minProgress}% progress to submit proof.")">
                                     <span class="material-symbols-outlined">upload</span>
                                     Submit Proof
                                 </a>
-                            }
-                            else
-                            {
-                                <div class="td-submit-gate">
-                                    <button type="button" class="btn btn-primary" disabled
-                                            title="Reach at least @(DTIOneLink.Services.TaskWorkflow.MinProgressToSubmitProof)% progress to submit proof.">
-                                        <span class="material-symbols-outlined">upload</span>
-                                        Submit Proof
-                                    </button>
-                                    <p class="td-submit-hint">Reach @(DTIOneLink.Services.TaskWorkflow.MinProgressToSubmitProof)% progress to unlock</p>
-                                </div>
-                            }
+                                <p class="td-submit-hint" id="tdSubmitHint" @(canSubmitProof ? "hidden" : null)>
+                                    Reach @(minProgress)% progress to unlock
+                                </p>
+                            </div>
                         }
                         @if (status == "returned-for-correction")
                         {
