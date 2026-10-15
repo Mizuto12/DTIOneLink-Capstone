@@ -21,6 +21,14 @@
 
 .time-logs-page * { box-sizing: border-box; }
 
+.time-logs-page a:focus-visible,
+.time-logs-page button:focus-visible,
+.time-logs-page input:focus-visible,
+.time-logs-page select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 /* ---------- Page Header ---------- */
 .time-logs-page .page-header {
     margin-bottom: 24px;

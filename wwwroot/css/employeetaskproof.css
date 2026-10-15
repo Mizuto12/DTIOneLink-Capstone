@@ -59,6 +59,14 @@
 .task-proof .btn-secondary {
     background: #eff4ff; color: var(--tp-primary); border: 1px solid var(--tp-outline-variant);
 }
+
+.task-proof a:focus-visible,
+.task-proof button:focus-visible,
+.task-proof input:focus-visible,
+.task-proof textarea:focus-visible {
+    outline: 2px solid var(--tp-primary);
+    outline-offset: 2px;
+}
 /* ---- Phones ---------------------------------------------------------- */
 @media (max-width: 640px) {
     .task-proof .tp-panel { padding: 20px; gap: 20px; }

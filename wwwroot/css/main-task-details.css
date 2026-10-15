@@ -20,6 +20,15 @@
 
 .mtd *, .mtd *::before, .mtd *::after { box-sizing: border-box; }
 
+.mtd a:focus-visible,
+.mtd button:focus-visible,
+.mtd input:focus-visible,
+.mtd textarea:focus-visible,
+.mtd select:focus-visible {
+    outline: 2px solid var(--mtd-primary);
+    outline-offset: 2px;
+}
+
 .mtd-breadcrumb {
     display: flex;
     align-items: center;

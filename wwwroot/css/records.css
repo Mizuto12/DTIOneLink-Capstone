@@ -1,7 +1,7 @@
 /* ---------- Scoped variables ---------- */
 .records-page {
-  --primary: #0f2f66;
-  --primary-hover: #0c2450;
+  --primary: #001e65;
+  --primary-hover: #001449;
   --tertiary-container: #16a34a;
   --surface: #ffffff;
   --surface-container-low: #f4f6fb;
@@ -24,6 +24,15 @@
 }
 
 .records-page * { box-sizing: border-box; }
+
+.records-page a:focus-visible,
+.records-page button:focus-visible,
+.records-page input:focus-visible,
+.records-page textarea:focus-visible,
+.records-page select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 .records-page .btn {
   display: inline-flex;

@@ -39,6 +39,15 @@
     box-sizing: border-box;
 }
 
+.edit-task a:focus-visible,
+.edit-task button:focus-visible,
+.edit-task input:focus-visible,
+.edit-task textarea:focus-visible,
+.edit-task select:focus-visible {
+    outline: 2px solid var(--et-primary);
+    outline-offset: 2px;
+}
+
 .edit-task h2, .edit-task h3, .edit-task p, .edit-task dl, .edit-task dt, .edit-task dd {
     margin: 0;
 }

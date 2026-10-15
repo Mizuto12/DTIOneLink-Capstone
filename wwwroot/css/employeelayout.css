@@ -134,6 +134,7 @@ body {
 }
 .notif-btn:hover { background: rgba(182,196,255,0.2); }
 .notif-btn:active { opacity: 0.8; }
+.notif-btn:focus-visible { outline: 2px solid rgba(255,255,255,0.6); outline-offset: 2px; }
 
 .notif-dot {
     position: absolute;
@@ -235,6 +236,8 @@ body {
 }
 .profile-logout-btn:hover { background: var(--surface-container-low); border-color: var(--primary); }
 .profile-logout-btn .material-symbols-outlined { font-size: 20px; }
+.profile-logout-btn:focus-visible,
+.topbar-user:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sidebar {
@@ -315,6 +318,7 @@ body {
 }
 .nav-item:hover { background: var(--surface-container); }
 .nav-item:active { transform: scale(0.95); }
+.nav-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .nav-item.active {
     background: var(--secondary-fixed);
     color: var(--primary); font-weight: 700;

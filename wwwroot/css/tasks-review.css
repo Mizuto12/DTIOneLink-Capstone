@@ -40,6 +40,13 @@
     box-sizing: border-box;
 }
 
+.task-review a:focus-visible,
+.task-review button:focus-visible,
+.task-review textarea:focus-visible {
+    outline: 2px solid var(--tr-primary);
+    outline-offset: 2px;
+}
+
 .task-review h2, .task-review p, .task-review dl, .task-review dt, .task-review dd {
     margin: 0;
 }

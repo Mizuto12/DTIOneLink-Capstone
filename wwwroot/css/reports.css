@@ -34,6 +34,15 @@
 
 .reports-page * { box-sizing: border-box; }
 
+.reports-page a:focus-visible,
+.reports-page button:focus-visible,
+.reports-page input:focus-visible,
+.reports-page textarea:focus-visible,
+.reports-page select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .reports-page .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   vertical-align: middle;
