@@ -3,8 +3,11 @@
 @{
     Layout = null;
     var current = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
     bool IsActive(string c) =>
         string.Equals(current, c, StringComparison.OrdinalIgnoreCase);
+    bool IsActiveAction(string c, string a) =>
+        IsActive(c) && string.Equals(currentAction, a, StringComparison.OrdinalIgnoreCase);
 }
 @{
     var sessFullName = Context.Session.GetString("FullName");
@@ -148,10 +151,18 @@
         <nav class="sidebar-nav">
 
             <a asp-controller="Dashboard" asp-action="SuperAdminDashboard"
-               class="nav-item @(IsActive("Dashboard") ? "active" : "")">
+               class="nav-item @(IsActiveAction("Dashboard", "SuperAdminDashboard") ? "active" : "")">
                 <span class="material-symbols-outlined">dashboard</span>
                 <span>Dashboard</span>
             </a>
+            @if (RolePermissions.Has(sessRole, Permissions.ViewOfficeWideSummaries))
+            {
+                <a asp-controller="Dashboard" asp-action="ErrorLogs"
+                   class="nav-item @(IsActiveAction("Dashboard", "ErrorLogs") ? "active" : "")">
+                    <span class="material-symbols-outlined">error</span>
+                    <span>Error Logs</span>
+                </a>
+            }
               @if (RolePermissions.Has(sessRole, Permissions.ManageOfficeWideTasks))
             {
              <a asp-controller="Tasks" asp-action="Index"

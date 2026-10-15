@@ -21,6 +21,7 @@ namespace DTIOneLink.Data
     public DbSet<OneTimeCode> OneTimeCodes { get; set; }
     public DbSet<EmailOutboxMessage> EmailOutbox { get; set; }
     public DbSet<TimeLog> TimeLogs { get; set; }
+    public DbSet<ErrorLog> ErrorLogs { get; set; }
 
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
