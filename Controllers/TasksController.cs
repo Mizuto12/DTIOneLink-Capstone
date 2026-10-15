@@ -1214,6 +1214,9 @@ public async Task<IActionResult> Review(int id)
         return RedirectToAction(nameof(Index));
     }
 
+    // Shown dimmed behind the Review dialog, same as Create Task's overlay.
+    ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
+
     return View(submission);
 }
 

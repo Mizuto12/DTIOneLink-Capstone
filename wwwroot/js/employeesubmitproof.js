@@ -1,11 +1,30 @@
 // ==========================================================================
-// Submit Proof of Completion — fetch-based submission with an offline
-// fallback. Online, this behaves like the original full-page form POST
-// (same redirect on success). Offline, the file and remarks are queued via
+// Submit Proof of Completion — overlay modal (same pattern as
+// tasks-create.js, but with no real page behind it — just the dialog's own
+// dim backdrop) plus fetch-based submission with an offline fallback.
+// Online, this behaves like the original full-page form POST (same
+// redirect on success). Offline, the file and remarks are queued via
 // offline-sync.js and replayed automatically once the connection returns.
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('submitProofModal');
     var form = document.getElementById('tpForm');
+
+    if (modal && typeof modal.showModal === 'function') {
+        modal.showModal();
+    } else if (modal) {
+        modal.setAttribute('open', '');
+    }
+
+    function closeModal() {
+        if (!modal) return;
+        var box = modal.querySelector('.modal');
+        if (box) box.classList.add('closing');
+        setTimeout(function () {
+            window.location.href = modal.dataset.closeUrl || '/Employee';
+        }, 150);
+    }
+
     if (!form) {
         return;
     }
@@ -15,6 +34,25 @@ document.addEventListener('DOMContentLoaded', function () {
     var fileInput = document.getElementById('tpFile');
     var remarksInput = document.getElementById('tpRemarks');
     var taskId = Number(form.getAttribute('data-task-id'));
+
+    // ── Close on a click outside the form, unless something's been picked
+    // or typed — same "don't throw away what they started" rule as
+    // Create Task. ──
+    var touched = false;
+    fileInput.addEventListener('change', function () { touched = true; });
+    remarksInput.addEventListener('input', function () { touched = true; });
+
+    if (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal && !touched) closeModal();
+        });
+
+        // ── Close on Escape (the browser fires "cancel") ──
+        modal.addEventListener('cancel', function (e) {
+            e.preventDefault();
+            closeModal();
+        });
+    }
 
     function setHint(text, state) {
         if (!hint) {

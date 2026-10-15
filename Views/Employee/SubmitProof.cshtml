@@ -7,66 +7,73 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/employeetaskproof.css" asp-append-version="true" />
 }
 
-<div class="task-proof">
-    <nav class="tp-breadcrumb" aria-label="Breadcrumb">
-        <a asp-controller="Employee" asp-action="TaskManagement">Task Management</a>
-        <span>/</span>
-        <span class="tp-breadcrumb-current">Submit Proof — @taskCode</span>
-    </nav>
+<!-- ── Submit Proof Modal (native dialog, opened by employeesubmitproof.js) ──
+     No real page rendered behind it — just the dialog's own dim backdrop. ── -->
+<dialog class="modal-overlay" id="submitProofModal" aria-labelledby="tpModalTitle"
+        data-close-url="@Url.Action("Details", "Employee", new { id = task.Id })">
+    <div class="modal">
 
-    <div class="tp-panel">
-        <section class="tp-header">
-            <h2 class="tp-title">@task.TaskName</h2>
-            <p class="tp-subtitle">@taskCode</p>
-        </section>
-
-        @if (!ViewData.ModelState.IsValid)
-        {
-            <div class="tp-alert error">
-                <ul>
-                    @foreach (var modelError in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                    {
-                        <li>@modelError.ErrorMessage</li>
-                    }
-                </ul>
+        <!-- Header -->
+        <div class="modal-header">
+            <div>
+                <h2 class="modal-title" id="tpModalTitle">Submit Proof — @taskCode</h2>
+                <p class="modal-sub">@task.TaskName</p>
             </div>
-        }
+            <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="modal-close" aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+            </a>
+        </div>
 
-        <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data" id="tpForm" data-task-id="@task.Id">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="Id" value="@task.Id" />
+        <!-- Body -->
+        <div class="modal-body">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="tp-alert error">
+                    <ul>
+                        @foreach (var modelError in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@modelError.ErrorMessage</li>
+                        }
+                    </ul>
+                </div>
+            }
 
-            <section class="tp-field">
-                <label for="tpFile">Proof file</label>
-                <input type="file" id="tpFile" name="ProofFile"
-                       accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
-                <p class="tp-hint">PDF, DOCX, XLSX, JPG, or PNG. Max size 10 MB.</p>
-            </section>
+            <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data" id="tpForm" data-task-id="@task.Id">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" value="@task.Id" />
 
-            <section class="tp-field">
-                <label for="tpRemarks">Remarks</label>
-                <textarea id="tpRemarks" name="Remarks" rows="4"
-                          placeholder="Describe what was completed..."></textarea>
-            </section>
+                <section class="tp-field">
+                    <label for="tpFile">Proof file</label>
+                    <input type="file" id="tpFile" name="ProofFile"
+                           accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
+                    <p class="tp-hint">PDF, DOCX, XLSX, JPG, or PNG. Max size 10 MB.</p>
+                </section>
 
-            <p class="tp-hint" id="tpStatusHint" aria-live="polite"></p>
+                <section class="tp-field">
+                    <label for="tpRemarks">Remarks</label>
+                    <textarea id="tpRemarks" name="Remarks" rows="4"
+                              placeholder="Describe what was completed..."></textarea>
+                </section>
 
-            <div class="tp-actions">
-                <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="btn btn-secondary">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                    Cancel
-                </a>
-                <button type="submit" class="btn btn-primary" id="tpSubmitBtn">
-                    <span class="material-symbols-outlined">upload</span>
-                    Submit for Review
-                </button>
-            </div>
-        </form>
+                <p class="tp-hint" id="tpStatusHint" aria-live="polite"></p>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+            <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-create" id="tpSubmitBtn" form="tpForm">
+                <span class="material-symbols-outlined">upload</span>
+                Submit for Review
+            </button>
+        </div>
+
     </div>
-</div>
+</dialog>
 
 @section Scripts {
     <script src="~/js/employeesubmitproof.js" asp-append-version="true"></script>
