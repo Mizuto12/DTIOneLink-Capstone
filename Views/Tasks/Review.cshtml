@@ -40,36 +40,40 @@
 
         <!-- Body -->
         <div class="modal-body">
-            <div class="tr-card">
-                <p class="tr-info-row"><strong>Remarks from employee:</strong> @(string.IsNullOrWhiteSpace(Model.Remarks) ? "(none)" : Model.Remarks)</p>
-                <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@Model.Id" class="tr-download">
-                    Download submitted proof (@Model.ProofFileName)
-                </a>
-            </div>
-
-            <form id="trForm" asp-controller="Tasks" asp-action="Review" method="post"
-                  data-task-name="@task.TaskName" data-submitted-by="@submittedByName">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="SubmissionId" value="@Model.Id" />
-
-                <div asp-validation-summary="ModelOnly" class="tr-error-text"></div>
-
-                <div class="tr-field">
-                    <label class="tr-label">
-                        Admin remarks <span class="tr-required">*</span>
-                        <span class="tr-hint">required if returning — shown to employee</span>
-                    </label>
-                    <textarea name="AdminRemarks" class="tr-textarea"></textarea>
-                    <span asp-validation-for="AdminRemarks" class="tr-error-text"></span>
+            <div class="task-review">
+                <div class="tr-card">
+                    <p class="tr-info-row"><strong>Remarks from employee:</strong> @(string.IsNullOrWhiteSpace(Model.Remarks) ? "(none)" : Model.Remarks)</p>
+                    <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@Model.Id" class="tr-download">
+                        Download submitted proof (@Model.ProofFileName)
+                    </a>
                 </div>
-            </form>
+
+                <form id="trForm" asp-controller="Tasks" asp-action="Review" method="post"
+                      data-task-name="@task.TaskName" data-submitted-by="@submittedByName">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="SubmissionId" value="@Model.Id" />
+
+                    <div asp-validation-summary="ModelOnly" class="tr-error-text"></div>
+
+                    <div class="tr-field">
+                        <label class="tr-label">
+                            Admin remarks <span class="tr-required">*</span>
+                            <span class="tr-hint">required if returning — shown to employee</span>
+                        </label>
+                        <textarea name="AdminRemarks" class="tr-textarea"></textarea>
+                        <span asp-validation-for="AdminRemarks" class="tr-error-text"></span>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <!-- Footer -->
         <div class="modal-footer">
             <a asp-controller="Tasks" asp-action="Index" class="btn-cancel">Cancel</a>
-            <button type="submit" name="Decision" value="return" class="tr-btn tr-btn-return" form="trForm">Return for Correction</button>
-            <button type="submit" name="Decision" value="approve" class="tr-btn tr-btn-approve" form="trForm">Approve — Mark Completed</button>
+            <div class="task-review" style="display: contents;">
+                <button type="submit" name="Decision" value="return" class="tr-btn tr-btn-return" form="trForm">Return for Correction</button>
+                <button type="submit" name="Decision" value="approve" class="tr-btn tr-btn-approve" form="trForm">Approve — Mark Completed</button>
+            </div>
         </div>
 
     </div>

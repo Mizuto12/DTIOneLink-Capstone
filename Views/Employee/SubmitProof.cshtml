@@ -30,37 +30,39 @@
 
         <!-- Body -->
         <div class="modal-body">
-            @if (!ViewData.ModelState.IsValid)
-            {
-                <div class="tp-alert error">
-                    <ul>
-                        @foreach (var modelError in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                        {
-                            <li>@modelError.ErrorMessage</li>
-                        }
-                    </ul>
-                </div>
-            }
+            <div class="task-proof">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="tp-alert error">
+                        <ul>
+                            @foreach (var modelError in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                            {
+                                <li>@modelError.ErrorMessage</li>
+                            }
+                        </ul>
+                    </div>
+                }
 
-            <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data" id="tpForm" data-task-id="@task.Id">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="Id" value="@task.Id" />
+                <form asp-controller="Employee" asp-action="SubmitProof" method="post" enctype="multipart/form-data" id="tpForm" data-task-id="@task.Id">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="Id" value="@task.Id" />
 
-                <section class="tp-field">
-                    <label for="tpFile">Proof file</label>
-                    <input type="file" id="tpFile" name="ProofFile"
-                           accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
-                    <p class="tp-hint">PDF, DOCX, XLSX, JPG, or PNG. Max size 10 MB.</p>
-                </section>
+                    <section class="tp-field">
+                        <label for="tpFile">Proof file</label>
+                        <input type="file" id="tpFile" name="ProofFile"
+                               accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
+                        <p class="tp-hint">PDF, DOCX, XLSX, JPG, or PNG. Max size 10 MB.</p>
+                    </section>
 
-                <section class="tp-field">
-                    <label for="tpRemarks">Remarks</label>
-                    <textarea id="tpRemarks" name="Remarks" rows="4"
-                              placeholder="Describe what was completed..."></textarea>
-                </section>
+                    <section class="tp-field">
+                        <label for="tpRemarks">Remarks</label>
+                        <textarea id="tpRemarks" name="Remarks" rows="4"
+                                  placeholder="Describe what was completed..."></textarea>
+                    </section>
 
-                <p class="tp-hint" id="tpStatusHint" aria-live="polite"></p>
-            </form>
+                    <p class="tp-hint" id="tpStatusHint" aria-live="polite"></p>
+                </form>
+            </div>
         </div>
 
         <!-- Footer -->
