@@ -5,6 +5,7 @@
         : "~/Views/Admin/AdminLayout.cshtml";
     ViewData["Title"] = "Review Submission";
     var task = Model.Task!;
+    var submittedByName = Model.TaskAssignment?.User?.FullName ?? "this person";
 }
 
 @section Styles {
@@ -22,7 +23,8 @@
         </a>
     </div>
 
-    <form asp-controller="Tasks" asp-action="Review" method="post" class="tr-form">
+    <form asp-controller="Tasks" asp-action="Review" method="post" class="tr-form" id="trForm"
+          data-task-name="@task.TaskName" data-submitted-by="@submittedByName">
         @Html.AntiForgeryToken()
         <input type="hidden" name="SubmissionId" value="@Model.Id" />
 
@@ -43,3 +45,7 @@
         </div>
     </form>
 </div>
+
+@section Scripts {
+    <script src="~/js/tasks-review.js" asp-append-version="true"></script>
+}

@@ -99,9 +99,10 @@
             @if (isOpd && task.TaskType != DTIOneLink.Services.TaskTypes.WholeOffice && task.ResponsibleAdminUserId.HasValue)
             {
                 var responsibleAdmins = (ViewBag.ResponsibleAdmins as List<DTIOneLink.Models.User>) ?? new List<DTIOneLink.Models.User>();
-                <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post" class="mtd-reassign-admin">
+                <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
+                      class="mtd-reassign-admin" id="mtdReassignForm" data-task-name="@task.TaskName">
                     @Html.AntiForgeryToken()
-                    <select name="newResponsibleAdminUserId" class="mtd-reassign-select" required>
+                    <select name="newResponsibleAdminUserId" class="mtd-reassign-select" id="mtdReassignSelect" required>
                         <option value="">Reassign to…</option>
                         @foreach (var admin in responsibleAdmins.Where(a => a.Id != task.ResponsibleAdminUserId))
                         {
@@ -301,3 +302,7 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/main-task-details.js" asp-append-version="true"></script>
+}
