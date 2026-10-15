@@ -37,6 +37,15 @@
                 return AllowedTransitions.TryGetValue(current, out var allowed) && allowed.Contains(next);
             }
 
+            // An employee must make real progress before proof can be
+            // submitted — otherwise a task can jump straight from 0% to
+            // "for review". Resubmission after a Return is exempt: progress
+            // was already sufficient the first time, and Return never resets it.
+            public const int MinProgressToSubmitProof = 80;
+
+            public static bool CanSubmitProof(string? status, int progress) =>
+                Normalize(status) == ReturnedForCorrection || progress >= MinProgressToSubmitProof;
+
             public static bool IsOverdue(string? status, DateTime dueDate) =>
                 Normalize(status) != Completed && dueDate.Date < TimeZoneHelper.PhilippineToday;
 

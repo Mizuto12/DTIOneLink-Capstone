@@ -136,4 +136,17 @@ public class TaskWorkflowTests
         var yesterday = TimeZoneHelper.PhilippineToday.AddDays(-1);
         Assert.Equal("Overdue", TaskWorkflow.DisplayLabel(TaskWorkflow.InProgress, yesterday));
     }
+
+    [Theory]
+    [InlineData(TaskWorkflow.Pending, 0, false)]
+    [InlineData(TaskWorkflow.Pending, 79, false)]
+    [InlineData(TaskWorkflow.Pending, 80, true)]
+    [InlineData(TaskWorkflow.InProgress, 80, true)]
+    [InlineData(TaskWorkflow.InProgress, 100, true)]
+    // Returning for correction never resets progress, so resubmission is exempt.
+    [InlineData(TaskWorkflow.ReturnedForCorrection, 0, true)]
+    public void CanSubmitProof_RequiresMinimumProgressUnlessResubmitting(string status, int progress, bool expected)
+    {
+        Assert.Equal(expected, TaskWorkflow.CanSubmitProof(status, progress));
+    }
 }

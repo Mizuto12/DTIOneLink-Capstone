@@ -396,6 +396,11 @@ if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
         : "This task is already awaiting review.";
     return RedirectToAction(nameof(Details), new { id = task.Id });
 }
+if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
+{
+    TempData["ErrorMessage"] = $"Reach at least {TaskWorkflow.MinProgressToSubmitProof}% progress before submitting proof.";
+    return RedirectToAction(nameof(Details), new { id = task.Id });
+}
     return View(task);
 }
 
@@ -425,6 +430,11 @@ var status = (assignment.Status ?? "pending").Trim().ToLowerInvariant();
 if (!TaskWorkflow.CanTransition(status, TaskWorkflow.ForReview))
 {
     TempData["ErrorMessage"] = "This task can no longer accept a proof submission.";
+    return RedirectToAction(nameof(Details), new { id = task.Id });
+}
+if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
+{
+    TempData["ErrorMessage"] = $"Reach at least {TaskWorkflow.MinProgressToSubmitProof}% progress before submitting proof.";
     return RedirectToAction(nameof(Details), new { id = task.Id });
 }
 
