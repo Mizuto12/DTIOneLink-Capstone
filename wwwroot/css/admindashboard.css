@@ -605,9 +605,15 @@
 
 .gantt-header {
   display: flex;
-  gap: var(--gantt-gap);
+  flex-direction: column;
+  gap: 4px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--dash-surface-container);
+}
+
+.gantt-header__row {
+  display: flex;
+  gap: var(--gantt-gap);
 }
 
 .gantt-header__task-col {
@@ -643,9 +649,34 @@
   text-overflow: ellipsis;
 }
 
+.gantt-header__row--weeks { padding-bottom: 2px; }
+
+.gantt-header__weeks {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.gantt-header__week {
+  flex-basis: 0;
+  min-width: 0;
+  padding-left: 8px;
+  border-left: 1px solid var(--dash-surface-container);
+  font-family: var(--dash-font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dash-secondary);
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gantt-header__week.is-month-start { border-left-color: var(--dash-outline-variant, #c5c5d2); }
+
 .gantt-body { position: relative; }
 
-/* Month lines and the Today line, behind the bars. */
+/* Week gridlines (stronger at each month's first week) and the Today
+   line, behind the bars. */
 .gantt-grid {
   position: absolute;
   top: 0;
@@ -655,11 +686,12 @@
   display: flex;
   pointer-events: none;
 }
-.gantt-grid__month {
+.gantt-grid__week {
   flex-basis: 0;
-  border-left: 1px solid var(--dash-surface-container);
+  border-left: 1px solid rgba(197, 197, 210, 0.35);
 }
-.gantt-grid__month:nth-child(even) { background: rgba(239, 244, 255, 0.45); }
+.gantt-grid__week.is-month-start { border-left: 1px solid var(--dash-surface-container); }
+.gantt-grid__week:nth-of-type(odd) { background: rgba(239, 244, 255, 0.3); }
 
 .gantt-today {
   position: absolute;
@@ -1276,6 +1308,9 @@
   .gantt { --gantt-task-col: 0px; --gantt-gap: 0px; min-width: 0; }
   .gantt-header__task-col { display: none; }
   .gantt-header__month { padding-left: 4px; font-size: 10px; letter-spacing: 0.04em; }
+  /* Week ticks are too fine-grained for a phone-width chart — month labels
+     and the gridlines (still drawn by week) are enough at this size. */
+  .gantt-header__row--weeks { display: none; }
   .gantt-row { flex-wrap: wrap; gap: 6px; padding: 10px 4px; }
   .gantt-row__info { width: 100%; padding-left: 0; }
   .gantt-row__info .avatar-badge { width: 28px; height: 28px; font-size: 10px; }

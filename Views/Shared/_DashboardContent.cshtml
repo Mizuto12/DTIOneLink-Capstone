@@ -107,9 +107,24 @@
     var totalDays = Math.Max((timelineEnd - timelineStart).TotalDays, 1);
 
     var months = new List<(string Label, int Days)>();
+    // Each month split into 7-day chunks (last chunk absorbs the remainder,
+    // e.g. a 30-day month is 1-7, 8-14, 15-21, 22-30) so the header can show
+    // both the month and, underneath it, which week of the month a bar falls
+    // in — IsMonthStart marks the first week of each month for a stronger
+    // gridline, so month boundaries stay visible alongside the week ticks.
+    var weeks = new List<(string Label, int Days, bool IsMonthStart)>();
     for (var m = timelineStart; m < timelineEnd; m = m.AddMonths(1))
     {
-        months.Add((m.ToString("MMM yyyy"), DateTime.DaysInMonth(m.Year, m.Month)));
+        var daysInMonth = DateTime.DaysInMonth(m.Year, m.Month);
+        months.Add((m.ToString("MMM yyyy"), daysInMonth));
+
+        var isFirstWeek = true;
+        for (var dayStart = 1; dayStart <= daysInMonth; dayStart += 7)
+        {
+            var dayEnd = Math.Min(dayStart + 6, daysInMonth);
+            weeks.Add(($"{dayStart}-{dayEnd}", dayEnd - dayStart + 1, isFirstWeek));
+            isFirstWeek = false;
+        }
     }
     string Pct(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
     var todayPct = Pct(((today - timelineStart).TotalDays + 0.5) / totalDays * 100);
@@ -192,21 +207,33 @@
 
                     <div class="gantt">
                         <div class="gantt-header">
-                            <div class="gantt-header__task-col">Task</div>
-                            <div class="gantt-header__months">
-                                @foreach (var m in months)
-                                {
-                                    <div class="gantt-header__month" style="flex-grow:@m.Days;">@m.Label</div>
-                                }
+                            <div class="gantt-header__row">
+                                <div class="gantt-header__task-col">Task</div>
+                                <div class="gantt-header__months">
+                                    @foreach (var m in months)
+                                    {
+                                        <div class="gantt-header__month" style="flex-grow:@m.Days;">@m.Label</div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="gantt-header__row gantt-header__row--weeks">
+                                <div class="gantt-header__task-col"></div>
+                                <div class="gantt-header__weeks">
+                                    @foreach (var w in weeks)
+                                    {
+                                        <div class="gantt-header__week @(w.IsMonthStart ? "is-month-start" : "")" style="flex-grow:@w.Days;">@w.Label</div>
+                                    }
+                                </div>
                             </div>
                         </div>
 
                         <div class="gantt-body">
-                            @* Month gridlines and today's line, drawn behind the bars. *@
+                            @* Week gridlines (stronger at each month's first week) and
+                               today's line, drawn behind the bars. *@
                             <div class="gantt-grid" aria-hidden="true">
-                                @foreach (var m in months)
+                                @foreach (var w in weeks)
                                 {
-                                    <div class="gantt-grid__month" style="flex-grow:@m.Days;"></div>
+                                    <div class="gantt-grid__week @(w.IsMonthStart ? "is-month-start" : "")" style="flex-grow:@w.Days;"></div>
                                 }
                                 <div class="gantt-today" style="left:@todayPct%;"><span>Today</span></div>
                             </div>
