@@ -1366,15 +1366,14 @@ public IActionResult SuggestPriority(DateTime dueDate)
 }
 
 // POST: /Tasks/AddSubtask/5 — adds one more subtask to an already-created
-// Department Directive. Available to OPD and to the Admin/Supervisor the
-// directive belongs to (same scope as MainTaskDetails/IsWithinMainTaskScope) —
-// a directive doesn't support subtasks any other way, so without this a
-// directive already in flight could never pick up additional work.
+// Department Directive. Only the OPD (SuperAdmin) creates tasks or adds
+// subtasks — an Admin/Supervisor only assigns the subtasks already there,
+// same rule as Create.
 [HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> AddSubtask(int id, string subtaskName)
 {
-    if (!CanAccessTaskManagement())
+    if (!IsOfficeWideTaskManager())
     {
         return StatusCode(403);
     }
@@ -1382,11 +1381,6 @@ public async Task<IActionResult> AddSubtask(int id, string subtaskName)
     var mainTask = await _context.TaskItems
         .FirstOrDefaultAsync(t => t.Id == id && t.TaskLevel == TaskLevels.Main);
     if (mainTask == null)
-    {
-        return NotFound();
-    }
-
-    if (!IsWithinMainTaskScope(mainTask))
     {
         return NotFound();
     }

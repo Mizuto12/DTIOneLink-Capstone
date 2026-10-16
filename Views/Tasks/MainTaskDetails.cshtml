@@ -215,7 +215,9 @@
        the first column header, and the same minimum height (3 rows) whether
        there are 0, 1 or 3 subtasks. *@
     <div class="glass-card mtd-subtasks">
-        @if (DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
+        @* Only the OPD (SuperAdmin) creates tasks or adds subtasks — an
+           Admin/Supervisor only assigns the subtasks already there. *@
+        @if (isOpd && DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
         {
             <div class="card-toolbar mtd-subtask-toolbar">
                 <form asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@task.Id" method="post" class="mtd-add-subtask">
