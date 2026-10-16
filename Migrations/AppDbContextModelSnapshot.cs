@@ -76,52 +76,6 @@ namespace DTIOneLink.Migrations
                     b.ToTable("EmailOutbox", (string)null);
                 });
 
-            modelBuilder.Entity("DTIOneLink.Models.ErrorLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ExceptionType")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("Method")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
-
-                    b.Property<DateTime>("OccurredAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Path")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<string>("StackTrace")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UserRole")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ErrorLogs");
-                });
-
             modelBuilder.Entity("DTIOneLink.Models.Notification", b =>
                 {
                     b.Property<int>("Id")

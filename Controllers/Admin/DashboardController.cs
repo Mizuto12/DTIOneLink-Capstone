@@ -212,20 +212,5 @@ namespace DTIOneLink.Controllers
 
             return View("~/Views/Employee/Details.cshtml", task);
         }
-
-        // Office-wide visibility into unhandled exceptions, since this app
-        // runs on shared hosting with no IT staff to check server logs.
-        [HttpGet]
-        [RequirePermission(Permissions.ViewOfficeWideSummaries)]
-        public async Task<IActionResult> ErrorLogs()
-        {
-            var logs = await _context.ErrorLogs
-                .AsNoTracking()
-                .OrderByDescending(e => e.OccurredAtUtc)
-                .Take(100)
-                .ToListAsync();
-
-            return View(logs);
-        }
     }
 }

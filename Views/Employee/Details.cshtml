@@ -35,7 +35,12 @@
     <link rel="stylesheet" href="~/css/employeetaskdetails.css" asp-append-version="true" />
 }
 
-<partial name="_TaskDetails" model="Model" />
+@* Explicit path, not just "_TaskDetails": partial lookup follows the
+   EXECUTING CONTROLLER's view folder, not this file's folder. Reached via
+   DashboardController (controller "Dashboard"), the bare name searches
+   /Views/Dashboard/ and /Views/Shared/ — never /Views/Employee/ — and
+   throws "partial view not found". *@
+<partial name="~/Views/Employee/_TaskDetails.cshtml" model="Model" />
 
 @section Scripts {
     <script src="~/js/employeetaskdetails.js" asp-append-version="true"></script>

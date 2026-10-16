@@ -15,7 +15,7 @@
 <!-- ── The real Task Details page, behind the form ───── -->
 @* inert: it can't be clicked or tabbed into while the dialog is open. *@
 <div class="task-list-behind" inert aria-hidden="true">
-    <partial name="_TaskDetails" model="task" />
+    <partial name="~/Views/Employee/_TaskDetails.cshtml" model="task" />
 </div>
 
 <!-- ── Submit Proof Modal (native dialog, opened by employeesubmitproof.js) ── -->
