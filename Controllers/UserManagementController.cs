@@ -50,15 +50,19 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
         }
         await reader.CloseAsync();
 
-        // Unfinished tasks per person (same rule as ChangeStanding's message),
-        // so the Change Role pop-up can warn before saving.
+        // Unfinished tasks per person (same rule as CountOpenWorkAsync below),
+        // so the Change Role pop-up can warn before saving. Includes a
+        // repeating task's latest copy even when it's already Completed —
+        // see CountOpenWorkAsync for why that still counts as open work.
         const string openWorkSql = @"
             SELECT u.Id, COUNT(t.Id)
             FROM dbo.Users u
-            JOIN dbo.TaskItems t ON t.Status <> 'completed'
-             AND (t.ResponsibleAdminUserId = u.Id
-                  OR EXISTS (SELECT 1 FROM dbo.TaskAssignments a
-                             WHERE a.TaskId = t.Id AND a.UserId = u.Id AND a.Status <> 'completed'))
+            JOIN dbo.TaskItems t ON
+                (t.Status <> 'completed'
+                 AND (t.ResponsibleAdminUserId = u.Id
+                      OR EXISTS (SELECT 1 FROM dbo.TaskAssignments a
+                                 WHERE a.TaskId = t.Id AND a.UserId = u.Id AND a.Status <> 'completed')))
+                OR (t.Recurrence IS NOT NULL AND t.ResponsibleAdminUserId = u.Id)
             GROUP BY u.Id";
         var openTasks = new Dictionary<int, int>();
         using (var openCmd = new SqlCommand(openWorkSql, conn))
@@ -241,10 +245,12 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
 
         // Their current work belongs to their current role/division, so it
         // must be finished or reassigned first.
-        var openWork = await CountOpenWorkAsync(conn, id);
+        var (openWork, hasLiveRecurrence) = await CountOpenWorkAsync(conn, id);
         if (openWork > 0)
         {
-            TempData["DirectoryError"] = $"{fullName}'s role or division can't be changed yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
+            TempData["DirectoryError"] = hasLiveRecurrence
+                ? $"{fullName}'s role or division can't be changed yet. They're still the Responsible Admin for a repeating task — reassign or stop the repeat first, even if its latest copy shows Completed."
+                : $"{fullName}'s role or division can't be changed yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -264,18 +270,34 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
     }
 
     // Unfinished tasks a person is still on: assigned and not yet completed,
-    // or a directive they lead as Responsible Admin. Same rule as Index.
-    private static async Task<int> CountOpenWorkAsync(SqlConnection conn, int userId)
+    // a directive they lead as Responsible Admin, OR a repeating task's
+    // latest copy that still names them Responsible Admin — counted even if
+    // that copy itself is already Completed, since the repeat only rolls to
+    // its next copy when the DUE DATE arrives (RecurringTaskService), not
+    // when the copy is completed early. Without this, an Admin could be
+    // deactivated or reassigned while still "armed" to receive the next
+    // copy, and RecurringTaskService would then silently skip it forever
+    // (it only logs a warning — nobody is watching server logs here) the
+    // next time it came due. Same rule as Index.
+    private static async Task<(int Count, bool HasLiveRecurrence)> CountOpenWorkAsync(SqlConnection conn, int userId)
     {
         const string openWorkSql = @"
-            SELECT COUNT(*) FROM dbo.TaskItems t
-            WHERE t.Status <> 'completed'
-              AND (t.ResponsibleAdminUserId = @Id
-                   OR EXISTS (SELECT 1 FROM dbo.TaskAssignments a
-                              WHERE a.TaskId = t.Id AND a.UserId = @Id AND a.Status <> 'completed'))";
+            SELECT
+                (SELECT COUNT(*) FROM dbo.TaskItems t
+                 WHERE (t.Status <> 'completed'
+                        AND (t.ResponsibleAdminUserId = @Id
+                             OR EXISTS (SELECT 1 FROM dbo.TaskAssignments a
+                                        WHERE a.TaskId = t.Id AND a.UserId = @Id AND a.Status <> 'completed')))
+                    OR (t.Recurrence IS NOT NULL AND t.ResponsibleAdminUserId = @Id)),
+                CAST(CASE WHEN EXISTS (
+                    SELECT 1 FROM dbo.TaskItems t2
+                    WHERE t2.Recurrence IS NOT NULL AND t2.ResponsibleAdminUserId = @Id
+                ) THEN 1 ELSE 0 END AS BIT)";
         using var countCmd = new SqlCommand(openWorkSql, conn);
         countCmd.Parameters.AddWithValue("@Id", userId);
-        return Convert.ToInt32(await countCmd.ExecuteScalarAsync());
+        using var reader = await countCmd.ExecuteReaderAsync();
+        await reader.ReadAsync();
+        return (reader.GetInt32(0), reader.GetBoolean(1));
     }
 
     // Who may deactivate/reactivate whom. Super Admin: anyone but
@@ -333,10 +355,12 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
         // Reactivating is always fine; deactivating would strand their work.
         if (!active)
         {
-            var openWork = await CountOpenWorkAsync(conn, id);
+            var (openWork, hasLiveRecurrence) = await CountOpenWorkAsync(conn, id);
             if (openWork > 0)
             {
-                TempData["DirectoryError"] = $"{fullName}'s account can't be deactivated yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
+                TempData["DirectoryError"] = hasLiveRecurrence
+                    ? $"{fullName}'s account can't be deactivated yet. They're still the Responsible Admin for a repeating task — reassign or stop the repeat first, even if its latest copy shows Completed."
+                    : $"{fullName}'s account can't be deactivated yet. They still have {openWork} unfinished task(s). Reassign or finish them first.";
                 // Sent straight to their open work (e.g. an AWOL employee) so
                 // the admin doesn't have to hunt for which tasks to reassign.
                 TempData["DirectoryErrorTaskLink"] = Url.Action("Index", "Tasks", new { employeeId = id });
