@@ -196,7 +196,7 @@
         else
         {
             <div class="sa-table-wrap">
-                <table class="sa-table sa-table--cards">
+                <table class="sa-table sa-table--cards" id="saOverdueTable">
                     <thead>
                         <tr>
                             <th>Task</th>
@@ -232,6 +232,19 @@
                         }
                     </tbody>
                 </table>
+            </div>
+            @* Filled in by superadmin-dashboard.js — shows 10 rows per page. Stays
+               hidden when everything already fits on one page. *@
+            <div class="sa-pager" id="saOverduePager" hidden>
+                <span class="sa-pager__info" id="saOverduePagerInfo"></span>
+                <div class="sa-pager__buttons">
+                    <button type="button" class="sa-pager__btn" id="saOverduePrev">
+                        <span class="material-symbols-outlined">chevron_left</span> Previous
+                    </button>
+                    <button type="button" class="sa-pager__btn" id="saOverdueNext">
+                        Next <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
             </div>
         }
     </section>
@@ -303,6 +316,19 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            @* Filled in by superadmin-dashboard.js — shows 10 rows per page,
+               recomputed against whichever division is currently filtered in. *@
+            <div class="sa-pager" id="saWorkloadPager" hidden>
+                <span class="sa-pager__info" id="saWorkloadPagerInfo"></span>
+                <div class="sa-pager__buttons">
+                    <button type="button" class="sa-pager__btn" id="saWorkloadPrev">
+                        <span class="material-symbols-outlined">chevron_left</span> Previous
+                    </button>
+                    <button type="button" class="sa-pager__btn" id="saWorkloadNext">
+                        Next <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
             </div>
         }
     </section>

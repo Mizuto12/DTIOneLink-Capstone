@@ -349,6 +349,58 @@
 /* ── Tables (Overdue Tasks / Employee Workload) ────────── */
 .sa-table-wrap { overflow-x: auto; }
 
+/* Pager for the Overdue Tasks and Employee Workload tables — same role as
+   the Task Ledger's Gantt pager elsewhere in the app, just restyled with
+   this page's own tokens instead of the dashboard's --dash-* ones. */
+.sa-pager[hidden] { display: none; }
+
+.sa-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--surface-container);
+}
+
+.sa-pager__info {
+    font-size: 13px;
+    color: var(--on-surface-variant);
+}
+
+.sa-pager__buttons { display: flex; gap: 8px; }
+
+.sa-pager__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: var(--surface-container);
+    border: none;
+    border-radius: 9999px;
+    color: var(--on-surface-variant);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.sa-pager__btn:hover:not(:disabled) { background-color: var(--surface-container-high, var(--surface-container)); }
+.sa-pager__btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+.sa-pager__btn .material-symbols-outlined { font-size: 18px; }
+
+@media (max-width: 640px) {
+    .sa-pager { justify-content: center; text-align: center; }
+    .sa-pager__buttons { width: 100%; }
+    .sa-pager__buttons .sa-pager__btn { flex: 1; justify-content: center; min-height: 44px; }
+}
+
 .sa-table {
     width: 100%;
     border-collapse: collapse;
