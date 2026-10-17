@@ -176,6 +176,21 @@
                         }
                         <p class="sa-col__empty" hidden="@(items.Any() ? "hidden" : null)">Nothing here</p>
                     </div>
+                    @* Filled in by superadmin-dashboard.js — shows 5 cards per page per
+                       column, so reviewing a busy column is clicking Next instead of
+                       scrolling inside a small box. Hidden when a column's current
+                       (division-filtered) set already fits on one page. *@
+                    <div class="sa-col__pager" hidden>
+                        <span class="sa-col__pager-info"></span>
+                        <div class="sa-col__pager-buttons">
+                            <button type="button" class="sa-col__pager-btn" data-page="prev" aria-label="Previous cards">
+                                <span class="material-symbols-outlined">chevron_left</span>
+                            </button>
+                            <button type="button" class="sa-col__pager-btn" data-page="next" aria-label="Next cards">
+                                <span class="material-symbols-outlined">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             }
         </div>

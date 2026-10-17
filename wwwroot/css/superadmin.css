@@ -250,6 +250,45 @@
     padding: 0 10px 12px;
 }
 
+/* Per-column card pager (superadmin-dashboard.js, makeCardPager): 5 cards
+   per page, click Next instead of scrolling the column at all. Compact —
+   this sits inside a narrow Kanban column, not a full-width table. */
+.sa-col__pager[hidden] { display: none; }
+
+.sa-col__pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px 2px;
+}
+
+.sa-col__pager-info {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+}
+
+.sa-col__pager-buttons { display: flex; gap: 4px; }
+
+.sa-col__pager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background-color: var(--surface-container-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: 9999px;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.sa-col__pager-btn:hover:not(:disabled) { background-color: var(--surface-container-low); }
+.sa-col__pager-btn:disabled { opacity: 0.4; cursor: default; }
+.sa-col__pager-btn .material-symbols-outlined { font-size: 18px; }
+
 .sa-col__empty {
     margin: 0;
     padding: 20px 8px;

@@ -60,12 +60,66 @@
         };
     }
 
+    // Each column's own card pager: a handful of cards per page (clicking
+    // Next) instead of scrolling inside a small box. Reads its prev/next
+    // buttons via [data-page] so the same markup works for any number of
+    // columns without needing per-column ids.
+    var CARD_PAGE_SIZE = 5;
+
+    function makeCardPager(pagerEl) {
+        var infoEl = pagerEl.querySelector(".sa-col__pager-info");
+        var prevBtn = pagerEl.querySelector('[data-page="prev"]');
+        var nextBtn = pagerEl.querySelector('[data-page="next"]');
+        var page = 0;
+        var items = [];
+
+        function render() {
+            var total = items.length;
+            if (total <= CARD_PAGE_SIZE) {
+                pagerEl.hidden = true;
+                items.forEach(function (card) { card.hidden = false; });
+                return;
+            }
+
+            var pageCount = Math.ceil(total / CARD_PAGE_SIZE);
+            if (page >= pageCount) page = pageCount - 1;
+            if (page < 0) page = 0;
+
+            var start = page * CARD_PAGE_SIZE;
+            var end = Math.min(start + CARD_PAGE_SIZE, total);
+            items.forEach(function (card, i) { card.hidden = !(i >= start && i < end); });
+
+            pagerEl.hidden = false;
+            if (infoEl) infoEl.textContent = (start + 1) + "–" + end + " of " + total;
+            if (prevBtn) prevBtn.disabled = page === 0;
+            if (nextBtn) nextBtn.disabled = page === pageCount - 1;
+        }
+
+        if (prevBtn) prevBtn.addEventListener("click", function () { if (page > 0) { page--; render(); } });
+        if (nextBtn) nextBtn.addEventListener("click", function () {
+            var pageCount = Math.ceil(items.length / CARD_PAGE_SIZE);
+            if (page < pageCount - 1) { page++; render(); }
+        });
+
+        return {
+            setItems: function (newItems) {
+                items = newItems;
+                page = 0;
+                render();
+            },
+        };
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         var board = document.getElementById("saBoard");
         if (!board) return;
 
         var chips = Array.from(board.querySelectorAll(".sa-chip"));
         var columns = Array.from(board.querySelectorAll(".sa-col"));
+        var columnPagers = columns.map(function (col) {
+            var pagerEl = col.querySelector(".sa-col__pager");
+            return pagerEl ? makeCardPager(pagerEl) : null;
+        });
 
         function apply(division) {
             chips.forEach(function (chip) {
@@ -74,17 +128,26 @@
                 chip.setAttribute("aria-pressed", on ? "true" : "false");
             });
 
-            columns.forEach(function (col) {
-                var shown = 0;
-                col.querySelectorAll(".sa-kcard").forEach(function (card) {
-                    var match = !division || card.dataset.division === division;
-                    card.hidden = !match;
-                    if (match) shown++;
+            columns.forEach(function (col, idx) {
+                var allCards = Array.from(col.querySelectorAll(".sa-kcard"));
+                var matching = allCards.filter(function (card) {
+                    return !division || card.dataset.division === division;
                 });
+                allCards.forEach(function (card) {
+                    if (matching.indexOf(card) === -1) card.hidden = true;
+                });
+
                 var count = col.querySelector("[data-count]");
-                if (count) count.textContent = String(shown);
+                if (count) count.textContent = String(matching.length);
                 var empty = col.querySelector(".sa-col__empty");
-                if (empty) empty.hidden = shown > 0;
+                if (empty) empty.hidden = matching.length > 0;
+
+                var pager = columnPagers[idx];
+                if (pager) {
+                    pager.setItems(matching);
+                } else {
+                    matching.forEach(function (card) { card.hidden = false; });
+                }
             });
 
             // Remember the choice for this tab, so live refreshes keep it.
@@ -98,9 +161,7 @@
 
         var saved = "";
         try { saved = sessionStorage.getItem(STORAGE_KEY) || ""; } catch (e) { /* storage blocked */ }
-        if (saved && chips.some(function (c) { return c.dataset.division === saved; })) {
-            apply(saved);
-        }
+        apply(saved && chips.some(function (c) { return c.dataset.division === saved; }) ? saved : "");
     });
 
     // Overdue Tasks table: no filter, just paginate the full row list.
