@@ -895,12 +895,16 @@
   text-align: center;
 }
 
-/* About four cards tall, then the column scrolls on its own. */
+/* Scales with the viewport instead of a stingy fixed height — a fixed
+   560px only showed ~3-4 cards before forcing a scroll inside the column,
+   which still reads as "too much scrolling" even though it's contained
+   to one column. 70vh shows far more cards up front on most screens;
+   it still scrolls on its own past that, same as before. */
 .kanban-column__cards {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 560px;
+  max-height: 70vh;
   overflow-y: auto;
   padding: 0 10px 12px;
 }
