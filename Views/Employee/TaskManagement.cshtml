@@ -128,36 +128,38 @@
                 </button>
             </div>
 
-            @if (!todoTasks.Any())
-            {
-                <div class="column-empty">No tasks yet.</div>
-            }
-            else
-            {
-                @foreach (var task in todoTasks)
+            <div class="column-cards">
+                @if (!todoTasks.Any())
                 {
-                    <div class="task-card" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                         role="link" tabindex="0" aria-label="Open @task.TaskName">
-                        <div class="task-card-top">
-                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                            <button type="button" class="task-edit-btn" title="Edit task">
-                                <span class="material-symbols-outlined">edit</span>
-                            </button>
-                        </div>
-                        <h4 class="task-title">@task.TaskName</h4>
-                        <div class="task-footer">
-                            <div class="task-assignee">
-                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@AssigneeDisplay(task)</span>
-                            </div>
-                            <div class="task-due">
-                                <span class="material-symbols-outlined">calendar_today</span>
-                                <span class="due-label">@FormatDueDate(task.DueDate)</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="column-empty">No tasks yet.</div>
                 }
-            }
+                else
+                {
+                    @foreach (var task in todoTasks)
+                    {
+                        <div class="task-card" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                             role="link" tabindex="0" aria-label="Open @task.TaskName">
+                            <div class="task-card-top">
+                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                                <button type="button" class="task-edit-btn" title="Edit task">
+                                    <span class="material-symbols-outlined">edit</span>
+                                </button>
+                            </div>
+                            <h4 class="task-title">@task.TaskName</h4>
+                            <div class="task-footer">
+                                <div class="task-assignee">
+                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
+                                </div>
+                                <div class="task-due">
+                                    <span class="material-symbols-outlined">calendar_today</span>
+                                    <span class="due-label">@FormatDueDate(task.DueDate)</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
         </div>
 
         <!-- Column: In Progress -->
@@ -173,39 +175,41 @@
                 </button>
             </div>
 
-            @if (!inProgressTasks.Any())
-            {
-                <div class="column-empty">No tasks yet.</div>
-            }
-            else
-            {
-                @foreach (var task in inProgressTasks)
+            <div class="column-cards">
+                @if (!inProgressTasks.Any())
                 {
-                    <div class="task-card in-progress" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                         role="link" tabindex="0" aria-label="Open @task.TaskName">
-                        <div class="task-card-top">
-                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                            <button type="button" class="task-edit-btn" title="Edit task">
-                                <span class="material-symbols-outlined">edit</span>
-                            </button>
-                        </div>
-                        <h4 class="task-title">@task.TaskName</h4>
-                        <div class="task-progress-track">
-                            <div class="task-progress-fill" style="width: @(EffectiveProgress(task))%"></div>
-                        </div>
-                        <div class="task-footer">
-                            <div class="task-assignee">
-                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@AssigneeDisplay(task)</span>
-                            </div>
-                            <div class="task-due">
-                                <span class="material-symbols-outlined">calendar_today</span>
-                                <span class="due-label">@FormatDueDate(task.DueDate)</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="column-empty">No tasks yet.</div>
                 }
-            }
+                else
+                {
+                    @foreach (var task in inProgressTasks)
+                    {
+                        <div class="task-card in-progress" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                             role="link" tabindex="0" aria-label="Open @task.TaskName">
+                            <div class="task-card-top">
+                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                                <button type="button" class="task-edit-btn" title="Edit task">
+                                    <span class="material-symbols-outlined">edit</span>
+                                </button>
+                            </div>
+                            <h4 class="task-title">@task.TaskName</h4>
+                            <div class="task-progress-track">
+                                <div class="task-progress-fill" style="width: @(EffectiveProgress(task))%"></div>
+                            </div>
+                            <div class="task-footer">
+                                <div class="task-assignee">
+                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
+                                </div>
+                                <div class="task-due">
+                                    <span class="material-symbols-outlined">calendar_today</span>
+                                    <span class="due-label">@FormatDueDate(task.DueDate)</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
         </div>
 
         <!-- Column: For Review -->
@@ -221,32 +225,34 @@
                 </button>
             </div>
 
-            @if (!forReviewTasks.Any())
-            {
-                <div class="column-empty">No tasks yet.</div>
-            }
-            else
-            {
-                @foreach (var task in forReviewTasks)
+            <div class="column-cards">
+                @if (!forReviewTasks.Any())
                 {
-                    <div class="task-card for-review" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                         role="link" tabindex="0" aria-label="Open @task.TaskName">
-                        <div class="task-card-top">
-                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                        </div>
-                        <h4 class="task-title">@task.TaskName</h4>
-                        <div class="task-footer">
-                            <div class="task-assignee">
-                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@AssigneeDisplay(task)</span>
-                            </div>
-                            <div class="task-due">
-                                <span class="due-label">Awaiting review</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="column-empty">No tasks yet.</div>
                 }
-            }
+                else
+                {
+                    @foreach (var task in forReviewTasks)
+                    {
+                        <div class="task-card for-review" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                             role="link" tabindex="0" aria-label="Open @task.TaskName">
+                            <div class="task-card-top">
+                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                            </div>
+                            <h4 class="task-title">@task.TaskName</h4>
+                            <div class="task-footer">
+                                <div class="task-assignee">
+                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
+                                </div>
+                                <div class="task-due">
+                                    <span class="due-label">Awaiting review</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
         </div>
 
         <!-- Column: Rejected -->
@@ -262,33 +268,35 @@
                 </button>
             </div>
 
-            @if (!rejectedTasks.Any())
-            {
-                <div class="column-empty">No tasks yet.</div>
-            }
-            else
-            {
-                @foreach (var task in rejectedTasks)
+            <div class="column-cards">
+                @if (!rejectedTasks.Any())
                 {
-                    <div class="task-card rejected" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                         role="link" tabindex="0" aria-label="Open @task.TaskName">
-                        <div class="task-card-top">
-                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                            <span class="material-symbols-outlined task-rejected-icon">refresh</span>
-                        </div>
-                        <h4 class="task-title">@task.TaskName</h4>
-                        <div class="task-footer">
-                            <div class="task-assignee">
-                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@AssigneeDisplay(task)</span>
-                            </div>
-                            <div class="task-due">
-                                <span class="due-label">Needs resubmission</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="column-empty">No tasks yet.</div>
                 }
-            }
+                else
+                {
+                    @foreach (var task in rejectedTasks)
+                    {
+                        <div class="task-card rejected" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                             role="link" tabindex="0" aria-label="Open @task.TaskName">
+                            <div class="task-card-top">
+                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                                <span class="material-symbols-outlined task-rejected-icon">refresh</span>
+                            </div>
+                            <h4 class="task-title">@task.TaskName</h4>
+                            <div class="task-footer">
+                                <div class="task-assignee">
+                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
+                                </div>
+                                <div class="task-due">
+                                    <span class="due-label">Needs resubmission</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
         </div>
 
         <!-- Column: Completed -->
@@ -338,47 +346,49 @@
                 </div>
             </div>
 
-            @if (!completedTasks.Any())
-            {
-                <div class="column-empty">No tasks yet.</div>
-            }
-            else
-            {
-                @foreach (var task in completedTasks)
+            <div class="column-cards">
+                @if (!completedTasks.Any())
                 {
-                    <div class="task-card completed" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                         role="link" tabindex="0" aria-label="Open @task.TaskName">
-                        <div class="task-card-top">
-                            <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                            <div class="task-card-top-actions">
-                                @if (CanDelete(task))
-                                {
-                                    <form asp-controller="Employee" asp-action="Delete" method="post"
-                                          class="task-delete-form" data-task-name="@task.TaskName">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@task.Id" />
-                                        <button type="submit" class="task-delete-btn"
-                                                title="Delete task" aria-label="Delete @task.TaskName">
-                                            <span class="material-symbols-outlined">delete</span>
-                                        </button>
-                                    </form>
-                                }
-                                <span class="material-symbols-outlined task-complete-icon" data-weight="fill">check_circle</span>
-                            </div>
-                        </div>
-                        <h4 class="task-title">@task.TaskName</h4>
-                        <div class="task-footer">
-                            <div class="task-assignee">
-                                <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                <span class="assignee-name">@AssigneeDisplay(task)</span>
-                            </div>
-                            <div class="task-due">
-                                <span class="due-label">Due @FormatDueDate(task.DueDate)</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="column-empty">No tasks yet.</div>
                 }
-            }
+                else
+                {
+                    @foreach (var task in completedTasks)
+                    {
+                        <div class="task-card completed" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
+                             role="link" tabindex="0" aria-label="Open @task.TaskName">
+                            <div class="task-card-top">
+                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                                <div class="task-card-top-actions">
+                                    @if (CanDelete(task))
+                                    {
+                                        <form asp-controller="Employee" asp-action="Delete" method="post"
+                                              class="task-delete-form" data-task-name="@task.TaskName">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@task.Id" />
+                                            <button type="submit" class="task-delete-btn"
+                                                    title="Delete task" aria-label="Delete @task.TaskName">
+                                                <span class="material-symbols-outlined">delete</span>
+                                            </button>
+                                        </form>
+                                    }
+                                    <span class="material-symbols-outlined task-complete-icon" data-weight="fill">check_circle</span>
+                                </div>
+                            </div>
+                            <h4 class="task-title">@task.TaskName</h4>
+                            <div class="task-footer">
+                                <div class="task-assignee">
+                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
+                                </div>
+                                <div class="task-due">
+                                    <span class="due-label">Due @FormatDueDate(task.DueDate)</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
         </div>
 
     </div>
