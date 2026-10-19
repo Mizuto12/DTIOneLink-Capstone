@@ -790,6 +790,11 @@
   background: var(--tone-soft);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
   z-index: 2;
+  /* The inline width is a percentage of the timeline (min 1.5%), which
+     works on desktop's ~820px chart but shrinks to a few illegible
+     pixels on a phone-width card. A pixel floor keeps short/near-today
+     bars visible and tappable regardless of screen width. */
+  min-width: 14px;
 }
 .gantt-bar.is-overdue { box-shadow: inset 0 0 0 2px #dc2626; }
 
@@ -1340,6 +1345,10 @@
   }
   .gantt-row:hover .gantt-row__info { background: transparent; }
   .gantt-bar__label { display: none; }
+  /* Short/near-today bars need a bigger pixel floor here than the base
+     14px: the card is narrower, so the same bar reads even smaller
+     relative to everything around it. */
+  .gantt-bar { min-width: 20px; }
   .gantt-row__track { height: 18px; }
 }
 
