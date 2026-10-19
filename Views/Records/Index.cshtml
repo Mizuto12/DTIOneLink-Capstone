@@ -24,15 +24,16 @@
           <span class="material-symbols-outlined">description</span>
         </div>
         <div>
-          <h2 class="card-title">Add New Entry</h2>
-          <p class="card-desc">Fill in the details to archive a new document</p>
+          <h2 class="card-title" id="entry-form-title">Add New Entry</h2>
+          <p class="card-desc" id="entry-form-desc">Fill in the details to archive a new document</p>
         </div>
       </div>
-      <span class="badge">NEW RECORD</span>
+      <span class="badge" id="entry-form-badge">NEW RECORD</span>
     </div>
 
     <form id="new-entry-form">
       @Html.AntiForgeryToken()
+      <input type="hidden" id="entry-record-id" name="recordId" value="">
       <div class="form-grid">
         <div class="field">
           <label for="code">Code</label>
@@ -97,7 +98,8 @@
                  placeholder="e.g. Public upon request" aria-label="Specify access control"
                  pattern=".*\S.*" title="Please type a value." hidden>
         </div>
-        <button class="commit-btn" type="submit">
+        <button class="btn btn-outline" type="button" id="entry-form-cancel-btn" hidden>Cancel</button>
+        <button class="commit-btn" type="submit" id="entry-form-submit-btn">
           <span class="material-symbols-outlined">save</span> Save Entry
         </button>
       </div>
@@ -202,14 +204,20 @@
             <th>Filing System</th>
             <th>Access Control</th>
             <th>Retention Period</th>
+            @if (ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true)
+            {
+              <th>Status</th>
+            }
+            <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="submissions-body" aria-busy="true">
+        <tbody id="submissions-body" aria-busy="true" data-can-manage="@(ViewBag.CanManageRecords == true ? "true" : "false")" data-can-approve="@(ViewBag.CanApproveRecords == true ? "true" : "false")">
           @* Placeholders until records.js loads the real rows. *@
+          @{ var skeletonCols = (ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true) ? 10 : 9; }
           @for (var i = 0; i < 3; i++)
           {
             <tr class="skeleton-row" aria-hidden="true">
-              @for (var c = 0; c < 8; c++)
+              @for (var c = 0; c < skeletonCols; c++)
               {
                 <td><span class="skeleton"></span></td>
               }

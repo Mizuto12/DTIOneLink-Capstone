@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DTIOneLink.Tests;
 
@@ -68,7 +69,7 @@ public class TasksControllerReviewTests
         var taskAssignments = new TaskAssignmentService(context);
         var opdTasks = new OpdTaskService(context, taskAssignments, notifications);
 
-        return new TasksController(context, notifications, taskAssignments, opdTasks)
+        return new TasksController(context, notifications, taskAssignments, opdTasks, NullLogger<TasksController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(httpContext, new FakeTempDataProvider()),

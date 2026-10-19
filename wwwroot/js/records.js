@@ -12,6 +12,7 @@ const filterForm = document.getElementById('records-filter');
 let entries = [];
 let currentPage = 1;
 let filtersActive = false;
+let editingRecordId = null; // non-null while the Add New Entry form is editing an existing record
 
 // The table starts with placeholder rows (from the page); they show again
 // on every reload, so slow wifi never shows "No new records" by mistake.
@@ -60,6 +61,54 @@ function totalPages() {
   return Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
 }
 
+// Status column: the PD's approval (ApproveRecords) and the records
+// officer's disposal validation (ManageRecords) — only rendered for
+// whichever of those two the signed-in user actually holds.
+const canManageRecords = tableBody.dataset.canManage === 'true';
+const canApproveRecords = tableBody.dataset.canApprove === 'true';
+const showStatusColumn = canManageRecords || canApproveRecords;
+
+function statusCellHtml(data) {
+  const parts = [];
+  parts.push(`<span class="status-pill status-${escapeHtml((data.recordStatus || 'Active').toLowerCase())}">${escapeHtml(data.recordStatus || 'Active')}</span>`);
+
+  if (canApproveRecords) {
+    parts.push(data.approvedByName
+      ? `<span class="approved-note">Approved by ${escapeHtml(data.approvedByName)}${data.approvedAt ? ' on ' + escapeHtml(data.approvedAt) : ''}</span>`
+      : `<button type="button" class="btn btn-outline btn-small approve-btn" data-id="${data.recordId}">Approve</button>`);
+  } else if (data.approvedByName) {
+    parts.push(`<span class="approved-note">Approved by ${escapeHtml(data.approvedByName)}</span>`);
+  }
+
+  if (canManageRecords) {
+    if (data.recordStatus === 'Active') {
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkForDisposal">Mark for Disposal</button>`);
+    } else if (data.recordStatus === 'ForDisposal') {
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkDisposed">Mark Disposed</button>`);
+    }
+  }
+
+  return parts.join(' ');
+}
+
+function actionsCellHtml(data) {
+  if (!data.canEdit) {
+    return '<span class="actions-none" aria-hidden="true">—</span>';
+  }
+  return `
+    <div class="row-actions">
+      <button type="button" class="row-action-btn edit-record-btn" data-id="${data.recordId}"
+              title="Edit" aria-label="Edit ${escapeHtml(data.code)}">
+        <span class="material-symbols-outlined">edit</span>
+      </button>
+      <button type="button" class="row-action-btn row-action-danger delete-record-btn" data-id="${data.recordId}" data-code="${escapeHtml(data.code)}"
+              title="Delete" aria-label="Delete ${escapeHtml(data.code)}">
+        <span class="material-symbols-outlined">delete</span>
+      </button>
+    </div>
+  `;
+}
+
 // Build the visible row(s) for the current page
 function renderRows() {
   tableBody.innerHTML = '';
@@ -67,13 +116,14 @@ function renderRows() {
   if (legend) {
     legend.hidden = true;
   }
+  const colCount = showStatusColumn ? 10 : 9;
 
   if (entries.length === 0) {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'empty-row';
     emptyRow.innerHTML = filtersActive
-      ? `<td colspan="8" class="empty-state">No records match your search.</td>`
-      : `<td colspan="8" class="empty-state">No new records. Fill in the form above to add one.</td>`;
+      ? `<td colspan="${colCount}" class="empty-state">No records match your search.</td>`
+      : `<td colspan="${colCount}" class="empty-state">No new records. Fill in the form above to add one.</td>`;
     tableBody.appendChild(emptyRow);
     return;
   }
@@ -94,6 +144,8 @@ function renderRows() {
       <td data-label="Filing System">${escapeHtml(data.filingSystem)}</td>
       <td data-label="Access Control">${escapeHtml(data.accessControl)}</td>
       <td data-label="Retention Period">${escapeHtml(data.retentionPeriod)}</td>
+      ${showStatusColumn ? `<td data-label="Status">${statusCellHtml(data)}</td>` : ''}
+      <td data-label="Actions">${actionsCellHtml(data)}</td>
     `;
     // Reminder colour (decided on the server): yellow when the retention
     // period ends within 6 months, red once it has ended. The legend under
@@ -113,8 +165,127 @@ function renderRows() {
     attachHoverEffect(row);
   });
 
+  if (showStatusColumn) {
+    tableBody.querySelectorAll('.approve-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleStatusAction(btn, `/Records/Approve?id=${encodeURIComponent(btn.dataset.id)}`));
+    });
+    tableBody.querySelectorAll('.disposal-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleStatusAction(btn, `/Records/${btn.dataset.action}?id=${encodeURIComponent(btn.dataset.id)}`));
+    });
+  }
+  tableBody.querySelectorAll('.edit-record-btn').forEach(btn => {
+    btn.addEventListener('click', () => beginEdit(btn.dataset.id));
+  });
+  tableBody.querySelectorAll('.delete-record-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleDelete(btn));
+  });
+
   if (legend) {
     legend.hidden = !pageEntries.some(e => e.retentionState === 'due-soon' || e.retentionState === 'ended');
+  }
+}
+
+// Shared handler for the Approve/Mark for Disposal/Mark Disposed buttons.
+async function handleStatusAction(btn, url) {
+  btn.disabled = true;
+  try {
+    await postAction(url);
+    await loadRecords();
+  } catch (err) {
+    btn.disabled = false;
+    await showNotice({
+      tone: 'error',
+      icon: 'error',
+      title: 'Couldn’t update the record',
+      message: err.message || 'Please try again.',
+      okText: 'OK'
+    });
+  }
+}
+
+// Sets a dropdown (+ its "Other / Specify" text box) to a stored value that
+// may or may not match one of the standard options — the same ambiguity the
+// stored data itself can have, since typed "Other" values are kept verbatim.
+function setChoiceField(select, value) {
+  const isStandard = [...select.options].some(o => o.value === value);
+  select.value = isStandard ? value : OTHER_VALUE;
+  syncOtherInput(select, false);
+  if (!isStandard) {
+    const input = otherInputFor(select);
+    if (input) input.value = value || '';
+  }
+}
+
+// Switches the "Add New Entry" form into editing an existing record: fills
+// every field from what's already loaded client-side (no extra round trip),
+// swaps the header/button wording, and scrolls the form into view.
+function beginEdit(recordId) {
+  const data = entries.find(e => String(e.recordId) === String(recordId));
+  if (!data) return;
+
+  editingRecordId = data.recordId;
+  form.elements['code'].value = data.code;
+  form.elements['title'].value = data.title;
+  form.elements['location'].value = data.location;
+  form.elements['period'].value = data.periodCovered;
+  form.elements['retention'].value = data.retentionPeriod;
+  setChoiceField(form.elements['medium'], data.medium);
+  setChoiceField(form.elements['filing'], data.filingSystem);
+  setChoiceField(form.elements['access'], data.accessControl);
+
+  document.getElementById('entry-form-title').textContent = 'Edit Entry';
+  document.getElementById('entry-form-desc').textContent = `Correcting ${data.code}`;
+  document.getElementById('entry-form-badge').textContent = 'EDITING';
+  const submitBtn = document.getElementById('entry-form-submit-btn');
+  submitBtn.innerHTML = '<span class="material-symbols-outlined">save</span> Update Entry';
+  document.getElementById('entry-form-cancel-btn').hidden = false;
+
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEdit() {
+  editingRecordId = null;
+  form.reset();
+  document.getElementById('entry-form-title').textContent = 'Add New Entry';
+  document.getElementById('entry-form-desc').textContent = 'Fill in the details to archive a new document';
+  document.getElementById('entry-form-badge').textContent = 'NEW RECORD';
+  document.getElementById('entry-form-submit-btn').innerHTML = '<span class="material-symbols-outlined">save</span> Save Entry';
+  document.getElementById('entry-form-cancel-btn').hidden = true;
+}
+
+const cancelEditBtn = document.getElementById('entry-form-cancel-btn');
+if (cancelEditBtn) {
+  cancelEditBtn.addEventListener('click', cancelEdit);
+}
+
+async function handleDelete(btn) {
+  const confirmed = await showNotice({
+    tone: 'error',
+    icon: 'warning',
+    title: 'Delete this record?',
+    file: btn.dataset.code,
+    message: 'This permanently removes the record. This cannot be undone.',
+    okText: 'Delete',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+
+  btn.disabled = true;
+  try {
+    await postAction(`/Records/Delete?id=${encodeURIComponent(btn.dataset.id)}`);
+    if (editingRecordId != null && String(editingRecordId) === String(btn.dataset.id)) {
+      cancelEdit();
+    }
+    await loadRecords();
+  } catch (err) {
+    btn.disabled = false;
+    await showNotice({
+      tone: 'error',
+      icon: 'error',
+      title: 'Couldn’t delete the record',
+      message: err.message || 'Please try again.',
+      okText: 'OK'
+    });
   }
 }
 
@@ -296,7 +467,10 @@ form.addEventListener('submit', async (e) => {
 
   const btn = form.querySelector('button[type="submit"]');
   const originalContent = btn.innerHTML;
-  btn.innerHTML = `<span class="material-symbols-outlined animate-spin">sync</span> Recording...`;
+  const isEditing = editingRecordId != null;
+  btn.innerHTML = isEditing
+    ? `<span class="material-symbols-outlined animate-spin">sync</span> Updating...`
+    : `<span class="material-symbols-outlined animate-spin">sync</span> Recording...`;
   btn.disabled = true;
 
   const formData = new FormData(form);
@@ -310,9 +484,12 @@ form.addEventListener('submit', async (e) => {
     accessControl: chosenValue(form.elements['access']),
     retentionPeriod: formData.get('retention').trim()
   };
+  if (isEditing) {
+    payload.recordId = editingRecordId;
+  }
 
   try {
-    const res = await fetch('/Records/Save', {
+    const res = await fetch(isEditing ? '/Records/Update' : '/Records/Save', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -325,19 +502,26 @@ form.addEventListener('submit', async (e) => {
       throw new Error(await readErrorMessage(res));
     }
 
-    const saved = await res.json();
-
     btn.innerHTML = `<span class="material-symbols-outlined">check_circle</span> Success!`;
 
-    entries.push(saved);
-    // Jump to the page that now contains the new record
-    currentPage = totalPages();
-    render();
+    if (isEditing) {
+      await loadRecords();
+    } else {
+      const saved = await res.json();
+      entries.push(saved);
+      // Jump to the page that now contains the new record
+      currentPage = totalPages();
+      render();
+    }
 
     setTimeout(() => {
-      btn.innerHTML = originalContent;
       btn.disabled = false;
-      form.reset();
+      if (isEditing) {
+        cancelEdit(); // also restores the button's own label
+      } else {
+        btn.innerHTML = originalContent;
+        form.reset();
+      }
     }, 1200);
 
   } catch (err) {
@@ -345,7 +529,9 @@ form.addEventListener('submit', async (e) => {
     // typed, queue it — offline-sync.js replays it as a normal
     // /Records/Save call once the connection returns, since a new record
     // never conflicts with anyone else's (owner-scoped, no shared state).
-    if (err instanceof TypeError && window.DTIOffline) {
+    // Editing isn't queued offline: it depends on server-side state
+    // (ownership, masterlist status) that can't be safely assumed stale.
+    if (!isEditing && err instanceof TypeError && window.DTIOffline) {
       window.DTIOffline.queueRecord(payload);
       btn.innerHTML = `<span class="material-symbols-outlined">cloud_off</span> Saved offline`;
       setTimeout(() => {
@@ -360,7 +546,7 @@ form.addEventListener('submit', async (e) => {
     // status and the full reason appears in a dialog that stays until
     // the user closes it.
     btn.innerHTML = `<span class="material-symbols-outlined">error</span> Not saved`;
-    showError('Record not saved', errorMessage(err));
+    showError(isEditing ? 'Record not updated' : 'Record not saved', errorMessage(err));
     setTimeout(() => {
       btn.innerHTML = originalContent;
       btn.disabled = false;

@@ -1,0 +1,602 @@
+<title>DTI OneLink DFD Set</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#f4f5f7; --surface:#ffffff; --fg:#1a2233; --muted:#5b6472;
+    --accent:#1d4ed8; --border:#d4d9e0; --store:#b2461e;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'IBM Plex Sans',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1420; --surface:#161c2b; --fg:#e6e9ef; --muted:#9aa4b2;
+      --accent:#6c93f5; --border:#2a3142; --store:#e08a52; color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1420; --surface:#161c2b; --fg:#e6e9ef; --muted:#9aa4b2;
+    --accent:#6c93f5; --border:#2a3142; --store:#e08a52; color-scheme:dark;
+  }
+  body{background:var(--bg); color:var(--fg); font-family:var(--font-body);
+    padding-inline:16px; padding-block:32px;}
+  .wrap{max-width:1420px; margin:0 auto;}
+  .eyebrow{font-family:var(--font-mono); font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 6px;}
+  h1{font-family:var(--font-display); font-weight:700; font-size:clamp(24px,4vw,34px);
+    margin:0 0 8px; text-wrap:balance;}
+  .sub{color:var(--muted); font-size:15px; margin:0 0 20px; max-width:80ch;}
+  nav.toc{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:40px;}
+  nav.toc a{font-family:var(--font-mono); font-size:12.5px; text-decoration:none; color:var(--fg);
+    background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:7px 14px;}
+  nav.toc a:hover{border-color:var(--accent); color:var(--accent);}
+  section.level{margin-bottom:56px; padding-top:8px; border-top:1px solid var(--border);}
+  section.level h2{font-family:var(--font-display); font-size:clamp(18px,2.6vw,24px); margin:20px 0 4px;}
+  section.level .lvl-sub{color:var(--muted); font-size:14px; margin:0 0 18px; max-width:80ch;}
+  figure{margin:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px; overflow-x:auto;}
+  svg{display:block; width:100%; height:auto; margin:0 auto;}
+  figcaption{font-size:13px; color:var(--muted); margin-top:14px; max-width:90ch;}
+  .legend{display:flex; flex-wrap:wrap; gap:18px; margin-top:18px; font-size:13px; color:var(--muted);}
+  .legend-item{display:flex; align-items:center; gap:8px;}
+  .swatch{width:26px; height:18px; flex:none; border:1.6px solid var(--fg); background:none;}
+  .swatch.proc{border-radius:5px;}
+  .swatch.store{border-left:4px solid var(--store); border-radius:0;}
+  .swatch.flow{height:0; width:28px; border:none; border-top:1.6px solid var(--fg);}
+  .detail{margin-top:24px;}
+  .detail h3{font-family:var(--font-display); font-size:15px; margin:0 0 10px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;}
+  .note{font-size:13px; color:var(--muted); background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:12px 16px; margin-bottom:18px; max-width:92ch;}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">System Documentation — Complete Set</p>
+  <h1>DTI OneLink — Data Flow Diagrams</h1>
+  <p class="sub">The full DFD hierarchy for the manuscript's Design/Methodology
+  section: Level 0 (context diagram), Level 1 (first decomposition into five
+  numbered processes), and Level 2 (further decomposition of the two processes
+  with real internal complexity — Manage Tasks and Manage Records).</p>
+
+  <nav class="toc">
+    <a href="#l0">Level 0 — Context Diagram</a>
+    <a href="#l1">Level 1 — System Decomposition</a>
+    <a href="#l2a">Level 2 — Process 2.0 Manage Tasks</a>
+    <a href="#l2b">Level 2 — Process 3.0 Manage Records</a>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- LEVEL 0 -->
+  <!-- ============================================================ -->
+  <section class="level" id="l0">
+    <h2>Level 0 — Context Diagram</h2>
+    <p class="lvl-sub">The system as a single process (Process 0), showing only
+    what crosses its boundary — no internal structure.</p>
+
+    <figure>
+      <svg viewBox="0 0 1200 800" role="img"
+        aria-label="Context diagram: DTI OneLink as a single process exchanging login, task, and records data with Super Admin, Admin, and Employee entities, and sending outbound notification emails to Brevo.">
+        <defs>
+          <marker id="arrow0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <rect x="60" y="60" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="170" y="98" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Super Admin</text>
+        <text x="170" y="118" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Office of the Provincial Director</text>
+
+        <rect x="920" y="60" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="1030" y="98" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Admin</text>
+        <text x="1030" y="118" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Division Chief / Supervisor</text>
+
+        <rect x="60" y="650" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="170" y="688" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Employee</text>
+        <text x="170" y="708" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Division staff</text>
+
+        <rect x="920" y="650" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="1030" y="688" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Email Service</text>
+        <text x="1030" y="708" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Brevo (outbound only)</text>
+
+        <circle cx="600" cy="400" r="130" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+        <text x="600" y="382" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="17" fill="var(--accent)">0</text>
+        <text x="600" y="408" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="16">DTI OneLink</text>
+        <text x="600" y="430" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" fill="var(--muted)">System</text>
+
+        <line x1="274" y1="158" x2="502" y2="316" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="265" y="208" width="168" height="34" fill="var(--surface)"/>
+        <text x="349" y="222" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">login + task directives</text>
+        <text x="349" y="237" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">account &amp; role requests</text>
+
+        <line x1="514" y1="300" x2="286" y2="142" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="400" y="170" width="155" height="34" fill="var(--surface)"/>
+        <text x="477" y="184" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">office dashboard,</text>
+        <text x="477" y="199" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">reports, notifications</text>
+
+        <line x1="926" y1="158" x2="698" y2="316" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="767" y="208" width="178" height="34" fill="var(--surface)"/>
+        <text x="856" y="222" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">task assignments &amp; reviews</text>
+        <text x="856" y="237" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">records entries</text>
+
+        <line x1="686" y1="300" x2="914" y2="142" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="645" y="170" width="178" height="34" fill="var(--surface)"/>
+        <text x="734" y="184" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">division dashboard,</text>
+        <text x="734" y="199" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">task &amp; records data</text>
+
+        <line x1="286" y1="658" x2="514" y2="500" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="275" y="565" width="200" height="34" fill="var(--surface)"/>
+        <text x="375" y="579" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">status updates,</text>
+        <text x="375" y="594" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">proof of completion</text>
+
+        <line x1="502" y1="484" x2="274" y2="642" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="400" y="608" width="150" height="34" fill="var(--surface)"/>
+        <text x="475" y="622" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">assigned tasks,</text>
+        <text x="475" y="637" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">notifications</text>
+
+        <line x1="692" y1="492" x2="920" y2="650" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow0)"/>
+        <rect x="735" y="555" width="150" height="20" fill="var(--surface)"/>
+        <text x="810" y="569" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">notification email</text>
+      </svg>
+      <figcaption><strong>Fig. 1 — Level 0 context diagram.</strong> All data entering or leaving DTI OneLink passes through Process 0; see Level 1 for how that process is broken down internally.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- LEVEL 1 -->
+  <!-- ============================================================ -->
+  <section class="level" id="l1">
+    <h2>Level 1 — System Decomposition</h2>
+    <p class="lvl-sub">Process 0 broken into its five major processes, each with
+    its own data store. Every request/response pair is a separate single-direction
+    arrow; no process connects directly to another process — task and records
+    events reach Send Notifications only through D4.</p>
+
+    <figure>
+      <svg viewBox="0 0 1400 1000" role="img"
+        aria-label="Level 1 data flow diagram: Super Admin, Admin, Employee and Email Service entities exchange single-direction labeled flows with five numbered processes, which read and write four data stores.">
+        <defs>
+          <marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arrowStore1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--store)"/>
+          </marker>
+        </defs>
+
+        <text x="115" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">EXTERNAL ENTITIES</text>
+        <text x="720" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">PROCESSES</text>
+        <text x="1250" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">DATA STORES</text>
+
+        <rect x="20" y="55" width="190" height="110" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="115" y="114" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Super Admin</text>
+
+        <rect x="20" y="250" width="190" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="115" y="304" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Admin</text>
+
+        <rect x="20" y="440" width="190" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="115" y="494" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Employee</text>
+
+        <rect x="20" y="635" width="190" height="75" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="115" y="667" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Email Service</text>
+        <text x="115" y="684" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--muted)">(Brevo)</text>
+
+        <rect x="620" y="55" width="200" height="110" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="620" y1="85" x2="820" y2="85" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="720" y="77" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="14" fill="var(--accent)">1.0</text>
+        <text x="720" y="110" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13">Authenticate &amp;</text>
+        <text x="720" y="128" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13">Manage Accounts</text>
+
+        <rect x="620" y="245" width="200" height="110" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="620" y1="275" x2="820" y2="275" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="720" y="267" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="14" fill="var(--accent)">2.0</text>
+        <text x="720" y="310" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13.5">Manage Tasks</text>
+
+        <rect x="620" y="435" width="200" height="110" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="620" y1="465" x2="820" y2="465" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="720" y="457" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="14" fill="var(--accent)">3.0</text>
+        <text x="720" y="500" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13.5">Manage Records</text>
+
+        <rect x="620" y="625" width="200" height="110" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="620" y1="655" x2="820" y2="655" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="720" y="647" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="14" fill="var(--accent)">4.0</text>
+        <text x="720" y="690" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13.5">Send Notifications</text>
+
+        <rect x="620" y="815" width="200" height="110" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="620" y1="845" x2="820" y2="845" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="720" y="837" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="14" fill="var(--accent)">5.0</text>
+        <text x="720" y="870" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13">Generate Dashboard</text>
+        <text x="720" y="888" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13">&amp; Reports</text>
+
+        <rect x="1160" y="75" width="180" height="70" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1160" y1="75" x2="1160" y2="145" stroke="var(--store)" stroke-width="4"/>
+        <text x="1255" y="115" text-anchor="middle" font-family="IBM Plex Mono" font-size="13">D1 Users</text>
+
+        <rect x="1160" y="265" width="180" height="70" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1160" y1="265" x2="1160" y2="335" stroke="var(--store)" stroke-width="4"/>
+        <text x="1255" y="305" text-anchor="middle" font-family="IBM Plex Mono" font-size="13">D2 Tasks</text>
+
+        <rect x="1160" y="455" width="180" height="70" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1160" y1="455" x2="1160" y2="525" stroke="var(--store)" stroke-width="4"/>
+        <text x="1255" y="495" text-anchor="middle" font-family="IBM Plex Mono" font-size="13">D3 Records</text>
+
+        <rect x="1160" y="645" width="180" height="70" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1160" y1="645" x2="1160" y2="715" stroke="var(--store)" stroke-width="4"/>
+        <text x="1255" y="685" text-anchor="middle" font-family="IBM Plex Mono" font-size="13">D4 Notifications</text>
+
+        <line x1="210" y1="84" x2="620" y2="65" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="300" y="68" width="60" height="14" fill="var(--surface)"/><text x="330" y="78" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">login</text>
+        <line x1="620" y1="83" x2="210" y2="72" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="290" y="92" width="80" height="14" fill="var(--surface)"/><text x="330" y="102" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">auth result</text>
+
+        <line x1="210" y1="108" x2="620" y2="255" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="320" y="155" width="110" height="14" fill="var(--surface)"/><text x="375" y="165" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">task directive</text>
+        <line x1="620" y1="273" x2="210" y2="96" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="430" y="185" width="90" height="14" fill="var(--surface)"/><text x="475" y="195" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">task status</text>
+
+        <line x1="620" y1="645" x2="210" y2="120" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="560" y="340" width="100" height="14" fill="var(--surface)"/><text x="610" y="350" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">notification</text>
+
+        <line x1="620" y1="843" x2="210" y2="132" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="500" y="460" width="90" height="14" fill="var(--surface)"/><text x="545" y="470" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">dashboard</text>
+        <line x1="210" y1="144" x2="620" y2="825" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="260" y="470" width="110" height="14" fill="var(--surface)"/><text x="315" y="480" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">view request</text>
+
+        <line x1="210" y1="268.5" x2="620" y2="101" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="300" y="220" width="60" height="14" fill="var(--surface)"/><text x="330" y="230" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">login</text>
+        <line x1="620" y1="119" x2="210" y2="258" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="300" y="195" width="80" height="14" fill="var(--surface)"/><text x="340" y="205" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">auth result</text>
+
+        <line x1="210" y1="289.5" x2="620" y2="291" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="330" y="272" width="90" height="14" fill="var(--surface)"/><text x="375" y="282" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">assignment</text>
+        <line x1="620" y1="309" x2="210" y2="279" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="330" y="298" width="80" height="14" fill="var(--surface)"/><text x="370" y="308" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">task data</text>
+
+        <line x1="210" y1="310.5" x2="620" y2="450" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="320" y="360" width="100" height="14" fill="var(--surface)"/><text x="370" y="370" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">record entry</text>
+        <line x1="620" y1="470" x2="210" y2="300" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="420" y="400" width="90" height="14" fill="var(--surface)"/><text x="465" y="410" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">masterlist</text>
+
+        <line x1="620" y1="665" x2="210" y2="321" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="470" y="480" width="100" height="14" fill="var(--surface)"/><text x="520" y="490" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">notification</text>
+
+        <line x1="620" y1="879" x2="210" y2="331.5" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="430" y="595" width="90" height="14" fill="var(--surface)"/><text x="475" y="605" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">dashboard</text>
+        <line x1="210" y1="342" x2="620" y2="861" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="330" y="560" width="110" height="14" fill="var(--surface)"/><text x="385" y="570" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">view request</text>
+
+        <line x1="210" y1="458.5" x2="620" y2="137" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="260" y="280" width="60" height="14" fill="var(--surface)"/><text x="290" y="290" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">login</text>
+        <line x1="620" y1="155" x2="210" y2="448" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="400" y="260" width="80" height="14" fill="var(--surface)"/><text x="440" y="270" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">auth result</text>
+
+        <line x1="210" y1="479.5" x2="620" y2="327" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="310" y="420" width="90" height="14" fill="var(--surface)"/><text x="355" y="430" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">status/proof</text>
+        <line x1="620" y1="345" x2="210" y2="469" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="400" y="430" width="110" height="14" fill="var(--surface)"/><text x="455" y="440" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">assigned tasks</text>
+
+        <line x1="210" y1="500.5" x2="620" y2="510" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="330" y="492" width="100" height="14" fill="var(--surface)"/><text x="380" y="502" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">record entry</text>
+        <line x1="620" y1="530" x2="210" y2="490" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="330" y="516" width="90" height="14" fill="var(--surface)"/><text x="375" y="526" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">masterlist</text>
+
+        <line x1="620" y1="695" x2="210" y2="511" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="330" y="588" width="100" height="14" fill="var(--surface)"/><text x="380" y="598" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">notification</text>
+
+        <line x1="620" y1="915" x2="210" y2="521.5" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="380" y="700" width="70" height="14" fill="var(--surface)"/><text x="415" y="710" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">reports</text>
+        <line x1="210" y1="532" x2="620" y2="897" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="280" y="700" width="110" height="14" fill="var(--surface)"/><text x="335" y="710" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">view request</text>
+
+        <line x1="620" y1="715" x2="210" y2="670" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+        <rect x="350" y="680" width="110" height="14" fill="var(--surface)"/><text x="405" y="690" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">notify email</text>
+
+        <line x1="820" y1="90" x2="1160" y2="95" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="930" y="78" width="100" height="14" fill="var(--surface)"/><text x="980" y="88" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write account</text>
+        <line x1="1160" y1="125" x2="820" y2="130" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="930" y="133" width="100" height="14" fill="var(--surface)"/><text x="980" y="143" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">account rec.</text>
+
+        <line x1="820" y1="280" x2="1160" y2="278" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="935" y="266" width="90" height="14" fill="var(--surface)"/><text x="980" y="276" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write task</text>
+        <line x1="1160" y1="300" x2="820" y2="320" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="935" y="304" width="90" height="14" fill="var(--surface)"/><text x="980" y="314" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">task rec.</text>
+
+        <line x1="820" y1="470" x2="1160" y2="468" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="930" y="456" width="100" height="14" fill="var(--surface)"/><text x="980" y="466" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write record</text>
+        <line x1="1160" y1="490" x2="820" y2="510" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="930" y="494" width="100" height="14" fill="var(--surface)"/><text x="980" y="504" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">record rec.</text>
+
+        <line x1="1160" y1="665" x2="820" y2="650" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="925" y="638" width="110" height="14" fill="var(--surface)"/><text x="980" y="648" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">pending events</text>
+        <line x1="820" y1="710" x2="1160" y2="695" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="935" y="698" width="90" height="14" fill="var(--surface)"/><text x="980" y="708" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">log entry</text>
+
+        <path d="M820,340 Q1000,470 1160,655" fill="none" stroke="var(--store)" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arrowStore1)"/>
+        <rect x="930" y="430" width="60" height="14" fill="var(--surface)"/><text x="960" y="440" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">event</text>
+        <path d="M820,530 Q1000,600 1160,705" fill="none" stroke="var(--store)" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arrowStore1)"/>
+        <rect x="950" y="590" width="60" height="14" fill="var(--surface)"/><text x="980" y="600" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">event</text>
+
+        <line x1="1160" y1="322" x2="820" y2="835" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="960" y="560" width="90" height="14" fill="var(--surface)"/><text x="1005" y="570" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">task data</text>
+        <line x1="1160" y1="512" x2="820" y2="855" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore1)"/>
+        <rect x="990" y="665" width="100" height="14" fill="var(--surface)"/><text x="1040" y="675" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">records data</text>
+      </svg>
+      <figcaption><strong>Fig. 2 — Level 1 system decomposition.</strong> Dashed arrows show 2.0 and 3.0 writing pending-event records into D4; 4.0 reads D4 to decide what to send, so no process connects directly to another.</figcaption>
+    </figure>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch" style="border-color:currentColor"></span>External entity</div>
+      <div class="legend-item"><span class="swatch proc" style="border-color:var(--accent)"></span>Process (numbered X.0)</div>
+      <div class="legend-item"><span class="swatch store"></span>Data store</div>
+      <div class="legend-item"><span class="swatch flow"></span>Data flow (single direction)</div>
+    </div>
+
+    <div class="detail">
+      <h3>Process descriptions</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Process</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>1.0</td><td>Authenticate &amp; Manage Accounts</td><td>Validates login credentials, enforces role-based access, and lets authorized users create, update, or deactivate accounts.</td></tr>
+          <tr><td>2.0</td><td>Manage Tasks</td><td>Task creation, assignment, status updates, proof submission, and review. Decomposed further in Level 2 below.</td></tr>
+          <tr><td>3.0</td><td>Manage Records</td><td>Records classification, retrieval, and retention/disposal monitoring. Decomposed further in Level 2 below.</td></tr>
+          <tr><td>4.0</td><td>Send Notifications</td><td>Reads pending-event records from D4 and generates in-app and outbound email alerts.</td></tr>
+          <tr><td>5.0</td><td>Generate Dashboard &amp; Reports</td><td>On a view request from any entity, reads D2/D3 and returns a role-scoped dashboard or exportable report.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- LEVEL 2 — 2.0 -->
+  <!-- ============================================================ -->
+  <section class="level" id="l2a">
+    <h2>Level 2 — Decomposition of Process 2.0 (Manage Tasks)</h2>
+    <p class="lvl-sub">Breaks Manage Tasks into its five sub-processes. All five
+    still read and write the same D2 Tasks store shown at Level 1; 2.5 is the
+    sub-process responsible for writing the pending-event records into D4.</p>
+
+    <figure>
+      <svg viewBox="0 0 1260 820" role="img"
+        aria-label="Level 2 decomposition of Manage Tasks into five sub-processes: Create and Assign Task, Update Progress, Submit Proof, Review and Validate, and Monitor and Flag Due Tasks, reading and writing the Tasks and Notifications data stores.">
+        <defs>
+          <marker id="arrow2a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arrowStore2a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--store)"/>
+          </marker>
+        </defs>
+
+        <text x="115" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">ENTITIES</text>
+        <text x="680" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">SUB-PROCESSES OF 2.0</text>
+        <text x="1140" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">STORES</text>
+
+        <rect x="20" y="60" width="180" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="110" y="114" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="14">Super Admin</text>
+
+        <rect x="20" y="290" width="180" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="110" y="344" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="14">Admin</text>
+
+        <rect x="20" y="510" width="180" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="110" y="564" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="14">Employee</text>
+
+        <!-- sub-processes -->
+        <rect x="560" y="60" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="88" x2="760" y2="88" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="80" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">2.1</text>
+        <text x="660" y="112" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Create &amp; Assign</text>
+        <text x="660" y="128" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Task</text>
+
+        <rect x="560" y="210" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="238" x2="760" y2="238" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="230" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">2.2</text>
+        <text x="660" y="262" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Update Task</text>
+        <text x="660" y="278" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Progress</text>
+
+        <rect x="560" y="360" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="388" x2="760" y2="388" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="380" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">2.3</text>
+        <text x="660" y="412" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Submit Proof of</text>
+        <text x="660" y="428" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Completion</text>
+
+        <rect x="560" y="510" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="538" x2="760" y2="538" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="530" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">2.4</text>
+        <text x="660" y="562" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Review &amp; Validate</text>
+        <text x="660" y="578" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Submission</text>
+
+        <rect x="560" y="660" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="688" x2="760" y2="688" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="680" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">2.5</text>
+        <text x="660" y="712" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Monitor &amp; Flag</text>
+        <text x="660" y="728" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Due Tasks</text>
+
+        <!-- stores -->
+        <rect x="1060" y="240" width="170" height="260" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1060" y1="240" x2="1060" y2="500" stroke="var(--store)" stroke-width="4"/>
+        <text x="1145" y="375" text-anchor="middle" font-family="IBM Plex Mono" font-size="13">D2 Tasks</text>
+
+        <rect x="1060" y="610" width="170" height="80" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1060" y1="610" x2="1060" y2="690" stroke="var(--store)" stroke-width="4"/>
+        <text x="1145" y="655" text-anchor="middle" font-family="IBM Plex Mono" font-size="12.5">D4 Notif.</text>
+
+        <!-- flows -->
+        <line x1="200" y1="110" x2="560" y2="90" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="280" y="80" width="130" height="14" fill="var(--surface)"/><text x="345" y="90" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">task directive</text>
+
+        <line x1="200" y1="330" x2="560" y2="130" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="270" y="190" width="140" height="14" fill="var(--surface)"/><text x="340" y="200" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">assignment details</text>
+
+        <line x1="760" y1="100" x2="1060" y2="270" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2a)"/>
+        <rect x="860" y="170" width="100" height="14" fill="var(--surface)"/><text x="910" y="180" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write new task</text>
+
+        <line x1="200" y1="560" x2="560" y2="245" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="260" y="400" width="110" height="14" fill="var(--surface)"/><text x="315" y="410" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">status update</text>
+
+        <line x1="760" y1="260" x2="1060" y2="300" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2a)"/>
+        <rect x="850" y="270" width="100" height="14" fill="var(--surface)"/><text x="900" y="280" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write status</text>
+
+        <line x1="560" y1="290" x2="200" y2="360" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="280" y="335" width="110" height="14" fill="var(--surface)"/><text x="335" y="345" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">status notify</text>
+
+        <line x1="200" y1="580" x2="560" y2="400" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="270" y="500" width="90" height="14" fill="var(--surface)"/><text x="315" y="510" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">proof file</text>
+
+        <line x1="760" y1="410" x2="1060" y2="340" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2a)"/>
+        <rect x="850" y="365" width="120" height="14" fill="var(--surface)"/><text x="910" y="375" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write submission</text>
+
+        <line x1="560" y1="430" x2="200" y2="340" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="280" y="395" width="130" height="14" fill="var(--surface)"/><text x="345" y="405" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">for-review notify</text>
+
+        <line x1="200" y1="370" x2="560" y2="550" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="270" y="460" width="130" height="14" fill="var(--surface)"/><text x="335" y="470" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">review decision</text>
+
+        <line x1="760" y1="560" x2="1060" y2="390" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2a)"/>
+        <rect x="850" y="470" width="120" height="14" fill="var(--surface)"/><text x="910" y="480" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write validation</text>
+
+        <line x1="560" y1="580" x2="200" y2="580" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2a)"/>
+        <rect x="290" y="562" width="120" height="14" fill="var(--surface)"/><text x="350" y="572" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">review outcome</text>
+
+        <line x1="1060" y1="420" x2="760" y2="690" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2a)"/>
+        <rect x="860" y="560" width="110" height="14" fill="var(--surface)"/><text x="915" y="570" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">read task data</text>
+
+        <line x1="760" y1="730" x2="1060" y2="650" stroke="var(--store)" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arrowStore2a)"/>
+        <rect x="870" y="690" width="110" height="14" fill="var(--surface)"/><text x="925" y="700" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">pending event</text>
+      </svg>
+      <figcaption><strong>Fig. 3 — Level 2 decomposition of 2.0 Manage Tasks.</strong> 2.5 continuously evaluates due dates on D2 and is the only sub-process that writes to D4, matching the single "event" flow shown leaving 2.0 at Level 1.</figcaption>
+    </figure>
+
+    <div class="detail">
+      <h3>Sub-process descriptions</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-process</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>2.1</td><td>Create &amp; Assign Task</td><td>Creates a task record from a Super Admin directive or Admin assignment, including assignee(s), due date, priority, and attachments; writes it to D2.</td></tr>
+          <tr><td>2.2</td><td>Update Task Progress</td><td>Accepts an employee's status/progress update, writes it to D2, and notifies the responsible Admin.</td></tr>
+          <tr><td>2.3</td><td>Submit Proof of Completion</td><td>Accepts an uploaded proof file from the employee, writes the submission to D2, and flags the task "For Review" to the Admin.</td></tr>
+          <tr><td>2.4</td><td>Review &amp; Validate Submission</td><td>Accepts the Admin's approve/return decision, writes the validation result to D2, and notifies the employee of the outcome.</td></tr>
+          <tr><td>2.5</td><td>Monitor &amp; Flag Due Tasks</td><td>Reads D2 on a schedule to find tasks approaching or past their due date, and writes a pending-event record to D4 for each one.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- LEVEL 2 — 3.0 -->
+  <!-- ============================================================ -->
+  <section class="level" id="l2b">
+    <h2>Level 2 — Decomposition of Process 3.0 (Manage Records)</h2>
+    <p class="lvl-sub">Breaks Manage Records into its four sub-processes, all
+    reading and writing the same D3 Records store shown at Level 1.</p>
+
+    <figure>
+      <svg viewBox="0 0 1260 700" role="img"
+        aria-label="Level 2 decomposition of Manage Records into four sub-processes: Log and Classify Record, Search and Retrieve Records, Monitor Retention and Disposal, and Archive or Dispose Record, reading and writing the Records and Notifications data stores.">
+        <defs>
+          <marker id="arrow2b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arrowStore2b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--store)"/>
+          </marker>
+        </defs>
+
+        <text x="115" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">ENTITIES</text>
+        <text x="680" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">SUB-PROCESSES OF 3.0</text>
+        <text x="1140" y="28" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" letter-spacing="1" fill="var(--muted)">STORES</text>
+
+        <rect x="20" y="130" width="180" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="110" y="184" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="14">Admin</text>
+
+        <rect x="20" y="420" width="180" height="100" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <text x="110" y="474" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="14">Employee</text>
+
+        <rect x="560" y="50" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="78" x2="760" y2="78" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="70" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">3.1</text>
+        <text x="660" y="102" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Log &amp; Classify</text>
+        <text x="660" y="118" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Record</text>
+
+        <rect x="560" y="200" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="228" x2="760" y2="228" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="220" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">3.2</text>
+        <text x="660" y="252" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Search &amp; Retrieve</text>
+        <text x="660" y="268" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Records</text>
+
+        <rect x="560" y="350" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="378" x2="760" y2="378" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="370" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">3.3</text>
+        <text x="660" y="402" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Monitor Retention</text>
+        <text x="660" y="418" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">&amp; Disposal</text>
+
+        <rect x="560" y="500" width="200" height="100" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="560" y1="528" x2="760" y2="528" stroke="var(--accent)" stroke-width="1.1"/>
+        <text x="660" y="520" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="var(--accent)">3.4</text>
+        <text x="660" y="552" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Archive / Dispose</text>
+        <text x="660" y="568" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="12.5">Record</text>
+
+        <rect x="1060" y="80" width="170" height="440" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1060" y1="80" x2="1060" y2="520" stroke="var(--store)" stroke-width="4"/>
+        <text x="1145" y="305" text-anchor="middle" font-family="IBM Plex Mono" font-size="13">D3 Records</text>
+
+        <rect x="1060" y="560" width="170" height="80" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="1060" y1="560" x2="1060" y2="640" stroke="var(--store)" stroke-width="4"/>
+        <text x="1145" y="605" text-anchor="middle" font-family="IBM Plex Mono" font-size="12.5">D4 Notif.</text>
+
+        <line x1="200" y1="170" x2="560" y2="90" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="280" y="115" width="100" height="14" fill="var(--surface)"/><text x="330" y="125" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">record entry</text>
+
+        <line x1="200" y1="460" x2="560" y2="110" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="230" y="280" width="100" height="14" fill="var(--surface)"/><text x="280" y="290" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">record entry</text>
+
+        <line x1="760" y1="100" x2="1060" y2="110" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2b)"/>
+        <rect x="860" y="90" width="100" height="14" fill="var(--surface)"/><text x="910" y="100" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">write record</text>
+
+        <line x1="200" y1="190" x2="560" y2="240" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="270" y="205" width="100" height="14" fill="var(--surface)"/><text x="320" y="215" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">search query</text>
+
+        <line x1="200" y1="480" x2="560" y2="265" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="260" y="370" width="100" height="14" fill="var(--surface)"/><text x="310" y="380" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">search query</text>
+
+        <line x1="1060" y1="200" x2="760" y2="245" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2b)"/>
+        <rect x="860" y="210" width="90" height="14" fill="var(--surface)"/><text x="905" y="220" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">read record</text>
+
+        <line x1="560" y1="220" x2="200" y2="155" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="280" y="175" width="60" height="14" fill="var(--surface)"/><text x="310" y="185" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">results</text>
+
+        <line x1="560" y1="290" x2="200" y2="500" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="330" y="400" width="60" height="14" fill="var(--surface)"/><text x="360" y="410" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">results</text>
+
+        <line x1="1060" y1="300" x2="760" y2="390" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2b)"/>
+        <rect x="870" y="330" width="110" height="14" fill="var(--surface)"/><text x="925" y="340" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">read retention</text>
+
+        <line x1="760" y1="420" x2="1060" y2="580" stroke="var(--store)" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arrowStore2b)"/>
+        <rect x="870" y="490" width="110" height="14" fill="var(--surface)"/><text x="925" y="500" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">pending event</text>
+
+        <line x1="200" y1="210" x2="560" y2="540" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="280" y="440" width="140" height="14" fill="var(--surface)"/><text x="350" y="450" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">disposition decision</text>
+
+        <line x1="760" y1="550" x2="1060" y2="420" stroke="var(--store)" stroke-width="1.4" marker-end="url(#arrowStore2b)"/>
+        <rect x="870" y="460" width="130" height="14" fill="var(--surface)"/><text x="935" y="470" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--store)">update archive ref.</text>
+
+        <line x1="560" y1="570" x2="200" y2="230" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow2b)"/>
+        <rect x="330" y="420" width="90" height="14" fill="var(--surface)"/><text x="375" y="430" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5">confirmation</text>
+      </svg>
+      <figcaption><strong>Fig. 4 — Level 2 decomposition of 3.0 Manage Records.</strong> 3.3 is the only sub-process that writes to D4, matching the single "event" flow shown leaving 3.0 at Level 1.</figcaption>
+    </figure>
+
+    <div class="detail">
+      <h3>Sub-process descriptions</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-process</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>3.1</td><td>Log &amp; Classify Record</td><td>Accepts a new record entry (title, reference number, category, retention period) from Admin or Employee and writes it to D3.</td></tr>
+          <tr><td>3.2</td><td>Search &amp; Retrieve Records</td><td>Accepts a search query, reads matching records from D3, and returns the masterlist results.</td></tr>
+          <tr><td>3.3</td><td>Monitor Retention &amp; Disposal</td><td>Reads D3 on a schedule to find records approaching or past their retention review date, and writes a pending-event record to D4.</td></tr>
+          <tr><td>3.4</td><td>Archive / Dispose Record</td><td>Accepts the Admin's retain/archive/dispose decision, updates the record's status and archival reference in D3, and confirms the action back to the Admin.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>

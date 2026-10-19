@@ -10,6 +10,7 @@ public class RolePermissionsTests
     [InlineData("ADMIN", Permissions.ManageUserAccounts, true)]
     [InlineData("Admin", Permissions.ManageOfficeWideTasks, false)]
     [InlineData("Admin", Permissions.ViewOfficeWideSummaries, false)]
+    [InlineData("Admin", Permissions.ApproveRecords, false)] // approving stays the PD's (SuperAdmin's) job
     public void Has_AdminRole(string role, string permission, bool expected)
     {
         Assert.Equal(expected, RolePermissions.Has(role, permission));
@@ -20,8 +21,9 @@ public class RolePermissionsTests
     [InlineData(Permissions.ViewOfficeWideSummaries, true)]
     [InlineData(Permissions.ManageOfficeWideTasks, true)]
     [InlineData(Permissions.ManageTasks, false)] // office-wide task access is its own permission, not plain ManageTasks
-    [InlineData(Permissions.ManageRecords, false)]
-    [InlineData(Permissions.ViewConfidentialRecords, false)]
+    [InlineData(Permissions.ManageRecords, false)] // disposal validation stays Admin-only (the records officer), not the PD
+    [InlineData(Permissions.ViewConfidentialRecords, true)] // the PD approves records office-wide, Confidential included
+    [InlineData(Permissions.ApproveRecords, true)]
     public void Has_SuperAdminRole(string permission, bool expected)
     {
         Assert.Equal(expected, RolePermissions.Has("SuperAdmin", permission));
@@ -33,6 +35,7 @@ public class RolePermissionsTests
     [InlineData(Permissions.ManageOfficeWideTasks, false)]
     [InlineData(Permissions.ManageRecords, false)]
     [InlineData(Permissions.ViewConfidentialRecords, false)]
+    [InlineData(Permissions.ApproveRecords, false)]
     public void Has_EmployeeRole_OnlyHoldsItsOwnScopedPermission(string permission, bool expected)
     {
         Assert.Equal(expected, RolePermissions.Has("Employee", permission));

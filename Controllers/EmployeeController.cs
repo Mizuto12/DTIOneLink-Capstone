@@ -178,7 +178,7 @@ public async Task<IActionResult> Delete(int id)
     }
 
     var taskName = task.TaskName;
-    await PermanentlyDeleteTasksAsync(new[] { task }, userId.Value);
+    await _taskAssignments.PermanentlyDeleteTasksAsync(new[] { task }, userId.Value, _logger);
 
     TempData["SuccessMessage"] = $"\"{taskName}\" was deleted.";
     return RedirectToAction(nameof(TaskManagement));
@@ -216,96 +216,12 @@ public async Task<IActionResult> DeleteAllCompleted()
         return RedirectToAction(nameof(TaskManagement));
     }
 
-    await PermanentlyDeleteTasksAsync(tasks, userId.Value);
+    await _taskAssignments.PermanentlyDeleteTasksAsync(tasks, userId.Value, _logger);
 
     TempData["SuccessMessage"] = tasks.Count == 1
         ? "1 completed task was deleted."
         : $"{tasks.Count} completed tasks were deleted.";
     return RedirectToAction(nameof(TaskManagement));
-}
-
-// Permanently deletes the given tasks (all in one transaction) with their
-// assignments, proof submissions, comments, activity history, and
-// notifications; recalculates any OPD directive a deleted subtask belonged
-// to; then removes the proof files from disk. Callers must have already
-// checked the delete rules and loaded Assignments, Submissions, Activities,
-// and Comments (tracked) on every task.
-private async Task PermanentlyDeleteTasksAsync(IReadOnlyCollection<TaskItem> tasks, int deletedByUserId)
-{
-    var taskIds = tasks.Select(t => t.Id).ToList();
-    var parentTaskIds = tasks
-        .Where(t => t.ParentTaskId.HasValue)
-        .Select(t => t.ParentTaskId!.Value)
-        .Distinct()
-        .ToList();
-    var proofFiles = tasks
-        .SelectMany(t => t.Submissions.Select(s => new { TaskId = t.Id, File = s.ProofStoredFileName }))
-        .Where(f => !string.IsNullOrWhiteSpace(f.File))
-        .ToList();
-    var deletedNames = tasks.Select(t => new { t.Id, t.TaskName }).ToList();
-
-    await using (var transaction = await _context.Database.BeginTransactionAsync())
-    {
-        // Notifications only lose their task link (SET NULL) on delete, which
-        // would leave messages pointing at a task that no longer exists.
-        await _context.Notifications
-            .Where(n => n.RelatedTaskId.HasValue && taskIds.Contains(n.RelatedTaskId.Value))
-            .ExecuteDeleteAsync();
-
-        // Children first, explicitly: activities reference submissions and
-        // submissions reference assignments (both restricted), so EF deletes
-        // them in dependency order before the tasks themselves.
-        foreach (var task in tasks)
-        {
-            _context.TaskActivities.RemoveRange(task.Activities);
-            _context.TaskComments.RemoveRange(task.Comments);
-            _context.TaskSubmissions.RemoveRange(task.Submissions);
-            _context.TaskAssignments.RemoveRange(task.Assignments);
-            _context.TaskItems.Remove(task);
-        }
-        await _context.SaveChangesAsync();
-
-        // A deleted subtask no longer counts toward its OPD directive, so
-        // recompute each affected directive from what remains.
-        foreach (var parentId in parentTaskIds)
-        {
-            await _taskAssignments.RecalculateMainTaskAsync(parentId);
-        }
-        if (parentTaskIds.Count > 0)
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        await transaction.CommitAsync();
-    }
-
-    // Files go only after the database commit, so a failed delete never
-    // leaves submissions pointing at missing files. Best effort: a file that
-    // can't be removed is logged, not shown to the user.
-    var storageRoot = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "ProofUploads");
-    foreach (var proof in proofFiles)
-    {
-        try
-        {
-            var fullPath = Path.Combine(storageRoot, Path.GetFileName(proof.File));
-            if (System.IO.File.Exists(fullPath))
-            {
-                System.IO.File.Delete(fullPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not delete proof file {File} for deleted task {TaskId}.", proof.File, proof.TaskId);
-        }
-    }
-
-    // The tasks' own activity history is gone, so the server log is the
-    // remaining record of who deleted what.
-    foreach (var deleted in deletedNames)
-    {
-        _logger.LogInformation("Task {TaskId} \"{TaskName}\" was permanently deleted by user {UserId}.",
-            deleted.Id, deleted.TaskName, deletedByUserId);
-    }
 }
 
 // Applies one assignee's progress change with the workflow rules both the

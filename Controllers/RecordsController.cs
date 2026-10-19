@@ -63,6 +63,12 @@ namespace DTIOneLink.Controllers
         // is refused.
         private const string MasterlistColumn = "MasterlistId";
         private static bool _hasMasterlistColumn;
+        // Records.ApprovedByUserId/ApprovedAt, from migration
+        // 20261019000000_AddRecordApproval. Without them Approve is refused,
+        // same tolerant pattern as the other optional columns above.
+        private static readonly string[] ApprovalColumns = { "ApprovedByUserId", "ApprovedAt" };
+        private static bool _hasApprovalColumns;
+        private static DateTime _approvalSchemaCheckedAtUtc = DateTime.MinValue;
         private static DateTime _schemaCheckedAtUtc = DateTime.MinValue;
 
         // Stand-in for "Records r" when the system columns don't exist yet:
@@ -144,6 +150,44 @@ namespace DTIOneLink.Controllers
             }
         }
 
+        private bool HasApprovalColumns(SqlConnection openConnection)
+        {
+            lock (SchemaLock)
+            {
+                if (_hasApprovalColumns || DateTime.UtcNow - _approvalSchemaCheckedAtUtc < SchemaRecheckInterval)
+                {
+                    return _hasApprovalColumns;
+                }
+            }
+
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = new SqlCommand(
+                "SELECT name FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Records')", openConnection))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    found.Add(reader.GetString(0));
+                }
+            }
+
+            var hasAll = ApprovalColumns.All(found.Contains);
+            if (!hasAll)
+            {
+                _logger.LogWarning(
+                    "Records approval columns are missing ({Missing}); Approve is disabled. " +
+                    "Apply migration 20261019000000_AddRecordApproval to enable it.",
+                    string.Join(", ", ApprovalColumns.Where(c => !found.Contains(c))));
+            }
+
+            lock (SchemaLock)
+            {
+                _hasApprovalColumns = hasAll;
+                _approvalSchemaCheckedAtUtc = DateTime.UtcNow;
+            }
+            return hasAll;
+        }
+
         // Validates one required free-text field. Returns an error message,
         // or null when the value is acceptable.
         private static string? CheckText(string value, string label, int maxLength)
@@ -155,8 +199,10 @@ namespace DTIOneLink.Controllers
         }
 
         // Who is asking, resolved from the server-side session only — never
-        // from anything the browser sends.
-        private sealed record RecordsUser(int UserId, string? Department, bool CanManage);
+        // from anything the browser sends. CanManage (Admin, the records
+        // officer) handles disposal validation; CanApprove (SuperAdmin, the
+        // PD) handles sign-off — deliberately separate permissions/roles.
+        private sealed record RecordsUser(int UserId, string? Department, bool CanManage, bool CanApprove);
 
         // Roles allowed to open, list, and add records. The single rule used by
         // Index, GetAll, and Save. Which rows a user can SEE is decided
@@ -185,7 +231,8 @@ namespace DTIOneLink.Controllers
             user = new RecordsUser(
                 userId.Value,
                 string.IsNullOrWhiteSpace(department) ? null : department.Trim(),
-                RolePermissions.Has(role, Permissions.ManageRecords));
+                RolePermissions.Has(role, Permissions.ManageRecords),
+                RolePermissions.Has(role, Permissions.ApproveRecords));
             return RecordsAccess.Allowed;
         }
 
@@ -199,13 +246,18 @@ namespace DTIOneLink.Controllers
                     new { message = "Your account is not allowed to use Records Management." });
 
         // Row-level visibility, applied in SQL so hidden rows never leave the
-        // database: every record is visible ONLY to the person who logged it
-        // (CreatedByUserId). This applies whatever the Access Control value
-        // says and whatever the viewer's role is — other Admins and the
-        // SuperAdmin don't see it either. Records with no stored owner
-        // (logged before the owner column existed) are visible to nobody
-        // until an owner is assigned in the database.
-        private const string VisibilityClause = @"
+        // database. An Employee only ever sees the records they logged
+        // (CreatedByUserId). Admin (the records officer, ManageRecords) and
+        // SuperAdmin (the PD, ApproveRecords) see every record office-wide —
+        // deliberately, so disposal validation and approval can actually see
+        // the records they're approving/validating, Confidential included.
+        // Records with no stored owner (logged before the owner column
+        // existed) are visible to nobody but managers/approvers until an
+        // owner is assigned in the database.
+        private static string VisibilityClause(RecordsUser user) =>
+            (user.CanManage || user.CanApprove)
+                ? "1 = 1"
+                : @"
 (
     r.CreatedByUserId IS NOT NULL
     AND r.CreatedByUserId = @UserId
@@ -276,18 +328,32 @@ namespace DTIOneLink.Controllers
             return due <= today.AddMonths(RecordRetentionReminder.ReminderMonths) ? "due-soon" : null;
         }
 
+        // Who may Edit/Delete a given row: its own creator, or a records
+        // manager (Admin). Allowed even once a record is saved into a
+        // Masterlist — a saved Masterlist's own Excel file is a frozen
+        // snapshot from when it was generated, so correcting the live
+        // record afterward doesn't rewrite history, it just means a
+        // re-download would differ from what was already handed out.
+        // SuperAdmin (approval-only) does not get this on someone else's
+        // record, only on one they logged themselves, same as anyone else.
+        private static bool CanEditRow(RecordRow row, RecordsUser user) =>
+            user.CanManage || row.CreatedByUserId == user.UserId;
+
         // Employees only ever receive the eight columns shown on the page plus
-        // the reminder colour; system-managed fields are added for records
-        // managers only.
+        // the reminder colour; system-managed fields (including approval) are
+        // added for records managers (Admin) and approvers (SuperAdmin) only.
         private static object ToClientRow(RecordRow row, RecordsUser user)
         {
-            if (!user.CanManage)
+            var canEdit = CanEditRow(row, user);
+
+            if (!user.CanManage && !user.CanApprove)
             {
                 return new
                 {
                     row.RecordId, row.Code, row.Title, row.Medium, row.Location,
                     row.PeriodCovered, row.FilingSystem, row.AccessControl, row.RetentionPeriod,
-                    RetentionState = RetentionState(row)
+                    RetentionState = RetentionState(row),
+                    CanEdit = canEdit
                 };
             }
 
@@ -299,7 +365,10 @@ namespace DTIOneLink.Controllers
                 row.OwningDepartment,
                 RecordDate = row.RecordDate?.ToString("yyyy-MM-dd"),
                 RetentionDueDate = row.RetentionDueDate?.ToString("yyyy-MM-dd"),
-                RetentionState = RetentionState(row)
+                RetentionState = RetentionState(row),
+                ApprovedByName = row.ApprovedByName,
+                ApprovedAt = row.ApprovedAt?.ToString("yyyy-MM-dd"),
+                CanEdit = canEdit
             };
         }
 
@@ -318,6 +387,10 @@ namespace DTIOneLink.Controllers
             public string? OwningDepartment { get; init; }
             public DateTime? RecordDate { get; init; }
             public DateTime? RetentionDueDate { get; init; }
+            public string? ApprovedByName { get; init; }
+            public DateTime? ApprovedAt { get; init; }
+            public int? CreatedByUserId { get; init; }
+            public int? MasterlistId { get; init; }
         }
 
         [HttpGet]
@@ -333,9 +406,10 @@ namespace DTIOneLink.Controllers
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            // Only decides whether the retention filter is rendered; GetAll
-            // enforces the same rule on its own.
+            // Only decides which columns/buttons are rendered; GetAll and the
+            // action endpoints enforce the same rules on their own.
             ViewBag.CanManageRecords = user.CanManage;
+            ViewBag.CanApproveRecords = user.CanApprove;
             return View();
         }
 
@@ -368,7 +442,7 @@ SELECT
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate <= @Today THEN 1 ELSE 0 END),
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate > @Today AND r.RetentionDueDate <= @SoonLimit THEN 1 ELSE 0 END)
 FROM {source}
-WHERE {VisibilityClause} AND r.RecordStatus = 'Active'", conn))
+WHERE {VisibilityClause(user)} AND r.RecordStatus = 'Active'", conn))
                 {
                     AddVisibilityParameters(cmd, user);
                     cmd.Parameters.Add("@Today", SqlDbType.Date).Value = today;
@@ -425,13 +499,20 @@ WHERE {VisibilityClause} AND r.RecordStatus = 'Active'", conn))
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
             var source = HasSystemColumns(conn) ? "Records r" : LegacyRecordsSource;
+            var hasApproval = HasApprovalColumns(conn);
+            var approvalSelect = hasApproval ? ", au.FullName AS ApprovedByName, r.ApprovedAt" : ", CAST(NULL AS nvarchar(200)) AS ApprovedByName, CAST(NULL AS datetime2) AS ApprovedAt";
+            var approvalJoin = hasApproval ? " LEFT JOIN Users au ON au.Id = r.ApprovedByUserId" : "";
+
+            var hasMasterlistColumn = HasMasterlists(conn);
+            var masterlistSelect = hasMasterlistColumn ? ", r.MasterlistId" : ", CAST(NULL AS int) AS MasterlistId";
 
             var sql = new System.Text.StringBuilder(@"
 SELECT r.RecordId, r.Code, r.Title, r.Medium, r.Location, r.PeriodCovered,
        r.FilingSystem, r.AccessControl, r.RetentionPeriod,
-       r.RecordStatus, r.OwningDepartment, r.RecordDate, r.RetentionDueDate
-FROM ").Append(source).Append(@"
-WHERE ").Append(VisibilityClause);
+       r.RecordStatus, r.OwningDepartment, r.RecordDate, r.RetentionDueDate")
+                .Append(approvalSelect).Append(", r.CreatedByUserId").Append(masterlistSelect).Append(@"
+FROM ").Append(source).Append(approvalJoin).Append(@"
+WHERE ").Append(VisibilityClause(user));
 
             using var cmd = new SqlCommand { Connection = conn };
             AddVisibilityParameters(cmd, user);
@@ -533,7 +614,11 @@ WHERE ").Append(VisibilityClause);
                         RecordStatus = reader.GetString(9),
                         OwningDepartment = reader.IsDBNull(10) ? null : reader.GetString(10),
                         RecordDate = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                        RetentionDueDate = reader.IsDBNull(12) ? null : reader.GetDateTime(12)
+                        RetentionDueDate = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+                        ApprovedByName = reader.IsDBNull(13) ? null : reader.GetString(13),
+                        ApprovedAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                        CreatedByUserId = reader.IsDBNull(15) ? null : reader.GetInt32(15),
+                        MasterlistId = reader.IsDBNull(16) ? null : reader.GetInt32(16)
                     };
                     results.Add(ToClientRow(row, user));
                 }
@@ -578,11 +663,14 @@ WHERE ").Append(VisibilityClause);
 
         private sealed record RecordInsertResult(RecordInsertStatus Status, RecordRow? Saved, string? ErrorMessage);
 
-        // The actual validation-and-insert logic behind Save, extracted so
-        // ImportMasterlist can run the exact same rules per row instead of a
-        // separate, looser copy. Every status/message here is unchanged from
-        // the single-entry Save path that existed before this was extracted.
-        private RecordInsertResult TryInsertRecord(RecordEntry entry, RecordsUser user)
+        private sealed record ValidatedFields(
+            string Code, string Title, string Location, string PeriodCovered, string RetentionPeriod,
+            string Medium, string FilingSystem, string AccessControl);
+
+        // Shared by TryInsertRecord and TryUpdateRecord — the same field
+        // rules apply whether a record is being logged for the first time or
+        // corrected afterward.
+        private static (ValidatedFields? Fields, string? Error) ValidateEntry(RecordEntry entry)
         {
             var code = entry.Code?.Trim() ?? "";
             var title = entry.Title?.Trim() ?? "";
@@ -597,26 +685,44 @@ WHERE ").Append(VisibilityClause);
                 ?? CheckText(retentionPeriod, "Retention Period", MaxRetentionPeriodLength);
             if (textError != null)
             {
-                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, textError);
+                return (null, textError);
             }
 
             var medium = NormalizeChoice(entry.Medium, Media);
             if (medium == null)
             {
-                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "Please choose or type a Medium.");
+                return (null, "Please choose or type a Medium.");
             }
 
             var filingSystem = NormalizeChoice(entry.FilingSystem, FilingSystems);
             if (filingSystem == null)
             {
-                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "Please choose or type a Filing System.");
+                return (null, "Please choose or type a Filing System.");
             }
 
             var accessControl = NormalizeChoice(entry.AccessControl, AccessLevels);
             if (accessControl == null)
             {
-                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, "Please choose or type an Access Control.");
+                return (null, "Please choose or type an Access Control.");
             }
+
+            return (new ValidatedFields(code, title, location, periodCovered, retentionPeriod, medium, filingSystem, accessControl), null);
+        }
+
+        // The actual validation-and-insert logic behind Save, extracted so
+        // ImportMasterlist can run the exact same rules per row instead of a
+        // separate, looser copy. Every status/message here is unchanged from
+        // the single-entry Save path that existed before this was extracted.
+        private RecordInsertResult TryInsertRecord(RecordEntry entry, RecordsUser user)
+        {
+            var (validated, validationError) = ValidateEntry(entry);
+            if (validated == null)
+            {
+                return new RecordInsertResult(RecordInsertStatus.BadRequest, null, validationError);
+            }
+            var (code, title, location, periodCovered, retentionPeriod, medium, filingSystem, accessControl) =
+                (validated.Code, validated.Title, validated.Location, validated.PeriodCovered, validated.RetentionPeriod,
+                 validated.Medium, validated.FilingSystem, validated.AccessControl);
 
             var recordDate = PhilippineToday();
             var retentionDueDate = RetentionPeriodParser.TryComputeDueDate(recordDate, periodCovered, retentionPeriod);
@@ -727,6 +833,287 @@ WHERE ").Append(VisibilityClause);
                 // carry no connection string); the user gets a generic message.
                 _logger.LogError(ex, "Failed to save record with Code {Code} for user {UserId}.", code, user.UserId);
                 return new RecordInsertResult(RecordInsertStatus.ServerError, null, GenericSaveError);
+            }
+        }
+
+        // Ownership/state needed to authorize Update/Delete, read fresh from
+        // the database rather than trusted from the client. RecordDate comes
+        // back too so Update can recompute RetentionDueDate from the record's
+        // real logging date, not "today" — editing an old record must not
+        // silently shift its due date to be computed as if logged today.
+        private (int? CreatedByUserId, DateTime? RecordDate)? LoadRecordState(SqlConnection conn, int recordId)
+        {
+            var hasSystemColumns = HasSystemColumns(conn);
+            var createdByCol = hasSystemColumns ? "CreatedByUserId" : "NULL";
+            var recordDateCol = hasSystemColumns ? "RecordDate" : "NULL";
+            using var cmd = new SqlCommand($"SELECT {createdByCol}, {recordDateCol} FROM Records WHERE RecordId = @Id", conn);
+            cmd.Parameters.Add("@Id", SqlDbType.Int).Value = recordId;
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+            return (
+                reader.IsDBNull(0) ? null : reader.GetInt32(0),
+                reader.IsDBNull(1) ? null : reader.GetDateTime(1)
+            );
+        }
+
+        // POST: /Records/Update — corrects a record already logged. Allowed
+        // for its own creator or a records manager (Admin), and only while
+        // it's still on the working table (not yet saved into a Masterlist —
+        // see CanEditRow). Clears any PD approval on a successful edit: an
+        // approval recorded against the old content shouldn't silently carry
+        // over to the new content.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Update([FromBody] RecordEntry? entry)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+            if (entry == null)
+            {
+                return BadRequest(new { message = "Please fill in every field." });
+            }
+
+            var (validated, validationError) = ValidateEntry(entry);
+            if (validated == null)
+            {
+                return BadRequest(new { message = validationError });
+            }
+            var (code, title, location, periodCovered, retentionPeriod, medium, filingSystem, accessControl) =
+                (validated.Code, validated.Title, validated.Location, validated.PeriodCovered, validated.RetentionPeriod,
+                 validated.Medium, validated.FilingSystem, validated.AccessControl);
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                var state = LoadRecordState(conn, entry.RecordId);
+                if (state == null)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+                var (createdByUserId, recordDate) = state.Value;
+
+                if (!user.CanManage && createdByUserId != user.UserId)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only edit a record you logged yourself." });
+                }
+
+                var hasSystemColumns = HasSystemColumns(conn);
+                var hasApproval = HasApprovalColumns(conn);
+                var retentionDueDate = hasSystemColumns
+                    ? RetentionPeriodParser.TryComputeDueDate(recordDate ?? PhilippineToday(), periodCovered, retentionPeriod)
+                    : (DateTime?)null;
+
+                var setClauses = new List<string>
+                {
+                    "Code=@Code", "Title=@Title", "Medium=@Medium", "Location=@Location",
+                    "PeriodCovered=@PeriodCovered", "FilingSystem=@FilingSystem",
+                    "AccessControl=@AccessControl", "RetentionPeriod=@RetentionPeriod"
+                };
+                if (hasSystemColumns)
+                {
+                    setClauses.Add("RetentionDueDate=@RetentionDueDate");
+                }
+                if (hasApproval)
+                {
+                    setClauses.Add("ApprovedByUserId=NULL");
+                    setClauses.Add("ApprovedAt=NULL");
+                }
+
+                using var cmd = new SqlCommand($"UPDATE Records SET {string.Join(", ", setClauses)} WHERE RecordId=@RecordId", conn);
+                cmd.Parameters.AddWithValue("@Code", code);
+                cmd.Parameters.AddWithValue("@Title", title);
+                cmd.Parameters.AddWithValue("@Medium", medium);
+                cmd.Parameters.AddWithValue("@Location", location);
+                cmd.Parameters.AddWithValue("@PeriodCovered", periodCovered);
+                cmd.Parameters.AddWithValue("@FilingSystem", filingSystem);
+                cmd.Parameters.AddWithValue("@AccessControl", accessControl);
+                cmd.Parameters.AddWithValue("@RetentionPeriod", retentionPeriod);
+                cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = entry.RecordId;
+                if (hasSystemColumns)
+                {
+                    cmd.Parameters.Add("@RetentionDueDate", SqlDbType.Date).Value = (object?)retentionDueDate ?? DBNull.Value;
+                }
+
+                var rows = cmd.ExecuteNonQuery();
+                if (rows == 0)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+
+                return Json(new { ok = true });
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
+            {
+                return Conflict(new { message = $"The Code \"{code}\" already exists. Please use a different Code." });
+            }
+            catch (SqlException ex) when (ex.Number == 8152 || ex.Number == 2628)
+            {
+                return BadRequest(new { message = "One of the entries is too long. Please shorten it and try again." });
+            }
+            catch (SqlException ex) when (ex.Number == 547)
+            {
+                _logger.LogError(ex, "Database constraint rejected an update to record {RecordId}.", entry.RecordId);
+                return BadRequest(new { message = "The database does not accept one of the selected Medium, Filing System, or Access Control values yet. Please contact the administrator." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update record {RecordId}.", entry.RecordId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // POST: /Records/Delete/{id} — same ownership rule as Update:
+        // creator or records manager. Allowed even once the record is saved
+        // into a Masterlist (see CanEditRow).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Delete(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                var state = LoadRecordState(conn, id);
+                if (state == null)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+                var (createdByUserId, _) = state.Value;
+
+                if (!user.CanManage && createdByUserId != user.UserId)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only delete a record you logged yourself." });
+                }
+
+                using var cmd = new SqlCommand("DELETE FROM Records WHERE RecordId = @Id", conn);
+                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                var rows = cmd.ExecuteNonQuery();
+                if (rows == 0)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+
+                return Json(new { ok = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete record {RecordId}.", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // POST: /Records/Approve/{id} — the PD's (SuperAdmin's) sign-off.
+        // Does not gate anything else: the record stays fully usable either
+        // way, this just records that the PD looked at it, same as the real
+        // office process — never a hard block that could strand a record if
+        // the PD hasn't clicked it yet.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Approve(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+            if (!user.CanApprove)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the Provincial Director can approve records." });
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasApprovalColumns(conn))
+                {
+                    _logger.LogError("Refused to approve record {RecordId}: Records approval columns are missing.", id);
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+                }
+
+                using var cmd = new SqlCommand(@"
+UPDATE Records SET ApprovedByUserId = @ApproverId, ApprovedAt = SYSUTCDATETIME()
+WHERE RecordId = @RecordId", conn);
+                cmd.Parameters.Add("@ApproverId", SqlDbType.Int).Value = user.UserId;
+                cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = id;
+                var rows = cmd.ExecuteNonQuery();
+                if (rows == 0)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+                return Json(new { ok = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to approve record {RecordId} for user {UserId}.", id, user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // POST: /Records/MarkForDisposal/{id}, /Records/MarkDisposed/{id} —
+        // the records officer's (Admin's) active validation step, replacing
+        // the passive-only due-date colour reminder with a real action.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult MarkForDisposal(int id) => SetDisposalStatus(id, "ForDisposal");
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult MarkDisposed(int id) => SetDisposalStatus(id, "Disposed");
+
+        private IActionResult SetDisposalStatus(int id, string newStatus)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+            if (!user.CanManage)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only records managers can update disposal status." });
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+                if (!HasSystemColumns(conn))
+                {
+                    _logger.LogError("Refused to set record {RecordId} status to {Status}: Records system columns are missing.", id, newStatus);
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+                }
+
+                using var cmd = new SqlCommand(@"
+UPDATE Records SET RecordStatus = @Status
+WHERE RecordId = @RecordId", conn);
+                cmd.Parameters.Add("@Status", SqlDbType.NVarChar, 20).Value = newStatus;
+                cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = id;
+                var rows = cmd.ExecuteNonQuery();
+                if (rows == 0)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+                return Json(new { ok = true, status = newStatus });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to set record {RecordId} status to {Status} for user {UserId}.", id, newStatus, user.UserId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
             }
         }
 

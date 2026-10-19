@@ -7,17 +7,28 @@ namespace DTIOneLink.Security
         {
             // SuperAdmin: account/role oversight, office-wide summaries, and
             // office-wide task management (create/view/edit/assign across
-            // every department). Still no ManageRecords, no
-            // ViewConfidentialRecords, and no plain ManageTasks — office-wide
+            // every department). Still no plain ManageTasks — office-wide
             // task access comes exclusively from ManageOfficeWideTasks, kept
             // separate from the department-scoped permission Admin/Supervisor
-            // use, so confidentiality and department scoping are preserved
-            // by NOT granting those, not by filtering later.
+            // use, so department scoping there is preserved by NOT granting
+            // ManageTasks, not by filtering later.
+            //
+            // SuperAdmin DOES get ViewConfidentialRecords + ApproveRecords
+            // (but deliberately NOT ManageRecords, which stays Admin-only):
+            // the PD approves records office-wide, including Confidential
+            // ones, before they're submitted to the records officer (Admin)
+            // for disposal validation. Approving and disposing are kept as
+            // separate permissions/roles on purpose, mirroring the real
+            // "PD approves, then it's submitted to the records officer" flow
+            // — a deliberate change to open approval visibility over the
+            // narrower confidentiality boundary this used to enforce.
             ["SuperAdmin"] = new(StringComparer.OrdinalIgnoreCase)
             {
                 Permissions.ManageUserAccounts,
                 Permissions.ViewOfficeWideSummaries,
                 Permissions.ManageOfficeWideTasks,
+                Permissions.ViewConfidentialRecords,
+                Permissions.ApproveRecords,
             },
 
             ["Admin"] = new(StringComparer.OrdinalIgnoreCase)

@@ -16,14 +16,16 @@ namespace DTIOneLink.Controllers
         private readonly NotificationService _notifications;
         private readonly TaskAssignmentService _taskAssignments;
         private readonly OpdTaskService _opdTasks;
+        private readonly ILogger<TasksController> _logger;
 
         public TasksController(AppDbContext context, NotificationService notifications,
-            TaskAssignmentService taskAssignments, OpdTaskService opdTasks)
+            TaskAssignmentService taskAssignments, OpdTaskService opdTasks, ILogger<TasksController> logger)
         {
             _context = context;
             _notifications = notifications;
             _taskAssignments = taskAssignments;
             _opdTasks = opdTasks;
+            _logger = logger;
         }
 
         // Allowed filter values; anything else falls back to the default, so
@@ -1402,6 +1404,64 @@ public async Task<IActionResult> AddSubtask(int id, string subtaskName)
 
     TempData["SuccessMessage"] = "Subtask added.";
     return RedirectToAction(nameof(MainTaskDetails), new { id });
+}
+
+// POST: /Tasks/Delete/5 — OPD only, same symmetry as Create/AddSubtask
+// (only the OPD creates a Main Task or its subtasks, so only the OPD
+// removes them). Permanently deletes a Main Task — a Direct Admin Task,
+// Department Directive, or Whole Office task — and, for a Department
+// Directive, every one of its subtasks with it. Refused once any real work
+// exists anywhere in that tree (any assignment past 0% or any proof ever
+// submitted), the same protection EmployeeController.Delete gives a shared
+// task's other assignees — a mistaken or no-longer-needed directive can
+// still be removed, but real employee work never silently disappears.
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Delete(int id)
+{
+    if (!IsOfficeWideTaskManager())
+    {
+        return StatusCode(403);
+    }
+
+    var mainTask = await _context.TaskItems
+        .Include(t => t.Assignments)
+        .Include(t => t.Submissions)
+        .Include(t => t.Activities)
+        .Include(t => t.Comments)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Assignments)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Submissions)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Activities)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Comments)
+        .AsSplitQuery()
+        .FirstOrDefaultAsync(t => t.Id == id && t.TaskLevel == TaskLevels.Main);
+
+    if (mainTask == null)
+    {
+        return NotFound();
+    }
+
+    var wholeTree = new List<TaskItem> { mainTask };
+    wholeTree.AddRange(mainTask.Subtasks);
+
+    var hasStarted = wholeTree.Any(t =>
+        t.Submissions.Any() ||
+        t.Assignments.Any(a => a.Progress > 0 || !string.Equals(a.Status, TaskWorkflow.Pending, StringComparison.OrdinalIgnoreCase)));
+
+    if (hasStarted)
+    {
+        TempData["ErrorMessage"] = mainTask.Subtasks.Any()
+            ? "This task can't be deleted because work has already started on it or one of its subtasks."
+            : "This task can't be deleted because work has already started on it.";
+        return RedirectToAction(nameof(MainTaskDetails), new { id });
+    }
+
+    var taskName = mainTask.TaskName;
+    var deletedByUserId = HttpContext.Session.GetInt32("UserId") ?? 0;
+    await _taskAssignments.PermanentlyDeleteTasksAsync(wholeTree, deletedByUserId, _logger);
+
+    TempData["SuccessMessage"] = $"\"{taskName}\" was deleted.";
+    return RedirectToAction(nameof(Index));
 }
 
 // GET: /Tasks/MainTaskDetails/5

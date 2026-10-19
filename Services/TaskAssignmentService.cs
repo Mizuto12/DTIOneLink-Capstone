@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using DTIOneLink.Data;
 using DTIOneLink.Models;
 
@@ -281,6 +282,100 @@ namespace DTIOneLink.Services
             }
 
             RecalculateMainTaskFromSubtasks(mainTask);
+        }
+
+        // Permanently deletes the given tasks (all in one transaction) with
+        // their assignments, proof submissions, comments, activity history,
+        // and notifications; recalculates any OPD directive a deleted
+        // subtask belonged to; then removes the proof files from disk.
+        // Shared by EmployeeController.Delete/DeleteAllCompleted (an
+        // employee tidying up their own completed work) and
+        // TasksController.Delete (an Admin/SuperAdmin removing a task or
+        // directive they manage) — same cascading cleanup either way, only
+        // the eligibility rules differ per caller. Callers must have already
+        // checked those rules and loaded Assignments, Submissions,
+        // Activities, and Comments (tracked) on every task.
+        public async Task PermanentlyDeleteTasksAsync(IReadOnlyCollection<TaskItem> tasks, int deletedByUserId, ILogger logger)
+        {
+            var taskIds = tasks.Select(t => t.Id).ToList();
+            var parentTaskIds = tasks
+                .Where(t => t.ParentTaskId.HasValue)
+                .Select(t => t.ParentTaskId!.Value)
+                .Distinct()
+                .ToList();
+            var proofFiles = tasks
+                .SelectMany(t => t.Submissions.Select(s => new { TaskId = t.Id, File = s.ProofStoredFileName }))
+                .Where(f => !string.IsNullOrWhiteSpace(f.File))
+                .ToList();
+            var deletedNames = tasks.Select(t => new { t.Id, t.TaskName }).ToList();
+
+            await using (var transaction = await _context.Database.BeginTransactionAsync())
+            {
+                // Notifications only lose their task link (SET NULL) on delete,
+                // which would leave messages pointing at a task that no longer
+                // exists. Load-then-RemoveRange rather than ExecuteDeleteAsync,
+                // which the EF Core InMemory provider (used by the unit test
+                // suite) can't translate — this stays portable across both.
+                var relatedNotifications = await _context.Notifications
+                    .Where(n => n.RelatedTaskId.HasValue && taskIds.Contains(n.RelatedTaskId.Value))
+                    .ToListAsync();
+                _context.Notifications.RemoveRange(relatedNotifications);
+
+                // Children first, explicitly: activities reference submissions
+                // and submissions reference assignments (both restricted), so
+                // EF deletes them in dependency order before the tasks themselves.
+                foreach (var task in tasks)
+                {
+                    _context.TaskActivities.RemoveRange(task.Activities);
+                    _context.TaskComments.RemoveRange(task.Comments);
+                    _context.TaskSubmissions.RemoveRange(task.Submissions);
+                    _context.TaskAssignments.RemoveRange(task.Assignments);
+                    _context.TaskItems.Remove(task);
+                }
+                await _context.SaveChangesAsync();
+
+                // A deleted subtask no longer counts toward its OPD directive,
+                // so recompute each affected directive from what remains.
+                foreach (var parentId in parentTaskIds)
+                {
+                    await RecalculateMainTaskAsync(parentId);
+                }
+                if (parentTaskIds.Count > 0)
+                {
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+            }
+
+            // Files go only after the database commit, so a failed delete
+            // never leaves submissions pointing at missing files. Best
+            // effort: a file that can't be removed is logged, not shown to
+            // the user.
+            var storageRoot = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "ProofUploads");
+            foreach (var proof in proofFiles)
+            {
+                try
+                {
+                    var fullPath = Path.Combine(storageRoot, Path.GetFileName(proof.File));
+                    if (File.Exists(fullPath))
+                    {
+                        File.Delete(fullPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Could not delete proof file {File} for deleted task {TaskId}.", proof.File, proof.TaskId);
+                }
+            }
+
+            // The tasks' own activity history is gone, so the server log is
+            // the remaining record of who deleted what.
+            foreach (var deleted in deletedNames)
+            {
+                logger.LogInformation("Task {TaskId} \"{TaskName}\" was permanently deleted by user {UserId}.",
+                    deleted.Id, deleted.TaskName, deletedByUserId);
+            }
         }
     }
 }

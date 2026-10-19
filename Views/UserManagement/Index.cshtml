@@ -331,6 +331,17 @@
                                             }
                                             @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
                                             {
+                                                <button type="button" class="um-btn-edit-email"
+                                                        data-user-id="@user.Id"
+                                                        data-user-name="@user.FullName"
+                                                        data-user-email="@user.Email"
+                                                        aria-label="Edit email of @user.FullName" title="Edit Email">
+                                                    <span class="material-symbols-outlined" aria-hidden="true">mail</span>
+                                                    <span class="um-btn-txt">Edit Email</span>
+                                                </button>
+                                            }
+                                            @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
+                                            {
                                                 @* Confirmed in #statusDialog (user-management.js). Deactivation
                                                    is refused while they still have unfinished work. *@
                                                 <form asp-controller="UserManagement" asp-action="SetActive" method="post"

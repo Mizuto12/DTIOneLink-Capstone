@@ -1,0 +1,167 @@
+<title>DTI OneLink Context Diagram</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* layout concept: one process circle at the center of a 1200x800 canvas,
+     four external entities at the diagonal corners, paired in/out arrows
+     between each entity and the process; Email Service is outbound-only */
+  :root{
+    --bg:#f4f5f7; --surface:#ffffff; --fg:#1a2233; --muted:#5b6472;
+    --accent:#1d4ed8; --border:#d4d9e0;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'IBM Plex Sans',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1420; --surface:#161c2b; --fg:#e6e9ef; --muted:#9aa4b2;
+      --accent:#6c93f5; --border:#2a3142; color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1420; --surface:#161c2b; --fg:#e6e9ef; --muted:#9aa4b2;
+    --accent:#6c93f5; --border:#2a3142; color-scheme:dark;
+  }
+  body{background:var(--bg); color:var(--fg); font-family:var(--font-body);
+    padding-inline:16px; padding-block:32px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+  .eyebrow{font-family:var(--font-mono); font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 6px;}
+  h1{font-family:var(--font-display); font-weight:700; font-size:clamp(22px,4vw,32px);
+    margin:0 0 6px; text-wrap:balance;}
+  .sub{color:var(--muted); font-size:15px; margin:0 0 28px; max-width:70ch;}
+  figure{margin:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px; overflow-x:auto;}
+  svg{display:block; width:100%; height:auto; max-width:1200px; margin:0 auto;}
+  figcaption{font-size:13px; color:var(--muted); margin-top:14px; max-width:80ch;}
+  .legend{display:flex; flex-wrap:wrap; gap:18px; margin-top:18px; font-size:13px; color:var(--muted);}
+  .legend-item{display:flex; align-items:center; gap:8px;}
+  .swatch{width:22px; height:16px; flex:none;}
+  .swatch.proc{border-radius:50%; border:1.6px solid var(--fg); background:none;}
+  .swatch.ent{border:1.6px solid var(--fg); background:none;}
+  .swatch.flow{height:0; border-top:1.6px solid var(--fg); position:relative; width:26px;}
+  section.detail{margin-top:32px;}
+  section.detail h2{font-family:var(--font-display); font-size:17px; margin:0 0 10px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em;}
+  td.mono{font-family:var(--font-mono); font-size:12.5px; white-space:nowrap;}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Figure — System Documentation</p>
+  <h1>DTI OneLink — Level 0 Data Flow Diagram</h1>
+  <p class="sub">Context diagram showing DTI OneLink as a single process exchanging
+  data with its four external entities: the three user roles and the outbound
+  email notification service.</p>
+
+  <figure>
+    <svg viewBox="0 0 1200 800" role="img"
+      aria-label="Context diagram: DTI OneLink system as a single process, exchanging login, task, and records data with Super Admin, Admin, and Employee entities, and sending outbound notification emails to Brevo.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
+          markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- ===== entity boxes ===== -->
+      <!-- Super Admin (OPD) : top-left -->
+      <rect x="60" y="60" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="170" y="98" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Super Admin</text>
+      <text x="170" y="118" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Office of the Provincial Director</text>
+
+      <!-- Admin : top-right -->
+      <rect x="920" y="60" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="1030" y="98" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Admin</text>
+      <text x="1030" y="118" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Division Chief / Supervisor</text>
+
+      <!-- Employee : bottom-left -->
+      <rect x="60" y="650" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="170" y="688" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Employee</text>
+      <text x="170" y="708" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Division staff</text>
+
+      <!-- Email Service : bottom-right -->
+      <rect x="920" y="650" width="220" height="90" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="1030" y="688" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="15">Email Service</text>
+      <text x="1030" y="708" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="var(--muted)">Brevo (outbound only)</text>
+
+      <!-- ===== central process ===== -->
+      <circle cx="600" cy="400" r="130" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+      <text x="600" y="382" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="17" fill="var(--accent)">0</text>
+      <text x="600" y="408" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="16">DTI OneLink</text>
+      <text x="600" y="430" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" fill="var(--muted)">System</text>
+
+      <!-- ===== Super Admin <-> System ===== -->
+      <line x1="274" y1="158" x2="502" y2="316" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="265" y="208" width="168" height="34" fill="var(--surface)"/>
+      <text x="349" y="222" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">login + task directives</text>
+      <text x="349" y="237" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">account &amp; role requests</text>
+
+      <line x1="514" y1="300" x2="286" y2="142" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="400" y="170" width="155" height="34" fill="var(--surface)"/>
+      <text x="477" y="184" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">office dashboard,</text>
+      <text x="477" y="199" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">reports, notifications</text>
+
+      <!-- ===== Admin <-> System ===== -->
+      <line x1="926" y1="158" x2="698" y2="316" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="767" y="208" width="178" height="34" fill="var(--surface)"/>
+      <text x="856" y="222" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">task assignments &amp; reviews</text>
+      <text x="856" y="237" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">records entries</text>
+
+      <line x1="686" y1="300" x2="914" y2="142" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="645" y="170" width="178" height="34" fill="var(--surface)"/>
+      <text x="734" y="184" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">division dashboard,</text>
+      <text x="734" y="199" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">task &amp; records data</text>
+
+      <!-- ===== Employee <-> System ===== -->
+      <line x1="286" y1="658" x2="514" y2="500" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="275" y="565" width="200" height="34" fill="var(--surface)"/>
+      <text x="375" y="579" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">status updates,</text>
+      <text x="375" y="594" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">proof of completion</text>
+
+      <line x1="502" y1="484" x2="274" y2="642" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="400" y="608" width="150" height="34" fill="var(--surface)"/>
+      <text x="475" y="622" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">assigned tasks,</text>
+      <text x="475" y="637" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">notifications</text>
+
+      <!-- ===== System -> Email Service (outbound only) ===== -->
+      <line x1="692" y1="492" x2="920" y2="650" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <rect x="735" y="555" width="150" height="20" fill="var(--surface)"/>
+      <text x="810" y="569" text-anchor="middle" font-family="IBM Plex Mono" font-size="11.5">notification email</text>
+    </svg>
+    <figcaption>
+      <strong>Fig. 1 — Level 0 DFD (Context Diagram) of DTI OneLink.</strong>
+      All data entering or leaving the system passes through Process 0. Super Admin
+      submits login credentials, task directives, and user/role account requests,
+      and receives the office-wide dashboard, reports, and notifications in return.
+      Admin submits task assignments, review decisions, and records entries, and
+      receives a division-scoped dashboard, task/records data, and notifications.
+      Employee submits login credentials, task status updates, proof-of-completion
+      files, and records entries, and receives assigned tasks and notifications.
+      The system sends outbound notification emails to Brevo; Brevo does not feed
+      data back into the system's logic, so this flow is one-directional.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch proc"></span>Process (the system as a whole)</div>
+    <div class="legend-item"><span class="swatch ent"></span>External entity (user role or outside system)</div>
+    <div class="legend-item"><span class="swatch flow"></span>Data flow (arrow points toward the receiver)</div>
+  </div>
+
+  <section class="detail">
+    <h2>Full data flow inventory</h2>
+    <table>
+      <thead><tr><th>From</th><th>To</th><th>Data flow</th></tr></thead>
+      <tbody>
+        <tr><td>Super Admin</td><td class="mono">→ System</td><td>Login credentials; user account &amp; role assignment requests; Main Task / department directive data</td></tr>
+        <tr><td>System</td><td class="mono">→ Super Admin</td><td>Office-wide dashboard summary; exportable reports; task &amp; records notifications</td></tr>
+        <tr><td>Admin</td><td class="mono">→ System</td><td>Login credentials; task assignment &amp; subtask data; proof-of-completion review decisions; records entries</td></tr>
+        <tr><td>System</td><td class="mono">→ Admin</td><td>Division-scoped dashboard; task &amp; records masterlist data; notifications</td></tr>
+        <tr><td>Employee</td><td class="mono">→ System</td><td>Login credentials; task progress &amp; status updates; proof-of-completion files; records entries</td></tr>
+        <tr><td>System</td><td class="mono">→ Employee</td><td>Assigned tasks; personal task/report history; notifications</td></tr>
+        <tr><td>System</td><td class="mono">→ Email Service (Brevo)</td><td>Outbound notification email requests (task assignment, due date, overdue, review decision, account updates)</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>

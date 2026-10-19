@@ -130,6 +130,65 @@
   white-space: nowrap;
 }
 
+/* ---------- Status column (approval / disposal) ---------- */
+.records-page .status-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  white-space: nowrap;
+  background: var(--surface-container-low);
+  color: var(--on-surface-variant);
+}
+.records-page .status-pill.status-active { background: #dcfce7; color: #166534; }
+.records-page .status-pill.status-fordisposal { background: #fef9c3; color: #854d0e; }
+.records-page .status-pill.status-disposed { background: #e5e7eb; color: #374151; }
+
+.records-page .approved-note {
+  display: block;
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  margin-top: 4px;
+}
+
+.records-page .btn-small {
+  font-size: 11px;
+  padding: 4px 10px;
+  margin-top: 4px;
+  display: inline-flex;
+}
+
+.records-page .delete-record-btn { color: #b91c1c; border-color: #fecaca; }
+.records-page .delete-record-btn:hover { background: #fee2e2; }
+
+/* ---------- Actions column: compact icon buttons ---------- */
+.records-page .row-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.records-page .row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--outline-variant, #e2e5f0);
+  border-radius: 9999px;
+  background: var(--surface-container-lowest, #fff);
+  color: var(--on-surface-variant, #44475a);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.records-page .row-action-btn .material-symbols-outlined { font-size: 18px; }
+.records-page .row-action-btn:hover { background: var(--surface-container-low, #f1f3fb); }
+.records-page .row-action-btn.row-action-danger { color: #b91c1c; border-color: #fecaca; }
+.records-page .row-action-btn.row-action-danger:hover { background: #fee2e2; }
+.records-page .actions-none { color: var(--on-surface-variant, #9397a8); }
+
 /* ---------- Form ---------- */
 .records-page .form-grid {
   display: grid;

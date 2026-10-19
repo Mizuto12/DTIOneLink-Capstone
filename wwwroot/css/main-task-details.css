@@ -102,7 +102,10 @@
     margin: 0;
 }
 
-.mtd-header-actions { flex-shrink: 0; }
+.mtd-header-actions { flex-shrink: 0; display: flex; gap: 8px; }
+
+.mtd-delete-btn { color: #b91c1c; border-color: #fecaca; }
+.mtd-delete-btn:hover { background: #fee2e2; }
 
 .mtd-summary-grid {
     display: grid;

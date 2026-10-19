@@ -73,6 +73,19 @@
                 </a>
             </div>
         }
+        @if (isOpd)
+        {
+            <div class="mtd-header-actions">
+                <form asp-controller="Tasks" asp-action="Delete" asp-route-id="@task.Id" method="post"
+                      onsubmit="return confirm('Delete this task permanently? This cannot be undone.' + (@Json.Serialize(subtasks.Any()) ? ' Every subtask under it will be deleted too.' : ''));">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="et-btn et-btn-outline mtd-delete-btn">
+                        <span class="material-symbols-outlined">delete</span>
+                        Delete
+                    </button>
+                </form>
+            </div>
+        }
     </div>
 
     <div class="mtd-summary-grid">

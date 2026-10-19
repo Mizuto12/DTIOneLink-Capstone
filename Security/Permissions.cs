@@ -22,5 +22,12 @@ namespace DTIOneLink.Security
         // only, alongside ViewOfficeWideSummaries, and never merged into
         // ManageTasks or ManageRecords.
         public const string ManageOfficeWideTasks = "ManageOfficeWideTasks";
+
+        // The PD's (SuperAdmin's) sign-off on a record, separate from
+        // ManageRecords: SuperAdmin approves a record but the disposal
+        // validation step (RecordsController.MarkForDisposal/MarkDisposed)
+        // still belongs to ManageRecords (Admin), matching the real office
+        // workflow (PD approves, then it's submitted to the records officer).
+        public const string ApproveRecords = "ApproveRecords";
     }
 }

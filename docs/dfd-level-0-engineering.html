@@ -1,0 +1,241 @@
+<title>DTI OneLink Level 0 DFD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* grayscale, orthogonal-routed DFD matching a standard engineering/thesis
+     reference style: entities left, numbered processes center, data stores
+     right, with every flow name listed as stacked text beside its process box */
+  :root{
+    --bg:#ffffff; --surface:#ffffff; --fg:#111111; --muted:#555555;
+    --entity-fill:#dcdcdc; --border:#111111;
+    --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14161a; --surface:#1b1e24; --fg:#e8e8e8; --muted:#a7acb3;
+      --entity-fill:#3a3f47; --border:#e8e8e8; color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14161a; --surface:#1b1e24; --fg:#e8e8e8; --muted:#a7acb3;
+    --entity-fill:#3a3f47; --border:#e8e8e8; color-scheme:dark;
+  }
+  body{background:var(--bg); color:var(--fg); font-family:var(--font-body);
+    padding-inline:16px; padding-block:28px;}
+  .wrap{max-width:1200px; margin:0 auto;}
+  .eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 4px;}
+  h1{font-weight:700; font-size:clamp(20px,3.6vw,28px); margin:0 0 2px; text-align:center;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 18px; text-align:center;}
+  figure{margin:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:4px; padding:16px; overflow-x:auto;}
+  svg{display:block; width:100%; height:auto; margin:0 auto;}
+  figcaption{font-size:12.5px; color:var(--muted); margin-top:12px; max-width:92ch;}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Figure — System Documentation</p>
+  <h1>DTI OneLink Level 0 Data Flow Diagram</h1>
+  <p class="sub">Major processes, external entities, and data stores of DTI OneLink</p>
+
+  <figure>
+    <svg viewBox="0 0 1150 900" role="img"
+      aria-label="DTI OneLink Level 0 data flow diagram, engineering style: Super Admin, Admin, Employee and Email Service entities on the left connect via right-angle routed lines to five numbered processes in the center, which connect to four data stores on the right. Every flow name is listed as text beside its process box.">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--fg)"/>
+        </marker>
+      </defs>
+
+      <!-- ===================== entities ===================== -->
+      <rect x="20" y="70" width="170" height="80" fill="var(--entity-fill)" stroke="var(--border)" stroke-width="1.4"/>
+      <text x="105" y="114" text-anchor="middle" font-weight="600" font-size="13.5">Super Admin</text>
+
+      <rect x="20" y="280" width="170" height="80" fill="var(--entity-fill)" stroke="var(--border)" stroke-width="1.4"/>
+      <text x="105" y="324" text-anchor="middle" font-weight="600" font-size="13.5">Admin</text>
+
+      <rect x="20" y="480" width="170" height="80" fill="var(--entity-fill)" stroke="var(--border)" stroke-width="1.4"/>
+      <text x="105" y="524" text-anchor="middle" font-weight="600" font-size="13.5">Employee</text>
+
+      <rect x="20" y="680" width="170" height="60" fill="var(--entity-fill)" stroke="var(--border)" stroke-width="1.4"/>
+      <text x="105" y="706" text-anchor="middle" font-weight="600" font-size="13">Email Service</text>
+      <text x="105" y="722" text-anchor="middle" font-size="10.5" fill="var(--muted)">(Brevo)</text>
+
+      <!-- ===================== processes ===================== -->
+      <rect x="500" y="70" width="150" height="150" fill="var(--surface)" stroke="var(--border)" stroke-width="1.6"/>
+      <line x1="500" y1="98" x2="650" y2="98" stroke="var(--border)" stroke-width="1"/>
+      <text x="575" y="90" text-anchor="middle" font-weight="700" font-size="13">1.0</text>
+      <text x="575" y="113" text-anchor="middle" font-weight="600" font-size="11.5">Authenticate &amp;</text>
+      <text x="575" y="127" text-anchor="middle" font-weight="600" font-size="11.5">Manage Accounts</text>
+
+      <rect x="500" y="250" width="150" height="150" fill="var(--surface)" stroke="var(--border)" stroke-width="1.6"/>
+      <line x1="500" y1="278" x2="650" y2="278" stroke="var(--border)" stroke-width="1"/>
+      <text x="575" y="270" text-anchor="middle" font-weight="700" font-size="13">2.0</text>
+      <text x="575" y="300" text-anchor="middle" font-weight="600" font-size="12">Manage Tasks</text>
+
+      <rect x="500" y="430" width="150" height="120" fill="var(--surface)" stroke="var(--border)" stroke-width="1.6"/>
+      <line x1="500" y1="458" x2="650" y2="458" stroke="var(--border)" stroke-width="1"/>
+      <text x="575" y="450" text-anchor="middle" font-weight="700" font-size="13">3.0</text>
+      <text x="575" y="480" text-anchor="middle" font-weight="600" font-size="12">Manage Records</text>
+
+      <rect x="500" y="580" width="150" height="110" fill="var(--surface)" stroke="var(--border)" stroke-width="1.6"/>
+      <line x1="500" y1="608" x2="650" y2="608" stroke="var(--border)" stroke-width="1"/>
+      <text x="575" y="600" text-anchor="middle" font-weight="700" font-size="13">4.0</text>
+      <text x="575" y="630" text-anchor="middle" font-weight="600" font-size="12">Send Notifications</text>
+
+      <rect x="500" y="720" width="150" height="140" fill="var(--surface)" stroke="var(--border)" stroke-width="1.6"/>
+      <line x1="500" y1="748" x2="650" y2="748" stroke="var(--border)" stroke-width="1"/>
+      <text x="575" y="740" text-anchor="middle" font-weight="700" font-size="13">5.0</text>
+      <text x="575" y="770" text-anchor="middle" font-weight="600" font-size="11.5">Generate Dashboard</text>
+      <text x="575" y="784" text-anchor="middle" font-weight="600" font-size="11.5">&amp; Reports</text>
+
+      <!-- ===================== data stores ===================== -->
+      <rect x="940" y="100" width="190" height="90" fill="var(--surface)" stroke="var(--border)" stroke-width="1.4"/>
+      <line x1="940" y1="100" x2="940" y2="190" stroke="var(--border)" stroke-width="3"/>
+      <text x="1035" y="150" text-anchor="middle" font-family="IBM Plex Mono" font-size="12">D1 Users</text>
+
+      <rect x="940" y="290" width="190" height="70" fill="var(--surface)" stroke="var(--border)" stroke-width="1.4"/>
+      <line x1="940" y1="290" x2="940" y2="360" stroke="var(--border)" stroke-width="3"/>
+      <text x="1035" y="330" text-anchor="middle" font-family="IBM Plex Mono" font-size="12">D2 Tasks</text>
+
+      <rect x="940" y="450" width="190" height="80" fill="var(--surface)" stroke="var(--border)" stroke-width="1.4"/>
+      <line x1="940" y1="450" x2="940" y2="530" stroke="var(--border)" stroke-width="3"/>
+      <text x="1035" y="494" text-anchor="middle" font-family="IBM Plex Mono" font-size="12">D3 Records</text>
+
+      <rect x="940" y="600" width="190" height="70" fill="var(--surface)" stroke="var(--border)" stroke-width="1.4"/>
+      <line x1="940" y1="600" x2="940" y2="670" stroke="var(--border)" stroke-width="3"/>
+      <text x="1035" y="640" text-anchor="middle" font-family="IBM Plex Mono" font-size="12">D4 Notifications</text>
+
+      <!-- ===================== LEFT SIDE: entity <-> process, orthogonal ===================== -->
+      <!-- trunk x per entity: SA=200 Admin=205 Employee=210 Email=215 -->
+
+      <!-- Super Admin (trunk x=200) -->
+      <polyline points="190,76 200,76 200,85 500,85" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="81" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">login</text>
+
+      <polyline points="500,105 200,105 200,88 190,88" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="101" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">auth result</text>
+
+      <polyline points="190,100 200,100 200,125 500,125" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="121" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">task directive</text>
+
+      <polyline points="500,145 200,145 200,112 190,112" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="141" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">task status</text>
+
+      <polyline points="500,165 200,165 200,124 190,124" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="161" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">notification (from 4.0)</text>
+
+      <polyline points="190,136 200,136 200,185 500,185" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="181" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">view request</text>
+
+      <polyline points="500,205 200,205 200,148 190,148" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="201" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">dashboard (from 5.0)</text>
+
+      <!-- Admin (trunk x=206) -->
+      <polyline points="190,284 206,284 206,265 500,265" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="261" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">login</text>
+
+      <polyline points="500,285 206,285 206,293 190,293" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="281" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">auth result</text>
+
+      <polyline points="190,302 206,302 206,305 500,305" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="301" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">assignment</text>
+
+      <polyline points="500,325 206,325 206,311 190,311" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="321" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">task data</text>
+
+      <polyline points="190,320 206,320 206,445 500,445" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="441" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">record entry</text>
+
+      <polyline points="500,475 206,475 206,329 190,329" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="471" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">masterlist</text>
+
+      <polyline points="500,600 206,600 206,338 190,338" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="596" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">notification (from 4.0)</text>
+
+      <polyline points="190,347 206,347 206,775 500,775" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="771" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">view request</text>
+
+      <polyline points="500,800 206,800 206,356 190,356" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="796" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">dashboard (from 5.0)</text>
+
+      <!-- Employee (trunk x=212) -->
+      <polyline points="190,484 212,484 212,145 500,145" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="121" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5" dy="24">login</text>
+
+      <polyline points="500,165 212,165 212,493 190,493" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="489" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">auth result</text>
+
+      <polyline points="190,502 212,502 212,345 500,345" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="341" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">status / proof</text>
+
+      <polyline points="500,365 212,365 212,511 190,511" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="507" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">assigned tasks</text>
+
+      <polyline points="190,520 212,520 212,505 500,505" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="501" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">record entry</text>
+
+      <polyline points="500,535 212,535 212,529 190,529" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="531" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">masterlist</text>
+
+      <polyline points="500,650 212,650 212,538 190,538" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="646" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">notification (from 4.0)</text>
+
+      <polyline points="190,547 212,547 212,823 500,823" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="819" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">view request</text>
+
+      <polyline points="500,845 212,845 212,556 190,556" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="841" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">reports</text>
+
+      <!-- Email Service (direct) -->
+      <polyline points="500,679 300,679 300,710 190,710" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="495" y="675" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5">notify email</text>
+
+      <!-- ===================== RIGHT SIDE: process <-> store, orthogonal ===================== -->
+      <polyline points="650,110 900,110 900,122 940,122" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="106" font-family="IBM Plex Mono" font-size="9.5">write account</text>
+
+      <polyline points="940,160 905,160 905,150 650,150" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="146" font-family="IBM Plex Mono" font-size="9.5">account record</text>
+
+      <polyline points="650,290 900,290 900,305 940,305" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="286" font-family="IBM Plex Mono" font-size="9.5">write task</text>
+
+      <polyline points="940,330 905,330 905,330 650,330" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="326" font-family="IBM Plex Mono" font-size="9.5">task record</text>
+
+      <polyline points="650,470 900,470 900,480 940,480" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="466" font-family="IBM Plex Mono" font-size="9.5">write record</text>
+
+      <polyline points="940,510 905,510 905,495 650,495" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="506" font-family="IBM Plex Mono" font-size="9.5">record record</text>
+
+      <polyline points="940,620 905,620 905,615 650,615" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="611" font-family="IBM Plex Mono" font-size="9.5">pending events</text>
+
+      <polyline points="650,665 900,665 900,650 940,650" fill="none" stroke="var(--fg)" stroke-width="1.1" marker-end="url(#ah)"/>
+      <text x="658" y="661" font-family="IBM Plex Mono" font-size="9.5">log entry</text>
+
+      <!-- 2.0 -> D4 and 3.0 -> D4 events (longer runs, dashed) -->
+      <polyline points="650,380 920,380 920,635 940,635" fill="none" stroke="var(--fg)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah)"/>
+      <text x="658" y="376" font-family="IBM Plex Mono" font-size="9.5">event (due/overdue)</text>
+
+      <polyline points="650,540 915,540 915,660 940,660" fill="none" stroke="var(--fg)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah)"/>
+      <text x="658" y="536" font-family="IBM Plex Mono" font-size="9.5">event (retention)</text>
+
+      <!-- 5.0 reads D2 and D3 (longer runs) -->
+      <polyline points="940,350 910,350 910,740 650,740" fill="none" stroke="var(--fg)" stroke-width="1" marker-end="url(#ah)"/>
+      <text x="658" y="736" font-family="IBM Plex Mono" font-size="9.5">task data</text>
+
+      <polyline points="940,520 915,520 915,760 650,760" fill="none" stroke="var(--fg)" stroke-width="1" marker-end="url(#ah)"/>
+      <text x="658" y="756" font-family="IBM Plex Mono" font-size="9.5">records data</text>
+
+    </svg>
+    <figcaption>
+      <strong>Fig. 1 — DTI OneLink Level 0 Data Flow Diagram.</strong> Right-angle
+      routed lines connect each external entity to every process it exchanges data
+      with, and each process to the data store(s) it reads or writes. Dashed lines
+      mark the two events that reach Process 4.0 only through D4, never directly
+      from 2.0 or 3.0.
+    </figcaption>
+  </figure>
+</div>

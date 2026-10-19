@@ -669,7 +669,8 @@
 }
 
 /* ── Change role / division (OPD only) ───────────────────── */
-.um-btn-change {
+.um-btn-change,
+.um-btn-edit-email {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -682,8 +683,8 @@
     font-weight: 700;
     cursor: pointer;
 }
-.um-btn-change:hover { background: var(--surface-container); }
-.um-btn-change .material-symbols-outlined { font-size: 16px; }
+.um-btn-change:hover, .um-btn-edit-email:hover { background: var(--surface-container); }
+.um-btn-change .material-symbols-outlined, .um-btn-edit-email .material-symbols-outlined { font-size: 16px; }
 
 .um-dialog {
     width: min(440px, calc(100vw - 32px));
@@ -1100,7 +1101,7 @@
     .um-actions > *,
     .um-actions form,
     .um-actions .um-btn-status,
-    .um-actions .um-btn-change { flex: 1 1 140px; justify-content: center; min-height: 44px; }
+    .um-actions .um-btn-change, .um-actions .um-btn-edit-email { flex: 1 1 140px; justify-content: center; min-height: 44px; }
     .um-actions form .um-btn-status { width: 100%; }
 
     /* Empty / no-match messages keep their normal look. */
@@ -1228,6 +1229,7 @@
    They firm up a little when the row is hovered. */
 .um-actions { flex-wrap: nowrap; gap: 6px; }
 .um-actions .um-btn-change,
+.um-actions .um-btn-edit-email,
 .um-actions .um-btn-status {
     height: 28px;
     gap: 4px;
@@ -1241,23 +1243,26 @@
     white-space: nowrap;
     transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.um-actions .um-btn-change { color: var(--on-surface-variant); }
+.um-actions .um-btn-change, .um-actions .um-btn-edit-email { color: var(--on-surface-variant); }
 .um-actions .um-btn-deactivate { color: #a8473f; border-color: rgba(240, 196, 191, 0.8); }
 .um-actions .um-btn-reactivate { color: #2f7a4e; border-color: rgba(183, 228, 199, 0.9); }
 .um-actions .um-btn-change .material-symbols-outlined,
+.um-actions .um-btn-edit-email .material-symbols-outlined,
 .um-actions .um-btn-status .material-symbols-outlined { font-size: 15px; }
 
-.um-row:hover .um-btn-change { color: var(--primary); border-color: var(--outline-variant); }
-.um-actions .um-btn-change:hover { background: #f0f4ff; }
+.um-row:hover .um-btn-change, .um-row:hover .um-btn-edit-email { color: var(--primary); border-color: var(--outline-variant); }
+.um-actions .um-btn-change:hover, .um-actions .um-btn-edit-email:hover { background: #f0f4ff; }
 .um-actions .um-btn-deactivate:hover { background: #fdf1f0; color: #9c2b23; }
 .um-actions .um-btn-reactivate:hover { background: #eef9f2; color: #0f7a3d; }
 .um-actions .um-btn-change:focus-visible,
+.um-actions .um-btn-edit-email:focus-visible,
 .um-actions .um-btn-status:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Narrower tables: icon-only buttons (the label stays as the tooltip). */
 @media (min-width: 768px) and (max-width: 1599px) {
     .um-btn-txt { display: none; }
     .um-actions .um-btn-change,
+        .um-actions .um-btn-edit-email,
     .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
     .um-col-name     { width: 18%; }
     .um-col-email    { width: 24%; }
@@ -1292,6 +1297,7 @@
     @container (max-width: 1330px) {
         .um-btn-txt { display: none; }
         .um-actions .um-btn-change,
+                .um-actions .um-btn-edit-email,
         .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
     }
 }
@@ -1299,6 +1305,7 @@
     @container (max-width: 1100px) {
         .um-btn-txt { display: none; }
         .um-actions .um-btn-change,
+                .um-actions .um-btn-edit-email,
         .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
     }
 }
