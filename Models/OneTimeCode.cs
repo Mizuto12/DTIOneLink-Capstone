@@ -6,7 +6,12 @@ namespace DTIOneLink.Models
     {
         // Stored as an int, so new values must only ever be appended.
         ConfirmEmail = 1,
-        PasswordReset = 2
+        PasswordReset = 2,
+
+        // Second factor on an ordinary sign-in (password already verified),
+        // distinct from ConfirmEmail which only ever fires on a forced
+        // first-time/reset password change.
+        Login = 3
     }
 
     // A 6-digit code emailed to a user. Only a keyed hash of the code is

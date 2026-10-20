@@ -23,6 +23,18 @@ namespace DTIOneLink.Controllers
         private const string PendingUserIdKey = "PendingUserId";
         private const string PendingStampKey = "PendingStamp";
         private const string PendingReturnUrlKey = "PendingReturnUrl";
+
+        // A second, independent "pending" family for the login-OTP step on an
+        // ordinary sign-in — deliberately not sharing PendingUserIdKey/
+        // ContinuePendingSignIn with the first-time/reset password flow
+        // above. Reusing those would mean GetPendingUserAsync and
+        // ContinuePendingSignIn (which only ever gate on MustChangePassword)
+        // could complete a sign-in before the Login OTP was ever entered.
+        private const string PendingLoginUserIdKey = "PendingLoginUserId";
+        private const string PendingLoginStampKey = "PendingLoginStamp";
+        private const string PendingLoginReturnUrlKey = "PendingLoginReturnUrl";
+        private const string PendingLoginRememberMeKey = "PendingLoginRememberMe";
+
         private const string ResetEmailKey = "ResetEmail";
         private const string ResetUserIdKey = "ResetUserId";
         private const string ResetFakeAttemptsKey = "ResetFakeAttempts";
@@ -41,13 +53,18 @@ namespace DTIOneLink.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly AppDbContext _db;
         private readonly OneTimeCodeService _codes;
+        private readonly AccountSessionService _sessions;
+        private readonly IWebHostEnvironment _env;
         private readonly PasswordHasher<User> _passwordHasher = new();
 
-        public AccountController(ILogger<AccountController> logger, AppDbContext db, OneTimeCodeService codes)
+        public AccountController(ILogger<AccountController> logger, AppDbContext db, OneTimeCodeService codes,
+            AccountSessionService sessions, IWebHostEnvironment env)
         {
             _logger = logger;
             _db = db;
             _codes = codes;
+            _sessions = sessions;
+            _env = env;
         }
 
         // ═════════════════════════════ Login ═════════════════════════════
@@ -131,8 +148,110 @@ namespace DTIOneLink.Controllers
                 return RedirectToAction(user.EmailConfirmed ? nameof(SetPassword) : nameof(VerifyEmail));
             }
 
+            // The integration test host (DTIOneLink.Tests) has no real inbox
+            // to read a code from, the same reason Program.cs skips migrations
+            // and stale-code cleanup in this one environment. Every other
+            // environment (Development, Production) always goes through the
+            // OTP step below.
+            if (_env.IsEnvironment("Testing"))
+            {
+                SignIn(user);
+                if (model.RememberMe)
+                {
+                    await _sessions.IssueRememberMeCookieAsync(HttpContext, user);
+                }
+                return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
+            }
+
+            // Password is correct and nothing forces a password change — the
+            // last step is a code emailed to confirm it's really them before
+            // the session is actually established.
+            HttpContext.Session.Clear();
+            HttpContext.Session.SetInt32(PendingLoginUserIdKey, user.Id);
+            HttpContext.Session.SetString(PendingLoginStampKey, user.SecurityStamp);
+            if (returnUrl != null) HttpContext.Session.SetString(PendingLoginReturnUrlKey, returnUrl);
+            HttpContext.Session.SetString(PendingLoginRememberMeKey, model.RememberMe ? "1" : "0");
+
+            var issuedLoginCode = await _codes.IssueAsync(user, OneTimeCodePurpose.Login);
+            if (issuedLoginCode.Status != CodeIssueStatus.Sent)
+            {
+                TempData["CodeNotice"] = WaitMessage(issuedLoginCode.WaitSeconds);
+            }
+
+            return RedirectToAction(nameof(VerifyLoginCode));
+        }
+
+        // GET: /Account/VerifyLoginCode — second factor on an ordinary
+        // sign-in, after the password has already been verified.
+        [HttpGet]
+        public async Task<IActionResult> VerifyLoginCode()
+        {
+            var user = await GetPendingLoginUserAsync();
+            if (user == null) return RedirectToAction(nameof(Login));
+
+            var hasLiveCode = await _db.OneTimeCodes.AnyAsync(c =>
+                c.UserId == user.Id && c.Purpose == OneTimeCodePurpose.Login &&
+                c.ConsumedAtUtc == null && c.ExpiresAtUtc > DateTime.UtcNow);
+            if (!hasLiveCode)
+            {
+                var issued = await _codes.IssueAsync(user, OneTimeCodePurpose.Login);
+                if (issued.Status != CodeIssueStatus.Sent)
+                {
+                    TempData["CodeNotice"] = WaitMessage(issued.WaitSeconds);
+                }
+            }
+
+            return CodeView(user.Email, isReset: false, new EnterCodeViewModel(), isLogin: true);
+        }
+
+        // POST: /Account/VerifyLoginCode
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> VerifyLoginCode(EnterCodeViewModel model)
+        {
+            var user = await GetPendingLoginUserAsync();
+            if (user == null) return RedirectToAction(nameof(Login));
+
+            if (!ModelState.IsValid)
+            {
+                return CodeView(user.Email, isReset: false, model, isLogin: true);
+            }
+
+            var check = await _codes.VerifyAsync(user.Id, OneTimeCodePurpose.Login, model.Code);
+            if (check.Status != CodeCheckStatus.Valid)
+            {
+                return CodeView(user.Email, isReset: false, new EnterCodeViewModel(), CodeErrorMessage(check), isLogin: true);
+            }
+
+            // Read before SignIn clears the session.
+            var returnUrl = HttpContext.Session.GetString(PendingLoginReturnUrlKey);
+            var rememberMe = HttpContext.Session.GetString(PendingLoginRememberMeKey) == "1";
+
             SignIn(user);
-            return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
+            if (rememberMe)
+            {
+                await _sessions.IssueRememberMeCookieAsync(HttpContext, user);
+            }
+
+            return Redirect(returnUrl != null && Url.IsLocalUrl(returnUrl) ? returnUrl : RoleHomeUrl(user.Role));
+        }
+
+        // POST: /Account/ResendLoginCode
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> ResendLoginCode()
+        {
+            var user = await GetPendingLoginUserAsync();
+            if (user == null) return RedirectToAction(nameof(Login));
+
+            var issued = await _codes.IssueAsync(user, OneTimeCodePurpose.Login);
+            TempData["CodeNotice"] = issued.Status == CodeIssueStatus.Sent
+                ? "A new code was sent. Only the newest code works."
+                : WaitMessage(issued.WaitSeconds);
+
+            return RedirectToAction(nameof(VerifyLoginCode));
         }
 
         // POST: /Account/Logout
@@ -159,6 +278,11 @@ namespace DTIOneLink.Controllers
                     openLog.TimeOutUtc = now;
                     await _db.SaveChangesAsync();
                 }
+
+                // Signing out of a remembered browser should actually sign it
+                // out — otherwise the next page load would just silently
+                // re-establish the session via the cookie still sitting there.
+                await _sessions.RevokeRememberMeAsync(HttpContext, userId);
             }
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
@@ -511,17 +635,12 @@ namespace DTIOneLink.Controllers
 
         private void SignIn(User user)
         {
-            HttpContext.Session.Clear();
             // RecordsController, ReportsController, and their shared views all
-            // read these same keys to decide access and layout.
-            HttpContext.Session.SetString("UserRole", user.Role);
-            HttpContext.Session.SetString("Username", user.FullName); // other controllers rely on this key holding FullName
-            HttpContext.Session.SetString("FullName", user.FullName);
-            HttpContext.Session.SetString("LoginUsername", user.Username);
-            HttpContext.Session.SetString("UserEmail", user.Email);
-            HttpContext.Session.SetString("UserDepartment", user.Department ?? string.Empty);
-            HttpContext.Session.SetString(SecurityStampKey, user.SecurityStamp);
-            HttpContext.Session.SetInt32("UserId", user.Id);
+            // read these same session keys to decide access and layout — set
+            // the same way here and by a silent remember-me auto sign-in
+            // (AccountSessionService.TryAutoSignInAsync), so the two paths
+            // can never drift apart on what a signed-in session contains.
+            _sessions.EstablishSession(HttpContext, user);
 
             // Shown in User Management ("Last signed in ..."). One direct
             // UPDATE, so it never saves other pending changes by accident.
@@ -559,6 +678,24 @@ namespace DTIOneLink.Controllers
 
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id.Value);
             if (user == null || !user.IsActive || user.SecurityStamp != HttpContext.Session.GetString(PendingStampKey))
+            {
+                HttpContext.Session.Clear();
+                return null;
+            }
+            return user;
+        }
+
+        // Same shape as GetPendingUserAsync, but for the independent
+        // login-OTP "pending" family (see the PendingLogin* keys) — kept
+        // separate so a mid-login-OTP session can never be completed by
+        // anything that only checks MustChangePassword.
+        private async Task<User?> GetPendingLoginUserAsync()
+        {
+            var id = HttpContext.Session.GetInt32(PendingLoginUserIdKey);
+            if (id == null) return null;
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id.Value);
+            if (user == null || !user.IsActive || user.SecurityStamp != HttpContext.Session.GetString(PendingLoginStampKey))
             {
                 HttpContext.Session.Clear();
                 return null;
@@ -667,11 +804,13 @@ namespace DTIOneLink.Controllers
             return View(nameof(Login), model);
         }
 
-        // codeError: show this message and empty the code box.
-        private IActionResult CodeView(string email, bool isReset, EnterCodeViewModel model, string? codeError = null)
+        // codeError: show this message and empty the code box. isLogin wins
+        // over isReset when both could apply (callers only ever pass one).
+        private IActionResult CodeView(string email, bool isReset, EnterCodeViewModel model, string? codeError = null, bool isLogin = false)
         {
             ViewData["Email"] = email;
             ViewData["IsReset"] = isReset;
+            ViewData["IsLogin"] = isLogin;
             if (codeError != null)
             {
                 ModelState.Remove(nameof(model.Code));

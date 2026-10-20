@@ -53,5 +53,19 @@ namespace DTIOneLink.Models
         // session whose value no longer matches.
         [MaxLength(64)]
         public string SecurityStamp { get; set; } = string.Empty;
+
+        // "Remember me": lets Program.cs's per-request check silently
+        // re-establish a session after the in-memory session store loses it
+        // (idle timeout, app restart/deploy) without asking for the password
+        // or OTP again. Only a hash is stored (AccountSessionService), the
+        // same reasoning as OneTimeCode.CodeHash — the real token lives only
+        // in the browser's cookie. Rotated on every successful auto sign-in;
+        // one active token per user (signing in with "remember me" on a
+        // second device replaces the first device's). Hashed together with
+        // SecurityStamp, so a password change invalidates it automatically,
+        // the same way it already signs out active sessions.
+        [MaxLength(64)]
+        public string? RememberTokenHash { get; set; }
+        public DateTime? RememberTokenExpiresUtc { get; set; }
     }
 }

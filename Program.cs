@@ -52,6 +52,7 @@ else
 builder.Services.AddSingleton<OtpEmailQueue>();
 builder.Services.AddSingleton<OneTimeCodeHasher>();
 builder.Services.AddScoped<OneTimeCodeService>();
+builder.Services.AddScoped<AccountSessionService>();
 builder.Services.AddHostedService<EmailDispatchService>();
 builder.Services.AddAuthRateLimit();
 
@@ -234,6 +235,15 @@ app.Use(async (context, next) =>
                     .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastSeenAtUtc, now));
             }
         }
+    }
+    else if (context.Request.Cookies.ContainsKey(AccountSessionService.CookieName))
+    {
+        // No active session, but a "remember me" cookie is present — try to
+        // silently re-establish one (AccountSessionService.TryAutoSignInAsync
+        // validates the token itself; this just avoids the extra DB round
+        // trip entirely for the common case of no cookie at all).
+        var sessions = context.RequestServices.GetRequiredService<AccountSessionService>();
+        await sessions.TryAutoSignInAsync(context);
     }
 
     await next();

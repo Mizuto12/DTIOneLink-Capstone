@@ -1,15 +1,24 @@
 @model DTIOneLink.Models.EnterCodeViewModel
 @{
-    // Shared by first-sign-in email confirmation and Forgot Password.
+    // Shared by first-sign-in email confirmation, Forgot Password, and the
+    // login OTP step. isLogin wins over isReset when both are set (callers
+    // only ever pass one true).
     var isReset = ViewData["IsReset"] is true;
+    var isLogin = ViewData["IsLogin"] is true;
     var email = ViewData["Email"] as string ?? "";
     Layout = "_AuthLayout";
-    ViewData["Title"] = isReset ? "Enter Code" : "Verify Email";
+    ViewData["Title"] = isLogin ? "Verify It's You" : (isReset ? "Enter Code" : "Verify Email");
     var minutes = (int)DTIOneLink.Security.AccountDefaults.CodeLifetime.TotalMinutes;
+    var verifyAction = isLogin ? "VerifyLoginCode" : (isReset ? "ResetCode" : "VerifyEmail");
+    var resendAction = isLogin ? "ResendLoginCode" : (isReset ? "ResendResetCode" : "ResendVerifyEmail");
 }
 
 <h1 class="login-title change-password-title">
-    @if (isReset)
+    @if (isLogin)
+    {
+        <span class="navy">Verify</span> <span class="accent">It's You</span>
+    }
+    else if (isReset)
     {
         <span class="navy">Enter</span> <span class="accent">Code</span>
     }
@@ -19,10 +28,14 @@
     }
 </h1>
 
-<form asp-controller="Account" asp-action="@(isReset ? "ResetCode" : "VerifyEmail")" method="post" novalidate class="change-password-form account-form">
+<form asp-controller="Account" asp-action="@verifyAction" method="post" novalidate class="change-password-form account-form">
     @Html.AntiForgeryToken()
 
-    @if (isReset)
+    @if (isLogin)
+    {
+        <p class="change-password-note">We sent a 6-digit code to <strong>@email</strong> to finish signing in. Enter it to continue. It expires in @minutes minutes.</p>
+    }
+    else if (isReset)
     {
         @* Same wording whether or not an account exists. *@
         <p class="change-password-note">If an account with a confirmed email matches <strong>@email</strong>, we sent a 6-digit code to it. It expires in @minutes minutes.</p>
@@ -48,7 +61,7 @@
     <button type="submit" class="btn-login">VERIFY</button>
 </form>
 
-<form asp-controller="Account" asp-action="@(isReset ? "ResendResetCode" : "ResendVerifyEmail")" method="post" class="change-password-secondary-form">
+<form asp-controller="Account" asp-action="@resendAction" method="post" class="change-password-secondary-form">
     @Html.AntiForgeryToken()
     <button type="submit" class="change-password-secondary">Send a new code</button>
 </form>
@@ -59,9 +72,16 @@
 }
 else
 {
-    <p class="field-hint account-help">Not your email address? Ask your administrator to correct it, then log in again.</p>
+    @if (isLogin)
+    {
+        <p class="field-hint account-help">Not expecting this? Someone may have your password — cancel below and tell your administrator.</p>
+    }
+    else
+    {
+        <p class="field-hint account-help">Not your email address? Ask your administrator to correct it, then log in again.</p>
+    }
     <form asp-controller="Account" asp-action="Logout" method="post" class="change-password-secondary-form">
         @Html.AntiForgeryToken()
-        <button type="submit" class="change-password-secondary">Log out instead</button>
+        <button type="submit" class="change-password-secondary">@(isLogin ? "Cancel" : "Log out instead")</button>
     </form>
 }

@@ -12,13 +12,21 @@ namespace DTIOneLink.Services.Email
 
         public static EmailMessage Code(string toEmail, string toName, OneTimeCodePurpose purpose, string code, int minutesValid)
         {
-            var (subject, reason, ignoreNote) = purpose == OneTimeCodePurpose.PasswordReset
-                ? ("Your DTI OneLink password reset code",
-                   "Use this code to reset your DTI OneLink password.",
-                   "If you did not ask to reset your password, ignore this email. Your password has not been changed.")
-                : ("Your DTI OneLink verification code",
-                   "Use this code to confirm your email address in DTI OneLink.",
-                   "If you did not try to sign in to DTI OneLink, ignore this email and tell your administrator.");
+            var (subject, reason, ignoreNote) = purpose switch
+            {
+                OneTimeCodePurpose.PasswordReset =>
+                    ("Your DTI OneLink password reset code",
+                     "Use this code to reset your DTI OneLink password.",
+                     "If you did not ask to reset your password, ignore this email. Your password has not been changed."),
+                OneTimeCodePurpose.Login =>
+                    ("Your DTI OneLink sign-in code",
+                     "Use this code to finish signing in to DTI OneLink.",
+                     "If you did not try to sign in to DTI OneLink, ignore this email and tell your administrator — someone else entered your password."),
+                _ =>
+                    ("Your DTI OneLink verification code",
+                     "Use this code to confirm your email address in DTI OneLink.",
+                     "If you did not try to sign in to DTI OneLink, ignore this email and tell your administrator.")
+            };
 
             var text =
                 $"Hello {toName},\n\n{reason}\n\nYour code: {code}\n\n" +

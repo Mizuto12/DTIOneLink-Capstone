@@ -71,6 +71,13 @@
                             </button>
                         </div>
                         <span asp-validation-for="Password" class="field-error"></span>
+                    </div>
+
+                    <div class="remember-row">
+                        <label class="remember-me-label">
+                            <input type="checkbox" asp-for="RememberMe" />
+                            <span>Remember me on this device</span>
+                        </label>
                         <a asp-controller="Account" asp-action="ForgotPassword" class="forgot-link">Forgot Password?</a>
                     </div>
 

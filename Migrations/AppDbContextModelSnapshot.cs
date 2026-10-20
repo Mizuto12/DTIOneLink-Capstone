@@ -487,6 +487,13 @@ namespace DTIOneLink.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("RememberTokenExpiresUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RememberTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

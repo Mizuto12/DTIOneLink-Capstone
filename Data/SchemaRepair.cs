@@ -130,6 +130,13 @@ IF OBJECT_ID(N'dbo.FK_Records_RecordMasterlists_MasterlistId', N'F') IS NULL
         FOREIGN KEY (MasterlistId) REFERENCES dbo.RecordMasterlists (MasterlistId) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Records_MasterlistId' AND object_id = OBJECT_ID(N'dbo.Records'))
     CREATE INDEX IX_Records_MasterlistId ON dbo.Records (MasterlistId);");
+
+            // AddUserRememberMeToken
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.Users', N'RememberTokenHash') IS NULL
+    ALTER TABLE dbo.Users ADD RememberTokenHash nvarchar(64) NULL;
+IF COL_LENGTH(N'dbo.Users', N'RememberTokenExpiresUtc') IS NULL
+    ALTER TABLE dbo.Users ADD RememberTokenExpiresUtc datetime2 NULL;");
         }
     }
 }

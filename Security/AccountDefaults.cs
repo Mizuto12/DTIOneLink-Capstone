@@ -24,6 +24,10 @@ namespace DTIOneLink.Security
         // must be saved.
         public static readonly TimeSpan ResetWindow = TimeSpan.FromMinutes(10);
 
+        // "Remember me" cookie lifetime, and how long the token it names
+        // stays valid for in the database — the two are always set together.
+        public static readonly TimeSpan RememberMeDuration = TimeSpan.FromDays(30);
+
         // Common passwords refused as a new password (NIST SP 800-63B asks
         // for a check against commonly used values). Compared ignoring case.
         public static readonly HashSet<string> CommonPasswords = new(StringComparer.OrdinalIgnoreCase)
