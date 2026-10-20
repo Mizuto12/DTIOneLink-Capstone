@@ -20,7 +20,10 @@ namespace DTIOneLink.Controllers
     // every page that requires login still treats the person as signed out.
     public class AccountController : Controller
     {
-        private const string PendingUserIdKey = "PendingUserId";
+        // internal, not private: Program.cs's remember-me auto-sign-in
+        // middleware checks these too, so it never clobbers a login already
+        // in progress (see the comment above that middleware).
+        internal const string PendingUserIdKey = "PendingUserId";
         private const string PendingStampKey = "PendingStamp";
         private const string PendingReturnUrlKey = "PendingReturnUrl";
 
@@ -30,7 +33,7 @@ namespace DTIOneLink.Controllers
         // above. Reusing those would mean GetPendingUserAsync and
         // ContinuePendingSignIn (which only ever gate on MustChangePassword)
         // could complete a sign-in before the Login OTP was ever entered.
-        private const string PendingLoginUserIdKey = "PendingLoginUserId";
+        internal const string PendingLoginUserIdKey = "PendingLoginUserId";
         private const string PendingLoginStampKey = "PendingLoginStamp";
         private const string PendingLoginReturnUrlKey = "PendingLoginReturnUrl";
         private const string PendingLoginRememberMeKey = "PendingLoginRememberMe";

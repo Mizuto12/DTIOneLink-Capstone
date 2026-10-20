@@ -236,12 +236,23 @@ app.Use(async (context, next) =>
             }
         }
     }
-    else if (context.Request.Cookies.ContainsKey(AccountSessionService.CookieName))
+    else if (context.Session.GetInt32(AccountController.PendingUserIdKey) == null
+        && context.Session.GetInt32(AccountController.PendingLoginUserIdKey) == null
+        && context.Request.Cookies.ContainsKey(AccountSessionService.CookieName))
     {
         // No active session, but a "remember me" cookie is present — try to
         // silently re-establish one (AccountSessionService.TryAutoSignInAsync
         // validates the token itself; this just avoids the extra DB round
         // trip entirely for the common case of no cookie at all).
+        //
+        // Skipped while a login is already mid-flight (PendingUserId from
+        // the must-change-password/first-time path, or PendingLoginUserId
+        // from the ordinary login-OTP path): TryAutoSignInAsync succeeding
+        // calls EstablishSession, which clears the session outright — wiping
+        // the very Pending*Id key that just got set a request or two ago and
+        // sending the user back to Login, who then logs in again, hits this
+        // same cookie again, and loops forever. A manual login already in
+        // progress always gets to finish on its own terms.
         var sessions = context.RequestServices.GetRequiredService<AccountSessionService>();
         await sessions.TryAutoSignInAsync(context);
     }
