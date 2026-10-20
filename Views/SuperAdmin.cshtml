@@ -58,6 +58,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/superadmin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/completion-trend.css" asp-append-version="true" />
 }
 
 <div class="sa-dashboard">
@@ -106,6 +107,21 @@
                 <span><span class="sa-dot sa-tone-completed"></span>Completed <strong>@Model.CompletedCount</strong> (@Model.CompletedPercent%)</span>
             </div>
         }
+    </section>
+
+    <!-- ── Completion trend: weekly approved-submission counts, office-wide.
+         Filled in by completion-trend.js (DashboardController.GetCompletionTrend). -->
+    <section class="sa-section" id="saCompletionTrend">
+        <div class="sa-section__head">
+            <div>
+                <h4 class="sa-section__title">Completion Trend</h4>
+                <p class="sa-section__sub">Tasks completed per week, last 8 weeks.</p>
+            </div>
+            <span class="sa-pill" id="completionTrendScope">Office-wide</span>
+        </div>
+        <div class="ct-widget">
+            <div class="ct-chart ct-skeleton" id="completionTrendChart" aria-busy="true" aria-label="Completion trend chart"></div>
+        </div>
     </section>
 
     <!-- ── Kanban board (every assignment, office-wide) ──── -->
@@ -337,4 +353,5 @@
 
 @section Scripts {
     <script src="~/js/superadmin-dashboard.js" asp-append-version="true"></script>
+    <script src="~/js/completion-trend.js" asp-append-version="true" defer></script>
 }

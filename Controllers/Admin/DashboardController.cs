@@ -71,6 +71,76 @@ namespace DTIOneLink.Controllers
             return View(tasks);
         }
 
+        // GET: /Dashboard/GetCompletionTrend — weekly count of approved
+        // submissions over the last 8 weeks, scoped the same way as
+        // AdminDashboard (own work / own division / office-wide). Backs the
+        // "Completion Trend" widget on all three dashboards.
+        [HttpGet]
+        [RequireLogin]
+        public async Task<IActionResult> GetCompletionTrend()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            var userRole = HttpContext.Session.GetString("UserRole");
+            var isDepartmentElevated = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userRole, "Supervisor", StringComparison.OrdinalIgnoreCase);
+            var isOfficeWide = RolePermissions.Has(userRole, Permissions.ManageOfficeWideTasks);
+
+            const int WeekCount = 8;
+            var today = TimeZoneHelper.PhilippineToday;
+            var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7; // Sunday=0 -> 6, Monday=1 -> 0, ...
+            var currentWeekStart = today.AddDays(-daysSinceMonday);
+            var rangeStart = currentWeekStart.AddDays(-7 * (WeekCount - 1));
+
+            IQueryable<TaskSubmission> query = _context.TaskSubmissions
+                .AsNoTracking()
+                .Include(s => s.TaskAssignment).ThenInclude(a => a!.User)
+                .Include(s => s.Task).ThenInclude(t => t!.ParentTask)
+                .Where(s => s.Decision == "approved" && s.DecidedAt != null
+                    // One extra day of slack: DecidedAt is UTC, rangeStart is a
+                    // Philippine-local date, and PH is ahead of UTC — exact
+                    // week bucketing happens below, in local time, after this
+                    // coarse SQL-side filter.
+                    && s.DecidedAt!.Value >= rangeStart.AddDays(-1));
+
+            string scopeLabel;
+            if (isOfficeWide)
+            {
+                scopeLabel = "Office-wide";
+            }
+            else if (isDepartmentElevated)
+            {
+                var department = HttpContext.Session.GetString("UserDepartment");
+                query = query.Where(s =>
+                    (s.Task!.OwningDepartment != null && s.Task.OwningDepartment == department) ||
+                    (s.Task.OwningDepartment == null && s.Task.ParentTask != null && s.Task.ParentTask.OwningDepartment == department) ||
+                    (s.Task.OwningDepartment == null && (s.Task.ParentTask == null || s.Task.ParentTask.OwningDepartment == null) &&
+                        s.TaskAssignment != null && s.TaskAssignment.User != null && s.TaskAssignment.User.Department == department));
+                scopeLabel = department ?? "Your division";
+            }
+            else
+            {
+                query = query.Where(s => s.TaskAssignment != null && s.TaskAssignment.UserId == userId);
+                scopeLabel = "You";
+            }
+
+            var decidedAtTimes = await query.Select(s => s.DecidedAt!.Value).ToListAsync();
+
+            var weeks = new List<CompletionTrendWeek>();
+            for (var i = 0; i < WeekCount; i++)
+            {
+                var weekStart = rangeStart.AddDays(7 * i);
+                var weekEnd = weekStart.AddDays(7);
+                var count = decidedAtTimes.Count(d =>
+                {
+                    var local = TimeZoneHelper.ToPhilippineTime(d).Date;
+                    return local >= weekStart && local < weekEnd;
+                });
+                weeks.Add(new CompletionTrendWeek { WeekStart = weekStart, Count = count });
+            }
+
+            return Json(new CompletionTrendViewModel { ScopeLabel = scopeLabel, Weeks = weeks });
+        }
+
         [HttpGet]
         [RequirePermission(Permissions.ViewOfficeWideSummaries)]
         public async Task<IActionResult> SuperAdminDashboard()

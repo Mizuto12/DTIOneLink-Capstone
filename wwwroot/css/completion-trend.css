@@ -1,0 +1,72 @@
+/* Completion Trend widget — weekly count of approved submissions, scoped by
+   role (own work / own division / office-wide). Shared across the
+   SuperAdmin, Admin, and Employee dashboards, filled in by completion-trend.js. */
+
+.ct-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-sm, 8px);
+}
+
+.ct-widget__scope {
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+
+.ct-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  padding-top: 22px; /* room for the count label above each bar */
+}
+
+.ct-bar {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.ct-bar__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--on-surface);
+  margin-bottom: 4px;
+}
+
+.ct-bar__fill {
+  width: 100%;
+  max-width: 28px;
+  min-height: 3px;
+  border-radius: 4px 4px 0 0;
+  background: var(--primary);
+  transition: height 0.2s ease;
+}
+
+.ct-bar--zero .ct-bar__fill {
+  background: var(--outline-variant);
+}
+
+.ct-bar__label {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ct-empty {
+  font-size: 13px;
+  color: var(--on-surface-variant);
+  padding: 12px 0;
+}
+
+.ct-skeleton {
+  height: 120px;
+  border-radius: 8px;
+  background: var(--surface-container-low);
+}

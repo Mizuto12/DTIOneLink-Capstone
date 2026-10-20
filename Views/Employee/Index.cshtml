@@ -125,6 +125,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/employee-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/completion-trend.css" asp-append-version="true" />
 }
 
 <div class="ed" id="employeeDashboard" data-today="@today.ToString("yyyy-MM-dd")">
@@ -229,6 +230,19 @@
                     <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                 </a>
             </section>
+
+            <!-- Completion Trend: this employee's own weekly approved-submission
+                 count. Filled in by completion-trend.js
+                 (DashboardController.GetCompletionTrend). -->
+            <section class="ed-progress" aria-labelledby="edTrendTitle">
+                <span class="material-symbols-outlined ed-progress__icon" aria-hidden="true">trending_up</span>
+                <h2 class="ed-progress__title" id="edTrendTitle">Completion trend</h2>
+                <p class="ed-progress__summary">Tasks you completed per week, last 8 weeks.</p>
+                <div class="ct-widget">
+                    <div class="ct-chart ct-skeleton" id="completionTrendChart" aria-busy="true" aria-label="Completion trend chart"></div>
+                </div>
+                <span class="visually-hidden" id="completionTrendScope">You</span>
+            </section>
         </aside>
     </div>
 
@@ -276,4 +290,5 @@
 
 @section Scripts {
     <script src="~/js/employee-dashboard.js" asp-append-version="true"></script>
+    <script src="~/js/completion-trend.js" asp-append-version="true" defer></script>
 }

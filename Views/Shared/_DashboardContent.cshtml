@@ -170,6 +170,26 @@
             </div>
         </section>
 
+        <!-- Completion Trend: weekly approved-submission count, scoped to this
+             viewer's division (or office-wide/own work, depending on role).
+             Filled in by completion-trend.js
+             (DashboardController.GetCompletionTrend). -->
+        <section class="records-overview" id="completionTrend" aria-label="Completion trend">
+            <div class="records-overview__header">
+                <div class="records-overview__title-group">
+                    <span class="material-symbols-outlined" aria-hidden="true">trending_up</span>
+                    <div>
+                        <h3 class="records-overview__title">Completion Trend</h3>
+                        <p class="records-overview__sub">Tasks completed per week, last 8 weeks.</p>
+                    </div>
+                </div>
+                <span class="ct-widget__scope" id="completionTrendScope">@(isEmployeeView ? "You" : "Your division")</span>
+            </div>
+            <div class="ct-widget">
+                <div class="ct-chart ct-skeleton" id="completionTrendChart" aria-busy="true" aria-label="Completion trend chart"></div>
+            </div>
+        </section>
+
         <!-- Task Ledger -->
         <section class="ledger">
             <div class="ledger__header">
