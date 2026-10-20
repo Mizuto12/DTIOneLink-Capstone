@@ -196,7 +196,13 @@
                         var rowHref = task.TaskLevel == "main"
                             ? Url.Action("MainTaskDetails", "Tasks", new { id = task.Id })
                             : (canOpenForEdit ? Url.Action("Edit", "Tasks", new { id = task.Id }) : null);
-                        <tr class="task-row" data-href="@rowHref">
+                        @* role/tabindex/aria-label are each omitted by Razor when their
+                           expression is null (a row with no rowHref isn't clickable at
+                           all, so it must not be keyboard-focusable either). *@
+                        <tr class="task-row" data-href="@rowHref"
+                            role="@(rowHref != null ? "link" : null)"
+                            tabindex="@(rowHref != null ? "0" : null)"
+                            aria-label="@(rowHref != null ? $"Open {task.TaskName}" : null)">
                             <td class="td-first">
                                 <div class="employee-cell">
                                     <div class="emp-avatar">@initials</div>

@@ -30,6 +30,12 @@ body{
     --color-surface-container-low: #eff4ff;
     --color-tertiary-fixed-dim: #4ae183;
     --color-error-container: #ffdad6;
+    /* Matches --td-warning-container/--td-on-warning-container in
+       employeetaskdetails.css — High priority must look the same color on
+       both the board and the details page for the same task, and must stay
+       distinct from the error-container red already used for Overdue. */
+    --color-warning-container: #ffdcbe;
+    --color-on-warning-container: #2c1600;
     --color-background: #f8f9ff;
     --color-surface-container-high: #dce9ff;
     --color-secondary-container: #e0e3e6;
@@ -332,8 +338,8 @@ body{
 }
 
 .task-management .priority-badge.high {
-    background-color: var(--color-error-container);
-    color: var(--color-on-error-container);
+    background-color: var(--color-warning-container);
+    color: var(--color-on-warning-container);
 }
 
 .task-management .priority-badge.medium {

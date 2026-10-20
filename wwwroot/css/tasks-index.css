@@ -249,6 +249,14 @@
     transform: scale(1.002);
 }
 
+/* Visible focus ring for keyboard navigation (role="link" + tabindex="0"
+   rows only — the view omits both attributes on a non-clickable row, so
+   those never receive focus in the first place). */
+.task-row[tabindex]:focus-visible {
+    outline: 2px solid var(--primary, #001e65);
+    outline-offset: -2px;
+}
+
 .task-row td {
     padding: 16px;
     vertical-align: middle;

@@ -1690,6 +1690,7 @@ ORDER BY RecordId", conn))
         // The file itself is a database blob (see SaveMasterlist); only the
         // FileName shown in Saved Masterlists and used on download changes.
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult RenameMasterlist(int id, [FromBody] RenameMasterlistRequest? request)
         {
             var access = CheckAccess(out var user);

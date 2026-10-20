@@ -18,6 +18,18 @@
                     row.style.transform = "";
                 }, 150);
             });
+
+            // Keyboard equivalent of the click above (Enter/Space), same as
+            // the Gantt rows and Kanban cards elsewhere (dashboard.js) — a
+            // keyboard-only or screen-reader user couldn't open a row from
+            // this table otherwise. Only rows the view gave a role="link"
+            // (i.e. with a real data-href) are focusable at all.
+            row.addEventListener("keydown", function (event) {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                if (!row.dataset.href || event.target.closest("a, button")) return;
+                event.preventDefault();
+                window.location.href = row.dataset.href;
+            });
         });
 
         // ── Search bar subtle focus effect (no pop-up) ────
