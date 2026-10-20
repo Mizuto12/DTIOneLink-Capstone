@@ -70,7 +70,7 @@ const showStatusColumn = canManageRecords || canApproveRecords;
 
 function statusCellHtml(data) {
   const parts = [];
-  parts.push(`<span class="status-pill status-${escapeHtml((data.recordStatus || 'Active').toLowerCase())}">${escapeHtml(data.recordStatus || 'Active')}</span>`);
+  parts.push(`<span class="status-pill status-${escapeHtml((data.recordStatus || 'Retention').toLowerCase())}">${escapeHtml(data.recordStatus || 'Retention')}</span>`);
 
   if (canApproveRecords) {
     parts.push(data.approvedByName
@@ -81,9 +81,9 @@ function statusCellHtml(data) {
   }
 
   if (canManageRecords) {
-    if (data.recordStatus === 'Active') {
+    if (data.recordStatus === 'Retention') {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkForDisposal">Mark for Disposal</button>`);
-    } else if (data.recordStatus === 'ForDisposal') {
+    } else if (data.recordStatus === 'Disposal') {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkDisposed">Mark Disposed</button>`);
     }
   }

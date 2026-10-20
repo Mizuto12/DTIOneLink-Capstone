@@ -293,8 +293,12 @@ namespace DTIOneLink.Controllers
         }
 
         // Records the user owns (same owner-only rule as the Records page).
-        // "Retained" = still active; "Archived"/"Disposed" follow RecordStatus
-        // once those statuses are used.
+        // "Retained" covers both Retention and Disposal status (not yet
+        // physically disposed of); "Disposed" follows RecordStatus = Disposed.
+        // "Archived" is reserved for a record of permanent/historical value
+        // preserved at the National Archives instead of disposed of (RA
+        // 9470/NAP) — a different, not-yet-implemented status, never produced
+        // by RecordStatus today.
         private async Task<List<ReportItem>> OwnRecordsAsync(int userId, DateTime now, DateTime? fromUtc, DateTime? toUtc)
         {
             var items = new List<ReportItem>();
@@ -328,7 +332,7 @@ namespace DTIOneLink.Controllers
 
                 while (await reader.ReadAsync())
                 {
-                    var status = reader.IsDBNull(3) ? "Active" : reader.GetString(3);
+                    var status = reader.IsDBNull(3) ? "Retention" : reader.GetString(3);
                     var retention = reader.IsDBNull(4) ? "" : reader.GetString(4);
                     DateTime? dueDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5);
                     var createdAt = reader.GetDateTime(6);

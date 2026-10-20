@@ -142,8 +142,8 @@
   background: var(--surface-container-low);
   color: var(--on-surface-variant);
 }
-.records-page .status-pill.status-active { background: #dcfce7; color: #166534; }
-.records-page .status-pill.status-fordisposal { background: #fef9c3; color: #854d0e; }
+.records-page .status-pill.status-retention { background: #dcfce7; color: #166534; }
+.records-page .status-pill.status-disposal { background: #fef9c3; color: #854d0e; }
 .records-page .status-pill.status-disposed { background: #e5e7eb; color: #374151; }
 
 .records-page .approved-note {

@@ -5,8 +5,10 @@ using System.Data;
 namespace DTIOneLink.Services
 {
     // Creates "review for disposal" notifications for records whose retention
-    // period ends within ReminderMonths (or has already ended). The recipient
-    // is the record's owner — the user who logged it (Records.CreatedByUserId).
+    // period ends within ReminderMonths (or has already ended), and promotes
+    // those Retention records to Disposal status in the background run. The
+    // recipient is the record's owner — the user who logged it
+    // (Records.CreatedByUserId).
     //
     // Used from two places so reminders show up promptly:
     //  - RecordRetentionReminderService: every hour, for all owners.
@@ -60,22 +62,28 @@ namespace DTIOneLink.Services
                     return 0;
                 }
 
-                // Background run only: keep every Active record's due date in
-                // line with the current counting rule (end of Period Covered,
-                // else the date logged) — this also corrects records saved
-                // before the rule existed.
+                // Background run only: keep every Retention record's due date
+                // in line with the current counting rule (end of Period
+                // Covered, else the date logged) — this also corrects records
+                // saved before the rule existed — then promote any that are
+                // now due into Disposal status.
                 if (ownerUserId == null)
                 {
                     await RecalculateDueDatesAsync(conn, cancellationToken);
+                    await PromoteDueRecordsToDisposalAsync(conn, notifyThrough, cancellationToken);
                 }
 
-                // Active records whose retention ends on or before six months
-                // from today, owned by an active user, not yet reminded.
+                // Retention or Disposal records whose retention ends on or
+                // before six months from today, owned by an active user, not
+                // yet reminded. Disposal is included because a per-user
+                // bell-load run (ownerUserId != null) can land between
+                // background runs, before this user's own records have been
+                // promoted yet.
                 await using var cmd = new SqlCommand(@"
 SELECT r.RecordId, r.Code, r.Title, r.CreatedByUserId, r.RetentionDueDate
 FROM dbo.Records r
 JOIN dbo.Users u ON u.Id = r.CreatedByUserId AND u.IsActive = 1
-WHERE r.RecordStatus = N'Active'
+WHERE r.RecordStatus IN (N'Retention', N'Disposal')
   AND r.RetentionDueDate IS NOT NULL
   AND r.RetentionDueDate <= @NotifyThrough
   AND (@OwnerUserId IS NULL OR r.CreatedByUserId = @OwnerUserId)
@@ -114,7 +122,7 @@ WHERE r.RecordStatus = N'Active'
             return dueRecords.Count;
         }
 
-        // Recomputes RetentionDueDate for Active records and saves any that
+        // Recomputes RetentionDueDate for Retention records and saves any that
         // changed. A changed record's earlier disposal reminder is removed —
         // it named the old date — so a correct one is sent when it is due.
         private async Task RecalculateDueDatesAsync(SqlConnection conn, CancellationToken cancellationToken)
@@ -124,7 +132,7 @@ WHERE r.RecordStatus = N'Active'
             await using (var read = new SqlCommand(@"
 SELECT RecordId, RecordDate, PeriodCovered, RetentionPeriod, RetentionDueDate
 FROM dbo.Records
-WHERE RecordStatus = N'Active' AND RecordDate IS NOT NULL", conn))
+WHERE RecordStatus = N'Retention' AND RecordDate IS NOT NULL", conn))
             await using (var reader = await read.ExecuteReaderAsync(cancellationToken))
             {
                 while (await reader.ReadAsync(cancellationToken))
@@ -161,6 +169,29 @@ DELETE FROM dbo.Notifications WHERE RelatedRecordId = @Id AND Type = @Type;", co
             await transaction.CommitAsync(cancellationToken);
 
             _logger.LogInformation("Recalculated the retention end date of {Count} record(s).", changes.Count);
+        }
+
+        // Moves a Retention record into Disposal once its retention period
+        // ends within the reminder window (or has already ended) — the
+        // office's own definition of Disposal: "near or needs disposal".
+        // Retention records with no computable due date (event-based
+        // retention text) are never promoted automatically; MarkForDisposal
+        // remains available for those.
+        private async Task PromoteDueRecordsToDisposalAsync(SqlConnection conn, DateTime notifyThrough, CancellationToken cancellationToken)
+        {
+            await using var update = new SqlCommand(@"
+UPDATE dbo.Records
+SET RecordStatus = N'Disposal'
+WHERE RecordStatus = N'Retention'
+  AND RetentionDueDate IS NOT NULL
+  AND RetentionDueDate <= @NotifyThrough", conn);
+            update.Parameters.Add("@NotifyThrough", SqlDbType.Date).Value = notifyThrough;
+            var promoted = await update.ExecuteNonQueryAsync(cancellationToken);
+
+            if (promoted > 0)
+            {
+                _logger.LogInformation("Promoted {Count} record(s) from Retention to Disposal.", promoted);
+            }
         }
 
         // The owner/status/due-date columns come from migration

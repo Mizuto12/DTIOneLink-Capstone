@@ -80,7 +80,7 @@ namespace DTIOneLink.Controllers
            FilingSystem, AccessControl, RetentionPeriod,
            CAST(NULL AS int)           AS CreatedByUserId,
            CAST(NULL AS nvarchar(50))  AS OwningDepartment,
-           CAST(N'Active' AS nvarchar(20)) AS RecordStatus,
+           CAST(N'Retention' AS nvarchar(20)) AS RecordStatus,
            CAST(NULL AS date)          AS RecordDate,
            CAST(NULL AS date)          AS RetentionDueDate
     FROM Records) r";
@@ -314,7 +314,7 @@ namespace DTIOneLink.Controllers
         // system never disposes of anything.
         private static string? RetentionState(RecordRow row)
         {
-            if (row.RetentionDueDate == null || !string.Equals(row.RecordStatus, "Active", StringComparison.OrdinalIgnoreCase))
+            if (row.RetentionDueDate == null || !string.Equals(row.RecordStatus, "Retention", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
@@ -442,7 +442,7 @@ SELECT
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate <= @Today THEN 1 ELSE 0 END),
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate > @Today AND r.RetentionDueDate <= @SoonLimit THEN 1 ELSE 0 END)
 FROM {source}
-WHERE {VisibilityClause(user)} AND r.RecordStatus = 'Active'", conn))
+WHERE {VisibilityClause(user)} AND r.RecordStatus = 'Retention'", conn))
                 {
                     AddVisibilityParameters(cmd, user);
                     cmd.Parameters.Add("@Today", SqlDbType.Date).Value = today;
@@ -726,7 +726,7 @@ WHERE ").Append(VisibilityClause(user));
 
             var recordDate = PhilippineToday();
             var retentionDueDate = RetentionPeriodParser.TryComputeDueDate(recordDate, periodCovered, retentionPeriod);
-            const string recordStatus = "Active";
+            const string recordStatus = "Retention";
 
             try
             {
@@ -1065,13 +1065,24 @@ WHERE RecordId = @RecordId", conn);
             }
         }
 
-        // POST: /Records/MarkForDisposal/{id}, /Records/MarkDisposed/{id} —
-        // the records officer's (Admin's) active validation step, replacing
-        // the passive-only due-date colour reminder with a real action.
+        // POST: /Records/MarkForDisposal/{id} — a manual early flag into
+        // Disposal status. Normally unnecessary: RecordRetentionReminder's
+        // background run already promotes a Retention record to Disposal
+        // once its due date is within the reminder window, matching the
+        // "near or needs disposal" meaning the office gave this status. This
+        // stays available for records with no computable due date (event-based
+        // retention text), which the background run can never promote on its own.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult MarkForDisposal(int id) => SetDisposalStatus(id, "ForDisposal");
+        public IActionResult MarkForDisposal(int id) => SetDisposalStatus(id, "Disposal");
 
+        // POST: /Records/MarkDisposed/{id} — the records officer's (Admin's)
+        // confirmation that a record has actually been physically disposed of.
+        // This step stays manual: the system has no way to know disposal truly
+        // happened, only that it is due. Named Disposed, not Archive — under
+        // RA 9470/NAP's own vocabulary, archival means a record of permanent
+        // value is preserved at the National Archives instead of disposed of,
+        // the opposite of this status, not a synonym for it.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult MarkDisposed(int id) => SetDisposalStatus(id, "Disposed");
