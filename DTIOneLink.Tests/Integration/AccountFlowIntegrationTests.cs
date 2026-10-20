@@ -63,6 +63,35 @@ public class AccountFlowIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Login_AlreadySignedIn_RedirectsToRoleHomeInsteadOfShowingTheForm()
+    {
+        // Covers the gap a remembered-device auto-sign-in would otherwise
+        // hit: Program.cs's middleware silently sets Session["UserId"]
+        // before this action runs, but only a check in the action itself
+        // turns that into a redirect - without it, a remembered user would
+        // land back on the login form every time instead of their dashboard.
+        using (var db = _factory.CreateDbContext())
+        {
+            db.Users.Add(IntegrationTestHelpers.NewActiveUser("Employee", "Business Development Division"));
+            await db.SaveChangesAsync();
+        }
+
+        var getResponse = await _client.GetAsync("/Account/Login");
+        var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
+        await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Username"] = "test.user@dti.gov.ph",
+            ["Password"] = "Correct-Horse-1",
+            ["__RequestVerificationToken"] = token,
+        }));
+
+        var secondVisit = await _client.GetAsync("/Account/Login");
+
+        Assert.Equal(HttpStatusCode.Redirect, secondVisit.StatusCode);
+        Assert.Contains("/Employee", secondVisit.Headers.Location!.ToString());
+    }
+
+    [Fact]
     public async Task Login_WrongPassword_ShowsGenericErrorAndDoesNotSignIn()
     {
         using (var db = _factory.CreateDbContext())

@@ -76,6 +76,20 @@ namespace DTIOneLink.Controllers
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
+            // A remembered browser gets signed in silently by the
+            // middleware in Program.cs *before* this action runs — but that
+            // middleware only writes session keys, it never redirects. Root
+            // ("/") and "/Account" both land here, so without this check a
+            // remembered user would still see the login form every time,
+            // even though Session["UserId"] is already set underneath it.
+            if (HttpContext.Session.GetInt32("UserId") != null)
+            {
+                var home = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+                    ? returnUrl
+                    : RoleHomeUrl(HttpContext.Session.GetString("UserRole"));
+                return Redirect(home);
+            }
+
             var model = new LoginViewModel { ReturnUrl = returnUrl };
             return View(model);
         }
