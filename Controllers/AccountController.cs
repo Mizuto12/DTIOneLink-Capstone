@@ -36,6 +36,7 @@ namespace DTIOneLink.Controllers
         internal const string PendingLoginUserIdKey = "PendingLoginUserId";
         private const string PendingLoginStampKey = "PendingLoginStamp";
         private const string PendingLoginReturnUrlKey = "PendingLoginReturnUrl";
+        private const string PendingLoginRememberMeKey = "PendingLoginRememberMe";
 
         private const string ResetEmailKey = "ResetEmail";
         private const string ResetUserIdKey = "ResetUserId";
@@ -158,6 +159,10 @@ namespace DTIOneLink.Controllers
             if (_env.IsEnvironment("Testing"))
             {
                 SignIn(user);
+                if (model.RememberMe)
+                {
+                    await _sessions.IssueRememberMeCookieAsync(HttpContext, user);
+                }
                 return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
             }
 
@@ -168,6 +173,7 @@ namespace DTIOneLink.Controllers
             HttpContext.Session.SetInt32(PendingLoginUserIdKey, user.Id);
             HttpContext.Session.SetString(PendingLoginStampKey, user.SecurityStamp);
             if (returnUrl != null) HttpContext.Session.SetString(PendingLoginReturnUrlKey, returnUrl);
+            HttpContext.Session.SetString(PendingLoginRememberMeKey, model.RememberMe ? "1" : "0");
 
             var issuedLoginCode = await _codes.IssueAsync(user, OneTimeCodePurpose.Login);
             if (issuedLoginCode.Status != CodeIssueStatus.Sent)
@@ -223,8 +229,13 @@ namespace DTIOneLink.Controllers
 
             // Read before SignIn clears the session.
             var returnUrl = HttpContext.Session.GetString(PendingLoginReturnUrlKey);
+            var rememberMe = HttpContext.Session.GetString(PendingLoginRememberMeKey) == "1";
 
             SignIn(user);
+            if (rememberMe)
+            {
+                await _sessions.IssueRememberMeCookieAsync(HttpContext, user);
+            }
 
             return Redirect(returnUrl != null && Url.IsLocalUrl(returnUrl) ? returnUrl : RoleHomeUrl(user.Role));
         }
