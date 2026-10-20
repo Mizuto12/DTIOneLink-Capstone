@@ -207,7 +207,15 @@ namespace DTIOneLink.Controllers
             }
 
             // ── Records: Retained / Archived / Disposed ──────────────
-            items.AddRange(await OwnRecordsAsync(userId.Value, now, fromUtc, toUtc));
+            // Same visibility rule as the Records page itself
+            // (RecordsController.VisibilityClause): a records manager
+            // (Admin) or approver (SuperAdmin, via ApproveRecords) sees every
+            // record office-wide, not just the ones they personally logged —
+            // otherwise a Division Chief auditing disposal compliance for
+            // their whole division would see almost nothing here.
+            var seesAllRecords = RolePermissions.Has(role, Permissions.ManageRecords)
+                || RolePermissions.Has(role, Permissions.ApproveRecords);
+            items.AddRange(await OwnRecordsAsync(userId.Value, seesAllRecords, now, fromUtc, toUtc));
 
             var ordered = items.OrderByDescending(i => i.SortAt).Select(i => new
             {
@@ -299,16 +307,18 @@ namespace DTIOneLink.Controllers
         // preserved at the National Archives instead of disposed of (RA
         // 9470/NAP) — a different, not-yet-implemented status, never produced
         // by RecordStatus today.
-        private async Task<List<ReportItem>> OwnRecordsAsync(int userId, DateTime now, DateTime? fromUtc, DateTime? toUtc)
+        private async Task<List<ReportItem>> OwnRecordsAsync(int userId, bool seesAllRecords, DateTime now, DateTime? fromUtc, DateTime? toUtc)
         {
             var items = new List<ReportItem>();
             // Period: logged or last changed inside it (CreatedAt/UpdatedAt are UTC).
+            // seesAllRecords mirrors RecordsController.VisibilityClause: a
+            // records manager/approver sees every record, not just their own.
             const string sql = @"
                 SELECT r.RecordId, r.Code, r.Title, r.RecordStatus, r.RetentionPeriod,
                        r.RetentionDueDate, r.CreatedAt, r.UpdatedAt, u.FullName
                 FROM dbo.Records r
                 LEFT JOIN dbo.Users u ON u.Id = r.CreatedByUserId
-                WHERE r.CreatedByUserId = @UserId
+                WHERE (@SeesAllRecords = 1 OR r.CreatedByUserId = @UserId)
                   AND (   (@From IS NULL AND @To IS NULL)
                        OR (r.CreatedAt >= COALESCE(@From, CAST('0001-01-01' AS datetime2))
                            AND r.CreatedAt < COALESCE(@To, CAST('9999-12-31' AS datetime2)))
@@ -322,6 +332,7 @@ namespace DTIOneLink.Controllers
                 await conn.OpenAsync();
                 using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@UserId", userId);
+                cmd.Parameters.Add("@SeesAllRecords", System.Data.SqlDbType.Bit).Value = seesAllRecords;
                 cmd.Parameters.Add("@From", System.Data.SqlDbType.DateTime2).Value = (object?)fromUtc ?? DBNull.Value;
                 cmd.Parameters.Add("@To", System.Data.SqlDbType.DateTime2).Value = (object?)toUtc ?? DBNull.Value;
                 using var reader = await cmd.ExecuteReaderAsync();

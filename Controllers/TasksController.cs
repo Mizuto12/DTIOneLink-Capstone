@@ -64,6 +64,7 @@ namespace DTIOneLink.Controllers
         {
             var isOfficeWide = IsOfficeWideTaskManager();
             var ownDepartment = CurrentUserDepartment();
+            var currentUserId = HttpContext.Session.GetInt32("UserId");
             var model = new TaskIndexViewModel
             {
                 Search = string.IsNullOrWhiteSpace(q) ? null : q.Trim(),
@@ -97,7 +98,13 @@ namespace DTIOneLink.Controllers
                     (t.OwningDepartment != null && t.OwningDepartment == ownDepartment) ||
                     (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == ownDepartment) ||
                     (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
-                        t.Assignments.Any(a => a.User != null && a.User.Department == ownDepartment)));
+                        t.Assignments.Any(a => a.User != null && a.User.Department == ownDepartment)) ||
+                    // A directive reassigned to this Admin across departments
+                    // (ReassignResponsibleAdmin) still needs to show up here,
+                    // or they'd have no way to find it at all.
+                    (t.ResponsibleAdminUserId.HasValue && t.ResponsibleAdminUserId.Value == currentUserId) ||
+                    (t.ParentTask != null && t.ParentTask.ResponsibleAdminUserId.HasValue &&
+                        t.ParentTask.ResponsibleAdminUserId.Value == currentUserId));
             }
 
             // ── Dropdown options (limited to what this user may see) ──
@@ -929,6 +936,21 @@ private bool IsWithinTaskScope(TaskItem task)
         return true;
     }
 
+    // A subtask's own Main Task may have been handed to this Admin across
+    // departments (ReassignResponsibleAdmin deliberately allows this, e.g.
+    // covering for an Admin on leave) — same bypass IsWithinMainTaskScope
+    // already gives the Main Task page itself. Without it, the department
+    // check below would silently lock the new Responsible Admin out of
+    // every subtask under their own directive. Requires task.ParentTask to
+    // be loaded by the caller's query.
+    var currentUserId = HttpContext.Session.GetInt32("UserId");
+    var responsibleAdminUserId = task.ResponsibleAdminUserId ?? task.ParentTask?.ResponsibleAdminUserId;
+    if (responsibleAdminUserId.HasValue && currentUserId.HasValue &&
+        responsibleAdminUserId.Value == currentUserId.Value)
+    {
+        return true;
+    }
+
     var department = CurrentUserDepartment();
 
     // Effective-department priority: this task's own OwningDepartment
@@ -1021,6 +1043,17 @@ private bool CanReviewSubmission(TaskSubmission submission)
     if (!IsDepartmentTaskManager())
     {
         return false;
+    }
+
+    // Same cross-department bypass as IsWithinTaskScope/IsWithinMainTaskScope:
+    // a directive reassigned to this Admin outside their own department
+    // still needs to be reviewable by them, not just visible.
+    var currentUserId = HttpContext.Session.GetInt32("UserId");
+    var responsibleAdminUserId = submission.Task.ResponsibleAdminUserId ?? submission.Task.ParentTask?.ResponsibleAdminUserId;
+    if (responsibleAdminUserId.HasValue && currentUserId.HasValue &&
+        responsibleAdminUserId.Value == currentUserId.Value)
+    {
+        return true;
     }
 
     var department = CurrentUserDepartment();

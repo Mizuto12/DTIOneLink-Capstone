@@ -456,7 +456,13 @@ namespace DTIOneLink.Services
             return string.IsNullOrWhiteSpace(legacyAssigneeDepartment) ? null : legacyAssigneeDepartment;
         }
 
-        // Active Admin/Supervisor users in the task's effective department.
+        // Active Admin/Supervisor users in the task's effective department,
+        // plus the Main Task's Responsible Admin even if OPD reassigned the
+        // directive to someone outside that department
+        // (TasksController.ReassignResponsibleAdmin deliberately allows this,
+        // e.g. covering for an Admin on leave) — department membership alone
+        // would otherwise silently drop them from every alert about their
+        // own directive.
         public async Task<List<int>> GetDepartmentAdminIdsAsync(int taskId)
         {
             var task = await _db.TaskItems
@@ -472,14 +478,35 @@ namespace DTIOneLink.Services
                 .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d));
 
             var department = ResolveEffectiveDepartment(task, legacyDepartment);
-            if (department == null) return new List<int>();
 
-            return await _db.Users
-                .Where(u => u.IsActive
-                         && (u.Role == "Admin" || u.Role == "Supervisor")
-                         && u.Department == department)
-                .Select(u => u.Id)
-                .ToListAsync();
+            var ids = new HashSet<int>();
+            if (department != null)
+            {
+                var departmentAdminIds = await _db.Users
+                    .Where(u => u.IsActive
+                             && (u.Role == "Admin" || u.Role == "Supervisor")
+                             && u.Department == department)
+                    .Select(u => u.Id)
+                    .ToListAsync();
+                foreach (var id in departmentAdminIds)
+                {
+                    ids.Add(id);
+                }
+            }
+
+            var responsibleAdminUserId = task.ResponsibleAdminUserId ?? task.ParentTask?.ResponsibleAdminUserId;
+            if (responsibleAdminUserId.HasValue)
+            {
+                var isActiveAdmin = await _db.Users.AsNoTracking().AnyAsync(u =>
+                    u.Id == responsibleAdminUserId.Value && u.IsActive &&
+                    (u.Role == "Admin" || u.Role == "Supervisor"));
+                if (isActiveAdmin)
+                {
+                    ids.Add(responsibleAdminUserId.Value);
+                }
+            }
+
+            return ids.ToList();
         }
 
         private async Task NotifyDepartmentAdminsAsync(int taskId, string message, string link, int? excludeUserId = null)
