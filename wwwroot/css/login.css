@@ -309,7 +309,7 @@ html, body {
 .remember-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
     margin: -4px 0 16px;
     flex-wrap: wrap;
@@ -318,22 +318,6 @@ html, body {
 .remember-row .forgot-link {
     display: inline;
     margin-top: 0;
-}
-
-.remember-me-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: clamp(10px, 1.1vw, 12px);
-    color: #2a2a2a;
-    cursor: pointer;
-}
-
-.remember-me-label input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    accent-color: var(--navy);
-    cursor: pointer;
 }
 
 .form-summary-error {
