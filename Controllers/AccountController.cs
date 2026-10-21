@@ -237,6 +237,26 @@ namespace DTIOneLink.Controllers
                 return CodeView(user.Email, new EnterCodeViewModel(), CodeErrorMessage(check), isLogin: true);
             }
 
+            // Successfully verifying this code IS proof the account controls
+            // that inbox — exactly what EmailConfirmed means elsewhere
+            // (Forgot Password gates on it before emailing a reset link).
+            // Accounts that predate the login-OTP step, or were ever created
+            // with MustChangePassword already false, could otherwise never
+            // set this themselves: VerifyEmail (the only other place this
+            // gets set) only runs as part of a forced password change, so an
+            // established account that's never been forced through one
+            // would stay EmailConfirmed=false forever despite logging in
+            // normally — silently blocking every notification email
+            // NotificationService.CreateAsync gates on it (task assignments,
+            // directive received, password-changed, record-disposal
+            // reminders) while OTP emails themselves kept working fine,
+            // since OtpEmailQueue never checks this flag. This self-heals
+            // every affected account the next time they complete a login.
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+            }
+
             // Read before SignIn clears the session.
             var returnUrl = HttpContext.Session.GetString(PendingLoginReturnUrlKey);
 
