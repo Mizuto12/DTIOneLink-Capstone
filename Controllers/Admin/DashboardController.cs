@@ -32,7 +32,14 @@ namespace DTIOneLink.Controllers
             // the Admin/Supervisor role-string check above.
             var isOfficeWide = RolePermissions.Has(userRole, Permissions.ManageOfficeWideTasks);
 
+            // AsNoTracking: read-only view. AsSplitQuery: without it, a task
+            // with multiple assignees comes back as one joined row PER
+            // assignee (the Assignments.User include multiplies the whole
+            // row), multiplying bytes transferred for a page every
+            // Admin/Supervisor/SuperAdmin sees on every login.
             IQueryable<TaskItem> query = _context.TaskItems
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(t => t.Assignee)
                 .Include(t => t.ParentTask)
                 .Include(t => t.Assignments).ThenInclude(a => a.User);
@@ -149,6 +156,7 @@ namespace DTIOneLink.Controllers
             // legacy/primary assignee and undercounts Whole Office work.
             var assignments = await _context.TaskAssignments
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(a => a.Task).ThenInclude(t => t!.ParentTask)
                 .Include(a => a.User)
                 .OrderByDescending(a => a.Task!.CreatedAt)

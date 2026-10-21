@@ -584,7 +584,13 @@ private IQueryable<TaskItem> AccessibleTasksQuery()
 {
     var userId = HttpContext.Session.GetInt32("UserId");
 
+    // AsSplitQuery: without it, a task with multiple assignees comes back
+    // as one joined row PER assignee (the Assignments.User include
+    // multiplies the whole row) — matches GetAccessibleTaskAsync/
+    // DeleteAllCompleted in this same file, which already split for the
+    // identical Include shape; this one was just missed.
     var query = _context.TaskItems
+        .AsSplitQuery()
         .Include(t => t.Assignee)
         .Include(t => t.ParentTask)
         .Include(t => t.Assignments).ThenInclude(a => a.User)
