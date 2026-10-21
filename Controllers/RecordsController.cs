@@ -86,12 +86,14 @@ namespace DTIOneLink.Controllers
     FROM Records) r";
 
         private readonly ILogger<RecordsController> _logger;
+        private readonly NotificationService _notifications;
 
-        public RecordsController(IConfiguration configuration, ILogger<RecordsController> logger)
+        public RecordsController(IConfiguration configuration, ILogger<RecordsController> logger, NotificationService notifications)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
             _logger = logger;
+            _notifications = notifications;
         }
 
         private bool HasSystemColumns(SqlConnection openConnection)
@@ -1074,7 +1076,7 @@ WHERE RecordId = @RecordId", conn);
         // retention text), which the background run can never promote on its own.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult MarkForDisposal(int id) => SetDisposalStatus(id, "Disposal");
+        public Task<IActionResult> MarkForDisposal(int id) => SetDisposalStatus(id, "Disposal");
 
         // POST: /Records/MarkDisposed/{id} — the records officer's (Admin's)
         // confirmation that a record has actually been physically disposed of.
@@ -1085,9 +1087,9 @@ WHERE RecordId = @RecordId", conn);
         // the opposite of this status, not a synonym for it.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult MarkDisposed(int id) => SetDisposalStatus(id, "Disposed");
+        public Task<IActionResult> MarkDisposed(int id) => SetDisposalStatus(id, "Disposed");
 
-        private IActionResult SetDisposalStatus(int id, string newStatus)
+        private async Task<IActionResult> SetDisposalStatus(int id, string newStatus)
         {
             var access = CheckAccess(out var user);
             if (access != RecordsAccess.Allowed || user == null)
@@ -1109,16 +1111,39 @@ WHERE RecordId = @RecordId", conn);
                     return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
                 }
 
-                using var cmd = new SqlCommand(@"
+                int? ownerUserId = null;
+                string? code = null, title = null;
+                using (var cmd = new SqlCommand(@"
 UPDATE Records SET RecordStatus = @Status
-WHERE RecordId = @RecordId", conn);
-                cmd.Parameters.Add("@Status", SqlDbType.NVarChar, 20).Value = newStatus;
-                cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = id;
-                var rows = cmd.ExecuteNonQuery();
-                if (rows == 0)
+OUTPUT inserted.CreatedByUserId, inserted.Code, inserted.Title
+WHERE RecordId = @RecordId", conn))
                 {
-                    return NotFound(new { message = "Record not found." });
+                    cmd.Parameters.Add("@Status", SqlDbType.NVarChar, 20).Value = newStatus;
+                    cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = id;
+                    using var reader = cmd.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        return NotFound(new { message = "Record not found." });
+                    }
+                    ownerUserId = reader.IsDBNull(0) ? null : reader.GetInt32(0);
+                    code = reader.GetString(1);
+                    title = reader.GetString(2);
                 }
+
+                // No owner on a legacy record (logged before CreatedByUserId
+                // existed) — nobody to notify, same as the reminder job.
+                if (ownerUserId.HasValue)
+                {
+                    if (newStatus == "Disposal")
+                    {
+                        await _notifications.NotifyRecordMarkedForDisposalAsync(ownerUserId.Value, id, code!, title!);
+                    }
+                    else if (newStatus == "Disposed")
+                    {
+                        await _notifications.NotifyRecordDisposedAsync(ownerUserId.Value, id, code!, title!);
+                    }
+                }
+
                 return Json(new { ok = true, status = newStatus });
             }
             catch (Exception ex)

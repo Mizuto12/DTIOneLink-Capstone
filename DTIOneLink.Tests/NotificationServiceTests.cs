@@ -232,6 +232,66 @@ public class NotificationServiceTests
         Assert.Contains("REC-01", outbox.TextBody);
     }
 
+    // ── NotifyRecordMarkedForDisposalAsync / NotifyRecordDisposedAsync ──
+    // (RecordsController.MarkForDisposal/MarkDisposed — the manual status
+    // change itself, distinct from the "retention ending soon" reminder
+    // tested above.)
+
+    [Fact]
+    public async Task NotifyRecordMarkedForDisposalAsync_NotifiesOwnerAndQueuesEmail()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(ActiveConfirmedUser(1));
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.NotifyRecordMarkedForDisposalAsync(1, recordId: 7, "REC-01", "Title");
+
+        var notif = await db.Notifications.SingleAsync();
+        Assert.Equal(1, notif.RecipientUserId);
+        Assert.Equal(NotificationType.RecordDisposalDue, notif.Type);
+        Assert.Contains("marked for disposal", notif.Message);
+
+        var outbox = await db.EmailOutbox.SingleAsync();
+        Assert.Equal("user1@dti.gov.ph", outbox.ToEmail);
+        Assert.Equal("A record was marked for disposal", outbox.Subject);
+    }
+
+    [Fact]
+    public async Task NotifyRecordDisposedAsync_NotifiesOwnerAndQueuesEmail()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(ActiveConfirmedUser(1));
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.NotifyRecordDisposedAsync(1, recordId: 7, "REC-01", "Title");
+
+        var notif = await db.Notifications.SingleAsync();
+        Assert.Equal(1, notif.RecipientUserId);
+        Assert.Equal(NotificationType.Record, notif.Type);
+        Assert.Contains("has been disposed", notif.Message);
+
+        var outbox = await db.EmailOutbox.SingleAsync();
+        Assert.Equal("A record has been disposed", outbox.Subject);
+    }
+
+    [Fact]
+    public async Task NotifyRecordMarkedForDisposalAsync_RecipientNotEmailConfirmed_NoEmailQueued()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        var user = ActiveConfirmedUser(1);
+        user.EmailConfirmed = false;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.NotifyRecordMarkedForDisposalAsync(1, recordId: 7, "REC-01", "Title");
+
+        Assert.Empty(db.EmailOutbox);
+        Assert.Single(db.Notifications); // the in-app notification is still created
+    }
+
     // ── ResolveOpdRecipients (static, pure logic) ──────────────────────
 
     [Fact]

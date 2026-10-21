@@ -226,6 +226,45 @@ namespace DTIOneLink.Services
                 emailMessage: emailMessage);
         }
 
+        // Sent to the record's owner the moment someone actually moves it
+        // into Disposal — RecordsController.MarkForDisposal, either the
+        // manual early flag or the background reminder's own promotion.
+        // Distinct from NotifyRecordDisposalDueAsync above, which only fires
+        // for the "retention period is ending" reminder; this fires on the
+        // actual status change itself, whenever and however it happens.
+        public async Task NotifyRecordMarkedForDisposalAsync(int ownerUserId, int recordId, string code, string title)
+        {
+            var shortTitle = title.Length > 150 ? title.Substring(0, 147) + "..." : title;
+
+            // The email leaves out the record's title: records can be
+            // confidential, and email leaves the system.
+            await CreateAsync(
+                recipientUserId: ownerUserId,
+                type: NotificationType.RecordDisposalDue,
+                message: $"Record \"{code} – {shortTitle}\" has been marked for disposal.",
+                relatedRecordId: recordId,
+                link: "/Records",
+                emailSubject: "A record was marked for disposal",
+                emailMessage: $"Record {code} has been marked for disposal.");
+        }
+
+        // Sent to the record's owner once the records officer confirms a
+        // record has actually been physically disposed of
+        // (RecordsController.MarkDisposed) — the final step after Disposal.
+        public async Task NotifyRecordDisposedAsync(int ownerUserId, int recordId, string code, string title)
+        {
+            var shortTitle = title.Length > 150 ? title.Substring(0, 147) + "..." : title;
+
+            await CreateAsync(
+                recipientUserId: ownerUserId,
+                type: NotificationType.Record,
+                message: $"Record \"{code} – {shortTitle}\" has been disposed.",
+                relatedRecordId: recordId,
+                link: "/Records",
+                emailSubject: "A record has been disposed",
+                emailMessage: $"Record {code} has been disposed.");
+        }
+
         // ── Task assignment/change notices ──────────────────────────
         // All employee-facing links point at /Employee/Details/{taskId} —
         // TaskManagement doesn't read a taskId, Details does.
