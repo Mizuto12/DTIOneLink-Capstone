@@ -20,10 +20,7 @@ namespace DTIOneLink.Controllers
     // every page that requires login still treats the person as signed out.
     public class AccountController : Controller
     {
-        // internal, not private: Program.cs's remember-me auto-sign-in
-        // middleware checks these too, so it never clobbers a login already
-        // in progress (see the comment above that middleware).
-        internal const string PendingUserIdKey = "PendingUserId";
+        private const string PendingUserIdKey = "PendingUserId";
         private const string PendingStampKey = "PendingStamp";
         private const string PendingReturnUrlKey = "PendingReturnUrl";
 
@@ -33,15 +30,13 @@ namespace DTIOneLink.Controllers
         // above. Reusing those would mean GetPendingUserAsync and
         // ContinuePendingSignIn (which only ever gate on MustChangePassword)
         // could complete a sign-in before the Login OTP was ever entered.
-        internal const string PendingLoginUserIdKey = "PendingLoginUserId";
+        private const string PendingLoginUserIdKey = "PendingLoginUserId";
         private const string PendingLoginStampKey = "PendingLoginStamp";
         private const string PendingLoginReturnUrlKey = "PendingLoginReturnUrl";
-        private const string PendingLoginRememberMeKey = "PendingLoginRememberMe";
 
-        private const string ResetEmailKey = "ResetEmail";
-        private const string ResetUserIdKey = "ResetUserId";
-        private const string ResetFakeAttemptsKey = "ResetFakeAttempts";
-        private const string ResetRequestedAtKey = "ResetRequestedAt";
+        // Set only once a reset link has been clicked and verified
+        // (AccountController.ResetLink) — there is no more "typed code"
+        // state to track alongside it.
         private const string ResetVerifiedUserIdKey = "ResetVerifiedUserId";
         private const string ResetVerifiedAtKey = "ResetVerifiedAt";
         public const string SecurityStampKey = "SecurityStamp";
@@ -76,12 +71,9 @@ namespace DTIOneLink.Controllers
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
-            // A remembered browser gets signed in silently by the
-            // middleware in Program.cs *before* this action runs — but that
-            // middleware only writes session keys, it never redirects. Root
-            // ("/") and "/Account" both land here, so without this check a
-            // remembered user would still see the login form every time,
-            // even though Session["UserId"] is already set underneath it.
+            // Root ("/") and "/Account" both land here — someone already
+            // signed in who navigates back to it (bookmark, browser back
+            // button, typing the URL) gets their dashboard, not the form.
             if (HttpContext.Session.GetInt32("UserId") != null)
             {
                 var home = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
@@ -173,10 +165,15 @@ namespace DTIOneLink.Controllers
             if (_env.IsEnvironment("Testing"))
             {
                 SignIn(user);
-                if (model.RememberMe)
-                {
-                    await _sessions.IssueRememberMeCookieAsync(HttpContext, user);
-                }
+                return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
+            }
+
+            // "Remember this device" from a previous login-OTP step lets the
+            // code itself be skipped on this browser — the password above is
+            // still checked every time either way.
+            if (_sessions.HasTrustedDevice(HttpContext, user))
+            {
+                SignIn(user);
                 return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
             }
 
@@ -187,7 +184,6 @@ namespace DTIOneLink.Controllers
             HttpContext.Session.SetInt32(PendingLoginUserIdKey, user.Id);
             HttpContext.Session.SetString(PendingLoginStampKey, user.SecurityStamp);
             if (returnUrl != null) HttpContext.Session.SetString(PendingLoginReturnUrlKey, returnUrl);
-            HttpContext.Session.SetString(PendingLoginRememberMeKey, model.RememberMe ? "1" : "0");
 
             var issuedLoginCode = await _codes.IssueAsync(user, OneTimeCodePurpose.Login);
             if (issuedLoginCode.Status != CodeIssueStatus.Sent)
@@ -218,7 +214,7 @@ namespace DTIOneLink.Controllers
                 }
             }
 
-            return CodeView(user.Email, isReset: false, new EnterCodeViewModel(), isLogin: true);
+            return CodeView(user.Email, new EnterCodeViewModel(), isLogin: true);
         }
 
         // POST: /Account/VerifyLoginCode
@@ -232,23 +228,22 @@ namespace DTIOneLink.Controllers
 
             if (!ModelState.IsValid)
             {
-                return CodeView(user.Email, isReset: false, model, isLogin: true);
+                return CodeView(user.Email, model, isLogin: true);
             }
 
             var check = await _codes.VerifyAsync(user.Id, OneTimeCodePurpose.Login, model.Code);
             if (check.Status != CodeCheckStatus.Valid)
             {
-                return CodeView(user.Email, isReset: false, new EnterCodeViewModel(), CodeErrorMessage(check), isLogin: true);
+                return CodeView(user.Email, new EnterCodeViewModel(), CodeErrorMessage(check), isLogin: true);
             }
 
             // Read before SignIn clears the session.
             var returnUrl = HttpContext.Session.GetString(PendingLoginReturnUrlKey);
-            var rememberMe = HttpContext.Session.GetString(PendingLoginRememberMeKey) == "1";
 
             SignIn(user);
-            if (rememberMe)
+            if (model.RememberDevice)
             {
-                await _sessions.IssueRememberMeCookieAsync(HttpContext, user);
+                await _sessions.IssueTrustedDeviceCookieAsync(HttpContext, user);
             }
 
             return Redirect(returnUrl != null && Url.IsLocalUrl(returnUrl) ? returnUrl : RoleHomeUrl(user.Role));
@@ -296,10 +291,11 @@ namespace DTIOneLink.Controllers
                     await _db.SaveChangesAsync();
                 }
 
-                // Signing out of a remembered browser should actually sign it
-                // out — otherwise the next page load would just silently
-                // re-establish the session via the cookie still sitting there.
-                await _sessions.RevokeRememberMeAsync(HttpContext, userId);
+                // A trusted device's cookie is deliberately left alone here:
+                // its whole point is to skip the OTP step on this browser's
+                // *next* login — which still requires the password — the
+                // same way other "remember this device" 2FA implementations
+                // work. Logging out doesn't revoke it.
             }
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
@@ -328,7 +324,7 @@ namespace DTIOneLink.Controllers
                 }
             }
 
-            return CodeView(user.Email, isReset: false, new EnterCodeViewModel());
+            return CodeView(user.Email, new EnterCodeViewModel());
         }
 
         // POST: /Account/VerifyEmail
@@ -343,13 +339,13 @@ namespace DTIOneLink.Controllers
 
             if (!ModelState.IsValid)
             {
-                return CodeView(user.Email, isReset: false, model);
+                return CodeView(user.Email, model);
             }
 
             var check = await _codes.VerifyAsync(user.Id, OneTimeCodePurpose.ConfirmEmail, model.Code);
             if (check.Status != CodeCheckStatus.Valid)
             {
-                return CodeView(user.Email, isReset: false, new EnterCodeViewModel(), CodeErrorMessage(check));
+                return CodeView(user.Email, new EnterCodeViewModel(), CodeErrorMessage(check));
             }
 
             user.EmailConfirmed = true;
@@ -436,119 +432,57 @@ namespace DTIOneLink.Controllers
                 return View(model);
             }
 
-            ClearResetState();
             var email = model.Email.Trim();
-            HttpContext.Session.SetString(ResetEmailKey, email);
-            HttpContext.Session.SetString(ResetRequestedAtKey, DateTime.UtcNow.Ticks.ToString());
-
             var user = await FindResettableUserAsync(email);
             if (user != null)
             {
-                HttpContext.Session.SetInt32(ResetUserIdKey, user.Id);
                 // Too-soon / too-many requests send nothing, but say nothing
-                // different either.
-                await _codes.IssueAsync(user, OneTimeCodePurpose.PasswordReset);
-                _logger.LogInformation("Password reset requested for user {UserId}.", user.Id);
+                // different either — same reasoning as the generic notice
+                // below, just one layer deeper.
+                await _codes.IssueLinkAsync(user, OneTimeCodePurpose.PasswordReset,
+                    token => Url.Action(nameof(ResetLink), "Account", new { uid = user.Id, token }, Request.Scheme)!);
+                _logger.LogInformation("Password reset link requested for user {UserId}.", user.Id);
             }
 
-            return RedirectToAction(nameof(ResetCode));
+            // Same message whether or not the account exists, so this page
+            // can't be used to find out who has one.
+            TempData["ForgotPasswordNotice"] =
+                "If an account with a confirmed email matches that address, we sent a password reset link to it. " +
+                "Check your inbox (and Spam/Junk folder). The link is valid for 30 minutes.";
+            return RedirectToAction(nameof(ForgotPassword));
         }
 
-        // GET: /Account/ResetCode
+        // GET: /Account/ResetLink — reached only by clicking the link emailed
+        // from ForgotPassword. Verifies the token once, then hands off to the
+        // ordinary ResetPassword GET/POST pair via session — exactly as if a
+        // typed code had just been confirmed — so a page refresh on the set-
+        // password form re-checks the session instead of re-consuming (and
+        // invalidating) the one-time link in the URL.
         [HttpGet]
-        public IActionResult ResetCode()
-        {
-            var email = HttpContext.Session.GetString(ResetEmailKey);
-            if (email == null) return RedirectToAction(nameof(ForgotPassword));
-
-            return CodeView(email, isReset: true, new EnterCodeViewModel());
-        }
-
-        // POST: /Account/ResetCode
-        [HttpPost]
-        [ValidateAntiForgeryToken]
         [EnableRateLimiting(AuthRateLimit.Policy)]
-        public async Task<IActionResult> ResetCode(EnterCodeViewModel model)
+        public async Task<IActionResult> ResetLink(int? uid, string? token)
         {
-            var email = HttpContext.Session.GetString(ResetEmailKey);
-            if (email == null) return RedirectToAction(nameof(ForgotPassword));
-
-            if (!ModelState.IsValid)
+            if (uid == null || string.IsNullOrEmpty(token))
             {
-                return CodeView(email, isReset: true, model);
+                return RedirectToAction(nameof(ForgotPassword));
             }
 
-            var userId = HttpContext.Session.GetInt32(ResetUserIdKey);
-            CodeCheckResult check;
-            if (userId == null)
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == uid.Value && u.IsActive && u.EmailConfirmed);
+            var check = user == null
+                ? new CodeCheckResult(CodeCheckStatus.Invalid)
+                : await _codes.VerifyLinkAsync(user.Id, OneTimeCodePurpose.PasswordReset, token);
+
+            if (check.Status != CodeCheckStatus.Valid || user == null)
             {
-                // No such account: answer exactly as a real code would —
-                // wrong, then out of tries, and expired after the same time.
-                var requestedAt = long.TryParse(HttpContext.Session.GetString(ResetRequestedAtKey), out var t)
-                    ? new DateTime(t, DateTimeKind.Utc) : DateTime.MinValue;
-                var tries = HttpContext.Session.GetInt32(ResetFakeAttemptsKey) ?? 0;
-                if (DateTime.UtcNow - requestedAt >= AccountDefaults.CodeLifetime)
-                {
-                    check = new CodeCheckResult(CodeCheckStatus.Expired);
-                }
-                else if (tries >= AccountDefaults.MaxCodeAttempts)
-                {
-                    check = new CodeCheckResult(CodeCheckStatus.TooManyAttempts);
-                }
-                else
-                {
-                    HttpContext.Session.SetInt32(ResetFakeAttemptsKey, ++tries);
-                    var left = AccountDefaults.MaxCodeAttempts - tries;
-                    check = left > 0
-                        ? new CodeCheckResult(CodeCheckStatus.Invalid, left)
-                        : new CodeCheckResult(CodeCheckStatus.TooManyAttempts);
-                }
-            }
-            else
-            {
-                check = await _codes.VerifyAsync(userId.Value, OneTimeCodePurpose.PasswordReset, model.Code);
+                TempData["ForgotPasswordNotice"] = "This link is invalid, expired, or was already used. Request a new one below.";
+                return RedirectToAction(nameof(ForgotPassword));
             }
 
-            if (check.Status != CodeCheckStatus.Valid)
-            {
-                return CodeView(email, isReset: true, new EnterCodeViewModel(), CodeErrorMessage(check));
-            }
-
-            ClearResetState();
-            HttpContext.Session.SetInt32(ResetVerifiedUserIdKey, userId!.Value);
+            HttpContext.Session.SetInt32(ResetVerifiedUserIdKey, user.Id);
             HttpContext.Session.SetString(ResetVerifiedAtKey, DateTime.UtcNow.Ticks.ToString());
-            _logger.LogInformation("Password reset code verified for user {UserId}.", userId);
+            _logger.LogInformation("Password reset link verified for user {UserId}.", user.Id);
 
             return RedirectToAction(nameof(ResetPassword));
-        }
-
-        // POST: /Account/ResendResetCode
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [EnableRateLimiting(AuthRateLimit.Policy)]
-        public async Task<IActionResult> ResendResetCode()
-        {
-            var email = HttpContext.Session.GetString(ResetEmailKey);
-            if (email == null) return RedirectToAction(nameof(ForgotPassword));
-
-            var userId = HttpContext.Session.GetInt32(ResetUserIdKey);
-            if (userId != null)
-            {
-                var user = await FindResettableUserAsync(email);
-                if (user != null && user.Id == userId)
-                {
-                    await _codes.IssueAsync(user, OneTimeCodePurpose.PasswordReset);
-                }
-            }
-            else
-            {
-                // Like a real new code: fresh tries and a fresh expiry.
-                HttpContext.Session.Remove(ResetFakeAttemptsKey);
-                HttpContext.Session.SetString(ResetRequestedAtKey, DateTime.UtcNow.Ticks.ToString());
-            }
-
-            TempData["CodeNotice"] = "If an account matches, a new code was sent. Only the newest code works.";
-            return RedirectToAction(nameof(ResetCode));
         }
 
         // GET: /Account/ResetPassword
@@ -652,11 +586,8 @@ namespace DTIOneLink.Controllers
 
         private void SignIn(User user)
         {
-            // RecordsController, ReportsController, and their shared views all
-            // read these same session keys to decide access and layout — set
-            // the same way here and by a silent remember-me auto sign-in
-            // (AccountSessionService.TryAutoSignInAsync), so the two paths
-            // can never drift apart on what a signed-in session contains.
+            // RecordsController, ReportsController, and their shared views
+            // all read these same session keys to decide access and layout.
             _sessions.EstablishSession(HttpContext, user);
 
             // Shown in User Management ("Last signed in ..."). One direct
@@ -761,10 +692,6 @@ namespace DTIOneLink.Controllers
 
         private void ClearResetState()
         {
-            HttpContext.Session.Remove(ResetEmailKey);
-            HttpContext.Session.Remove(ResetUserIdKey);
-            HttpContext.Session.Remove(ResetFakeAttemptsKey);
-            HttpContext.Session.Remove(ResetRequestedAtKey);
             HttpContext.Session.Remove(ResetVerifiedUserIdKey);
             HttpContext.Session.Remove(ResetVerifiedAtKey);
         }
@@ -821,12 +748,14 @@ namespace DTIOneLink.Controllers
             return View(nameof(Login), model);
         }
 
-        // codeError: show this message and empty the code box. isLogin wins
-        // over isReset when both could apply (callers only ever pass one).
-        private IActionResult CodeView(string email, bool isReset, EnterCodeViewModel model, string? codeError = null, bool isLogin = false)
+        // codeError: show this message and empty the code box. Forgot
+        // Password no longer uses this view at all — it verifies a link
+        // instead of a typed code (see ResetLink) — so the only two modes
+        // left are the login-OTP step (isLogin) and first-sign-in email
+        // confirmation (the default).
+        private IActionResult CodeView(string email, EnterCodeViewModel model, string? codeError = null, bool isLogin = false)
         {
             ViewData["Email"] = email;
-            ViewData["IsReset"] = isReset;
             ViewData["IsLogin"] = isLogin;
             if (codeError != null)
             {

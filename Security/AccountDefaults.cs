@@ -24,9 +24,17 @@ namespace DTIOneLink.Security
         // must be saved.
         public static readonly TimeSpan ResetWindow = TimeSpan.FromMinutes(10);
 
-        // "Remember me" cookie lifetime, and how long the token it names
-        // stays valid for in the database — the two are always set together.
-        public static readonly TimeSpan RememberMeDuration = TimeSpan.FromDays(30);
+        // Password reset emails a link instead of a code — a link sits in an
+        // inbox longer before it's clicked, so it gets a more generous window
+        // than CodeLifetime.
+        public static readonly TimeSpan ResetLinkLifetime = TimeSpan.FromMinutes(30);
+
+        // "Remember this device" cookie lifetime on the login-OTP step, and
+        // how long the token it names stays valid for in the database — the
+        // two are always set together. Short and OTP-only on purpose: the
+        // password is still required every time, this only skips the
+        // emailed code on a browser the user just proved they're using.
+        public static readonly TimeSpan TrustedDeviceDuration = TimeSpan.FromHours(12);
 
         // Common passwords refused as a new password (NIST SP 800-63B asks
         // for a check against commonly used values). Compared ignoring case.

@@ -4,6 +4,7 @@ using DTIOneLink.Data;
 using DTIOneLink.Models;
 using DTIOneLink.Security;
 using DTIOneLink.Services.Email;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DTIOneLink.Services
@@ -51,16 +52,15 @@ namespace DTIOneLink.Services
             _logger = logger;
         }
 
-        // Creates a new code (cancelling any earlier one for the same purpose)
-        // and queues the email — unless the user asked too recently or too
-        // often, which stops inbox flooding and collecting many codes to guess.
-        public async Task<CodeIssueResult> IssueAsync(User user, OneTimeCodePurpose purpose)
+        // Shared by IssueAsync and IssueLinkAsync: how many of this purpose
+        // were issued recently, so both stop inbox flooding and collecting
+        // many codes/links to guess the same way.
+        private async Task<CodeIssueResult?> CheckThrottleAsync(int userId, OneTimeCodePurpose purpose, DateTime now)
         {
-            var now = DateTime.UtcNow;
             var windowStart = now - AccountDefaults.CodeWindow;
 
             var recent = await _db.OneTimeCodes
-                .Where(c => c.UserId == user.Id && c.Purpose == purpose && c.CreatedAtUtc >= windowStart)
+                .Where(c => c.UserId == userId && c.Purpose == purpose && c.CreatedAtUtc >= windowStart)
                 .Select(c => c.CreatedAtUtc)
                 .OrderByDescending(t => t)
                 .ToListAsync();
@@ -75,6 +75,20 @@ namespace DTIOneLink.Services
             {
                 var wait = recent[AccountDefaults.MaxCodesPerWindow - 1] + AccountDefaults.CodeWindow - now;
                 return new CodeIssueResult(CodeIssueStatus.TooMany, (int)Math.Ceiling(wait.TotalSeconds));
+            }
+
+            return null;
+        }
+
+        // Creates a new code (cancelling any earlier one for the same purpose)
+        // and queues the email — unless the user asked too recently or too
+        // often, which stops inbox flooding and collecting many codes to guess.
+        public async Task<CodeIssueResult> IssueAsync(User user, OneTimeCodePurpose purpose)
+        {
+            var now = DateTime.UtcNow;
+            if (await CheckThrottleAsync(user.Id, purpose, now) is { } throttled)
+            {
+                return throttled;
             }
 
             // Only the newest code works.
@@ -145,6 +159,85 @@ namespace DTIOneLink.Services
                 return left > 0
                     ? new CodeCheckResult(CodeCheckStatus.Invalid, left)
                     : new CodeCheckResult(CodeCheckStatus.TooManyAttempts);
+            }
+
+            var claimed = await _db.OneTimeCodes
+                .Where(c => c.Id == current.Id && c.ConsumedAtUtc == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.ConsumedAtUtc, now));
+
+            return claimed == 1
+                ? new CodeCheckResult(CodeCheckStatus.Valid)
+                : new CodeCheckResult(CodeCheckStatus.Expired);
+        }
+
+        // Password reset's equivalent of IssueAsync, except it emails a
+        // clickable link instead of a 6-digit code: a 256-bit random token
+        // instead of one of only a million 6-digit values, so there is no
+        // meaningful "guess it" attack surface the way there is for a typed
+        // code — the throttling here is purely against inbox flooding, same
+        // as IssueAsync. buildLink turns the raw token into the actual URL;
+        // only a controller action has the Url/Request context to build
+        // that, so it's supplied by the caller rather than built in here.
+        public async Task<CodeIssueResult> IssueLinkAsync(User user, OneTimeCodePurpose purpose, Func<string, string> buildLink)
+        {
+            var now = DateTime.UtcNow;
+            if (await CheckThrottleAsync(user.Id, purpose, now) is { } throttled)
+            {
+                return throttled;
+            }
+
+            await _db.OneTimeCodes
+                .Where(c => c.UserId == user.Id && c.Purpose == purpose && c.ConsumedAtUtc == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.ConsumedAtUtc, now));
+
+            var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+
+            _db.OneTimeCodes.Add(new OneTimeCode
+            {
+                UserId = user.Id,
+                Purpose = purpose,
+                CodeHash = _hasher.Hash(user.Id, purpose, token),
+                CreatedAtUtc = now,
+                ExpiresAtUtc = now + AccountDefaults.ResetLinkLifetime
+            });
+            await _db.SaveChangesAsync();
+
+            var message = EmailTemplates.ResetLink(user.Email, user.FullName, buildLink(token), (int)AccountDefaults.ResetLinkLifetime.TotalMinutes);
+            if (!_queue.TryEnqueue(message))
+            {
+                _logger.LogError("The verification email queue is full; a password reset link for user {UserId} was not sent.", user.Id);
+            }
+
+            _logger.LogInformation("Issued a password reset link for user {UserId}.", user.Id);
+            return new CodeIssueResult(CodeIssueStatus.Sent);
+        }
+
+        // VerifyAsync's equivalent for a link token: no attempt-limiting,
+        // because a 256-bit token isn't something worth rate-limiting
+        // guesses against the way a 6-digit code is — brute-forcing it is
+        // computationally infeasible regardless. The caller still wraps this
+        // action in the normal rate limiter against sheer request volume.
+        public async Task<CodeCheckResult> VerifyLinkAsync(int userId, OneTimeCodePurpose purpose, string? token)
+        {
+            var now = DateTime.UtcNow;
+            var current = await _db.OneTimeCodes.AsNoTracking()
+                .Where(c => c.UserId == userId && c.Purpose == purpose && c.ConsumedAtUtc == null)
+                .OrderByDescending(c => c.CreatedAtUtc)
+                .FirstOrDefaultAsync();
+
+            if (current == null || current.ExpiresAtUtc <= now)
+            {
+                return new CodeCheckResult(CodeCheckStatus.Expired);
+            }
+
+            var matches = !string.IsNullOrEmpty(token) && CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(_hasher.Hash(userId, purpose, token)),
+                Encoding.ASCII.GetBytes(current.CodeHash));
+
+            if (!matches)
+            {
+                _logger.LogWarning("Wrong/forged {Purpose} link token presented for user {UserId}.", purpose, userId);
+                return new CodeCheckResult(CodeCheckStatus.Invalid);
             }
 
             var claimed = await _db.OneTimeCodes

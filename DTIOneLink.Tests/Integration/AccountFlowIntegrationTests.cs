@@ -1,6 +1,9 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using DTIOneLink.Security;
+using DTIOneLink.Services.Email;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DTIOneLink.Tests.Integration;
 
@@ -227,5 +230,106 @@ public class AccountFlowIntegrationTests : IDisposable
 
         var afterLogout = await _client.GetAsync("/TimeLogs");
         IntegrationTestHelpers.AssertRedirectsToLogin(afterLogout);
+    }
+
+    private static string ExtractLink(string textBody)
+    {
+        var match = Regex.Match(textBody, @"https?://\S+");
+        Assert.True(match.Success, $"No link found in email body: {textBody}");
+        return match.Value;
+    }
+
+    [Fact]
+    public async Task ForgotPassword_ValidEmail_EmailedLinkActuallyResetsThePassword()
+    {
+        using (var db = _factory.CreateDbContext())
+        {
+            db.Users.Add(IntegrationTestHelpers.NewActiveUser("Employee", "Business Development Division"));
+            await db.SaveChangesAsync();
+        }
+
+        var getResponse = await _client.GetAsync("/Account/ForgotPassword");
+        var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
+        await _client.PostAsync("/Account/ForgotPassword", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Email"] = "test.user@dti.gov.ph",
+            ["__RequestVerificationToken"] = token,
+        }));
+
+        var queue = _factory.Services.GetRequiredService<OtpEmailQueue>();
+        var readOk = queue.Reader.TryRead(out var message);
+        Assert.True(readOk, "Expected a password reset link to have been queued.");
+        var link = ExtractLink(message!.TextBody);
+
+        // Clicking the link redirects to the clean ResetPassword URL ...
+        var clickResponse = await _client.GetAsync(new Uri(link).PathAndQuery);
+        Assert.Equal(HttpStatusCode.Redirect, clickResponse.StatusCode);
+        Assert.Contains("ResetPassword", clickResponse.Headers.Location!.ToString());
+
+        // ... which now actually renders the set-password form.
+        var formResponse = await _client.GetAsync(clickResponse.Headers.Location);
+        Assert.Equal(HttpStatusCode.OK, formResponse.StatusCode);
+        var formToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(formResponse);
+
+        var resetResponse = await _client.PostAsync("/Account/ResetPassword", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["NewPassword"] = "Brand-New-Pass2",
+            ["ConfirmPassword"] = "Brand-New-Pass2",
+            ["__RequestVerificationToken"] = formToken,
+        }));
+        IntegrationTestHelpers.AssertRedirectsToLogin(resetResponse);
+
+        // The new password actually works; the old one no longer does.
+        var loginGet = await _client.GetAsync("/Account/Login");
+        var loginToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(loginGet);
+        var loginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Username"] = "test.user@dti.gov.ph",
+            ["Password"] = "Brand-New-Pass2",
+            ["__RequestVerificationToken"] = loginToken,
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
+        Assert.Contains("/Employee", loginResponse.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task ResetLink_WrongToken_RedirectsToForgotPasswordInsteadOfResettingAnything()
+    {
+        using (var db = _factory.CreateDbContext())
+        {
+            db.Users.Add(IntegrationTestHelpers.NewActiveUser("Employee", "Business Development Division"));
+            await db.SaveChangesAsync();
+        }
+
+        var getResponse = await _client.GetAsync("/Account/ForgotPassword");
+        var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
+        await _client.PostAsync("/Account/ForgotPassword", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Email"] = "test.user@dti.gov.ph",
+            ["__RequestVerificationToken"] = token,
+        }));
+
+        var queue = _factory.Services.GetRequiredService<OtpEmailQueue>();
+        queue.Reader.TryRead(out var message);
+        var realLink = new Uri(ExtractLink(message!.TextBody));
+        var tamperedQuery = realLink.Query.Replace(
+            System.Web.HttpUtility.ParseQueryString(realLink.Query)["token"]!, "forged-token-value");
+
+        var response = await _client.GetAsync(realLink.AbsolutePath + tamperedQuery);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("ForgotPassword", response.Headers.Location!.ToString());
+
+        // The real password is unaffected: it still works normally.
+        var loginGet = await _client.GetAsync("/Account/Login");
+        var loginToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(loginGet);
+        var loginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Username"] = "test.user@dti.gov.ph",
+            ["Password"] = "Correct-Horse-1",
+            ["__RequestVerificationToken"] = loginToken,
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
+        Assert.Contains("/Employee", loginResponse.Headers.Location!.ToString());
     }
 }

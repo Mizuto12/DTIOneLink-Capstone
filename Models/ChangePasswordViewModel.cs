@@ -59,5 +59,10 @@ namespace DTIOneLink.Models
         [Required(ErrorMessage = "Please enter the 6-digit code.")]
         [Display(Name = "6-digit code")]
         public string Code { get; set; } = string.Empty;
+
+        // Only meaningful on the login-OTP step (isLogin); ignored by the
+        // first-sign-in email confirmation, which doesn't render the
+        // checkbox for it at all.
+        public bool RememberDevice { get; set; }
     }
 }

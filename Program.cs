@@ -236,40 +236,6 @@ app.Use(async (context, next) =>
             }
         }
     }
-    else if (context.Request.Method == HttpMethods.Get
-        && !context.Request.Path.StartsWithSegments("/Account")
-        && context.Session.GetInt32(AccountController.PendingUserIdKey) == null
-        && context.Session.GetInt32(AccountController.PendingLoginUserIdKey) == null
-        && context.Request.Cookies.ContainsKey(AccountSessionService.CookieName))
-    {
-        // No active session, but a "remember me" cookie is present — try to
-        // silently re-establish one (AccountSessionService.TryAutoSignInAsync
-        // validates the token itself; this just avoids the extra DB round
-        // trip entirely for the common case of no cookie at all).
-        //
-        // Three independent guards, each closing a different way this can go
-        // wrong — not redundant, each catches what the others wouldn't:
-        //   - GET only: never act on a cookie mid-POST (e.g. a form submit
-        //     already carrying its own auth decision).
-        //   - Never on "/Account/*": a user deliberately on Login,
-        //     VerifyLoginCode, VerifyEmail, SetPassword, ForgotPassword,
-        //     ResetCode or Logout is consciously driving authentication by
-        //     hand right now — a stale cookie must never preempt that, no
-        //     matter what session state does or doesn't exist yet.
-        //   - Pending*Id checks: belt-and-suspenders for the above in case a
-        //     future auth step ever lives outside "/Account" — skips
-        //     auto-sign-in whenever a login is already mid-flight (pending
-        //     first-time/password-change, or pending login-OTP).
-        // The bug this fixes: TryAutoSignInAsync succeeding calls
-        // EstablishSession, which clears the session outright — wiping the
-        // very Pending*Id key a login had just set a request or two ago and
-        // bouncing the user back to Login, who then resubmits, hits the same
-        // cookie again, and loops forever (see git history around
-        // 2026-10-20). A manual login already in progress always gets to
-        // finish on its own terms.
-        var sessions = context.RequestServices.GetRequiredService<AccountSessionService>();
-        await sessions.TryAutoSignInAsync(context);
-    }
 
     await next();
 });

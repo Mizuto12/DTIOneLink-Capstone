@@ -4,31 +4,28 @@ using DTIOneLink.Services;
 using DTIOneLink.Tests.TestDoubles;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DTIOneLink.Tests;
 
-// Covers AccountSessionService's cookie-parsing/validation branches, all of
-// which return before touching the database — IssueRememberMeCookieAsync and
-// every TryAutoSignInAsync rejection path use plain tracked-entity
-// SaveChangesAsync, which EF Core's InMemory provider supports fine. The one
-// path InMemory can't run is TryAutoSignInAsync's *success* case, which also
-// closes out a stale TimeLog row via ExecuteUpdateAsync — the same
-// InMemory/ExecuteUpdateAsync limitation OneTimeCodeServiceTests documents
-// for IssueAsync/VerifyAsync, so it isn't covered here either.
+// Covers AccountSessionService's two jobs: EstablishSession's session keys,
+// and the trusted-device cookie used to skip the login-OTP step. Both run
+// entirely off a User entity already in memory (plus, for the cookie, plain
+// tracked-entity SaveChangesAsync) — no ExecuteUpdateAsync anywhere in this
+// service, so unlike OneTimeCodeServiceTests there is no InMemory-provider
+// limitation to document here.
 public class AccountSessionServiceTests
 {
     private static AccountSessionService BuildService(DTIOneLink.Data.AppDbContext db, string environmentName = "Development") =>
-        new(db, new FakeWebHostEnvironment { EnvironmentName = environmentName }, NullLogger<AccountSessionService>.Instance);
+        new(db, new FakeWebHostEnvironment { EnvironmentName = environmentName });
 
-    private static HttpContext BuildHttpContext(string? rememberMeCookie = null, bool isHttps = true)
+    private static HttpContext BuildHttpContext(string? trustedDeviceCookie = null, bool isHttps = true)
     {
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new FakeSessionFeature());
         httpContext.Request.Scheme = isHttps ? "https" : "http";
-        if (rememberMeCookie != null)
+        if (trustedDeviceCookie != null)
         {
-            httpContext.Request.Headers.Append("Cookie", $"{AccountSessionService.CookieName}={rememberMeCookie}");
+            httpContext.Request.Headers.Append("Cookie", $"{AccountSessionService.CookieName}={trustedDeviceCookie}");
         }
         return httpContext;
     }
@@ -84,7 +81,7 @@ public class AccountSessionServiceTests
     }
 
     [Fact]
-    public async Task IssueRememberMeCookieAsync_WritesAHashedTokenAndACookieNamingTheUser()
+    public async Task IssueTrustedDeviceCookieAsync_WritesAHashedTokenAndACookieNamingTheUser()
     {
         var db = InMemoryDbContextFactory.Create();
         db.Users.Add(NewActiveUser());
@@ -93,12 +90,13 @@ public class AccountSessionServiceTests
         var service = BuildService(db);
         var httpContext = BuildHttpContext();
 
-        await service.IssueRememberMeCookieAsync(httpContext, user);
+        await service.IssueTrustedDeviceCookieAsync(httpContext, user);
 
         Assert.NotNull(user.RememberTokenHash);
         Assert.NotEmpty(user.RememberTokenHash);
         Assert.NotNull(user.RememberTokenExpiresUtc);
-        Assert.True(user.RememberTokenExpiresUtc > DateTime.UtcNow.AddDays(29));
+        Assert.True(user.RememberTokenExpiresUtc > DateTime.UtcNow.AddHours(11));
+        Assert.True(user.RememberTokenExpiresUtc <= DateTime.UtcNow.AddHours(12));
 
         var setCookie = httpContext.Response.Headers.SetCookie.ToString();
         Assert.Contains($"{AccountSessionService.CookieName}={user.Id}.", setCookie);
@@ -107,48 +105,29 @@ public class AccountSessionServiceTests
     }
 
     [Fact]
-    public async Task TryAutoSignInAsync_NoCookiePresent_ReturnsFalse()
+    public void HasTrustedDevice_NoCookiePresent_ReturnsFalse()
     {
-        var db = InMemoryDbContextFactory.Create();
-        var service = BuildService(db);
-        var httpContext = BuildHttpContext(rememberMeCookie: null);
+        var service = BuildService(InMemoryDbContextFactory.Create());
+        var httpContext = BuildHttpContext(trustedDeviceCookie: null);
+        var user = NewActiveUser();
+        user.Id = 1;
 
-        var result = await service.TryAutoSignInAsync(httpContext);
-
-        Assert.False(result);
-        Assert.Null(httpContext.Session.GetInt32("UserId"));
+        Assert.False(service.HasTrustedDevice(httpContext, user));
     }
 
     [Fact]
-    public async Task TryAutoSignInAsync_MalformedCookieValue_ReturnsFalseAndDeletesCookie()
+    public void HasTrustedDevice_MalformedCookieValue_ReturnsFalse()
     {
-        var db = InMemoryDbContextFactory.Create();
-        var service = BuildService(db);
-        var httpContext = BuildHttpContext(rememberMeCookie: "not-a-valid-format");
+        var service = BuildService(InMemoryDbContextFactory.Create());
+        var httpContext = BuildHttpContext(trustedDeviceCookie: "not-a-valid-format");
+        var user = NewActiveUser();
+        user.Id = 1;
 
-        var result = await service.TryAutoSignInAsync(httpContext);
-
-        Assert.False(result);
-        var setCookie = httpContext.Response.Headers.SetCookie.ToString();
-        Assert.Contains($"{AccountSessionService.CookieName}=", setCookie);
-        // A deleted cookie is re-sent with an already-expired date.
-        Assert.Contains("expires=", setCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.False(service.HasTrustedDevice(httpContext, user));
     }
 
     [Fact]
-    public async Task TryAutoSignInAsync_UnknownUserId_ReturnsFalse()
-    {
-        var db = InMemoryDbContextFactory.Create();
-        var service = BuildService(db);
-        var httpContext = BuildHttpContext(rememberMeCookie: "999.someRawTokenValue");
-
-        var result = await service.TryAutoSignInAsync(httpContext);
-
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task TryAutoSignInAsync_WrongToken_ReturnsFalseAndClearsStoredHash()
+    public async Task HasTrustedDevice_CookieNamesADifferentUser_ReturnsFalse()
     {
         var db = InMemoryDbContextFactory.Create();
         db.Users.Add(NewActiveUser());
@@ -156,70 +135,73 @@ public class AccountSessionServiceTests
         var user = db.Users.Single();
         var service = BuildService(db);
 
-        // Issue a real token for this user, then present a different one.
-        await service.IssueRememberMeCookieAsync(BuildHttpContext(), user);
-        var httpContext = BuildHttpContext(rememberMeCookie: $"{user.Id}.wrong-token-entirely");
+        // A real, valid cookie for this user ...
+        var issuingContext = BuildHttpContext();
+        await service.IssueTrustedDeviceCookieAsync(issuingContext, user);
+        var setCookie = issuingContext.Response.Headers.SetCookie.ToString();
+        var rawToken = setCookie.Split($"{AccountSessionService.CookieName}={user.Id}.")[1].Split(';')[0];
 
-        var result = await service.TryAutoSignInAsync(httpContext);
+        // ... presented while checking a DIFFERENT user's account.
+        var otherUser = NewActiveUser();
+        otherUser.Id = user.Id + 1;
+        var checkContext = BuildHttpContext(trustedDeviceCookie: $"{user.Id}.{rawToken}");
 
-        Assert.False(result);
-        Assert.Null(user.RememberTokenHash);
-        Assert.Null(user.RememberTokenExpiresUtc);
+        Assert.False(service.HasTrustedDevice(checkContext, otherUser));
     }
 
     [Fact]
-    public async Task TryAutoSignInAsync_ExpiredToken_ReturnsFalse()
+    public async Task HasTrustedDevice_ValidFreshlyIssuedToken_ReturnsTrue()
     {
         var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(NewActiveUser());
+        await db.SaveChangesAsync();
+        var user = db.Users.Single();
+        var service = BuildService(db);
+
+        var issuingContext = BuildHttpContext();
+        await service.IssueTrustedDeviceCookieAsync(issuingContext, user);
+        var setCookie = issuingContext.Response.Headers.SetCookie.ToString();
+        var rawToken = setCookie.Split($"{AccountSessionService.CookieName}={user.Id}.")[1].Split(';')[0];
+
+        var checkContext = BuildHttpContext(trustedDeviceCookie: $"{user.Id}.{rawToken}");
+
+        Assert.True(service.HasTrustedDevice(checkContext, user));
+    }
+
+    [Fact]
+    public void HasTrustedDevice_WrongToken_ReturnsFalse()
+    {
         var user = NewActiveUser();
+        user.Id = 1;
+        user.RememberTokenHash = "irrelevant-since-it-will-never-match";
+        user.RememberTokenExpiresUtc = DateTime.UtcNow.AddHours(1);
+        var service = BuildService(InMemoryDbContextFactory.Create());
+        var httpContext = BuildHttpContext(trustedDeviceCookie: $"{user.Id}.wrong-token-entirely");
+
+        Assert.False(service.HasTrustedDevice(httpContext, user));
+    }
+
+    [Fact]
+    public void HasTrustedDevice_ExpiredToken_ReturnsFalse()
+    {
+        var user = NewActiveUser();
+        user.Id = 1;
         user.RememberTokenHash = "irrelevant-since-expiry-is-checked-first";
         user.RememberTokenExpiresUtc = DateTime.UtcNow.AddMinutes(-1);
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-        var service = BuildService(db);
-        var httpContext = BuildHttpContext(rememberMeCookie: $"{user.Id}.anything");
+        var service = BuildService(InMemoryDbContextFactory.Create());
+        var httpContext = BuildHttpContext(trustedDeviceCookie: $"{user.Id}.anything");
 
-        var result = await service.TryAutoSignInAsync(httpContext);
-
-        Assert.False(result);
+        Assert.False(service.HasTrustedDevice(httpContext, user));
     }
 
     [Fact]
-    public async Task TryAutoSignInAsync_InactiveAccount_ReturnsFalse()
+    public void HasTrustedDevice_NoStoredToken_ReturnsFalse()
     {
-        var db = InMemoryDbContextFactory.Create();
         var user = NewActiveUser();
-        user.IsActive = false;
-        user.RememberTokenHash = "irrelevant";
-        user.RememberTokenExpiresUtc = DateTime.UtcNow.AddDays(10);
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-        var service = BuildService(db);
-        var httpContext = BuildHttpContext(rememberMeCookie: $"{user.Id}.anything");
+        user.Id = 1;
+        var service = BuildService(InMemoryDbContextFactory.Create());
+        var httpContext = BuildHttpContext(trustedDeviceCookie: $"{user.Id}.anything");
 
-        var result = await service.TryAutoSignInAsync(httpContext);
-
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task RevokeRememberMeAsync_DeletesTheCookie()
-    {
-        var db = InMemoryDbContextFactory.Create();
-        db.Users.Add(NewActiveUser());
-        await db.SaveChangesAsync();
-        var user = db.Users.Single();
-        var service = BuildService(db);
-        var httpContext = BuildHttpContext();
-
-        // RevokeRememberMeAsync's DB write uses ExecuteUpdateAsync (not
-        // supported by the InMemory provider), but the cookie deletion itself
-        // happens unconditionally and is what this test checks; a real SQL
-        // Server is what actually exercises the DB half, same limitation as
-        // TryAutoSignInAsync's success path.
-        try { await service.RevokeRememberMeAsync(httpContext, user.Id); } catch (InvalidOperationException) { }
-
-        var setCookie = httpContext.Response.Headers.SetCookie.ToString();
-        Assert.Contains($"{AccountSessionService.CookieName}=", setCookie);
+        Assert.False(service.HasTrustedDevice(httpContext, user));
     }
 }

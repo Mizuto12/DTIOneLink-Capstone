@@ -43,6 +43,27 @@ namespace DTIOneLink.Services.Email
             return new EmailMessage(toEmail, toName, subject, text, html);
         }
 
+        public static EmailMessage ResetLink(string toEmail, string toName, string link, int minutesValid)
+        {
+            const string subject = "Reset your DTI OneLink password";
+
+            var text =
+                $"Hello {toName},\n\nUse this link to reset your DTI OneLink password:\n\n{link}\n\n" +
+                $"The link expires in {minutesValid} minutes and can only be used once. Never share it with anyone, including DTI staff.\n\n" +
+                "If you did not ask to reset your password, ignore this email. Your password has not been changed.\n\n" +
+                "— DTI OneLink, DTI Laguna Provincial Office";
+
+            var html = Wrap(
+                $"<p>Hello {Html.Encode(toName)},</p>" +
+                "<p>Use the button below to reset your DTI OneLink password.</p>" +
+                $"<p><a href=\"{Html.Encode(link)}\" style=\"display:inline-block;background:#1c3f94;color:#ffffff;padding:10px 20px;border-radius:20px;text-decoration:none;\">Reset Password</a></p>" +
+                $"<p style=\"color:#5a6b8c;font-size:13px;\">Or paste this link into your browser:<br>{Html.Encode(link)}</p>" +
+                $"<p>The link expires in <strong>{minutesValid} minutes</strong> and can only be used once. Never share it with anyone, including DTI staff.</p>" +
+                "<p style=\"color:#5a6b8c;\">If you did not ask to reset your password, ignore this email. Your password has not been changed.</p>");
+
+            return new EmailMessage(toEmail, toName, subject, text, html);
+        }
+
         public static EmailMessage PasswordChanged(string toEmail, string toName, DateTime changedAtLocal)
         {
             const string subject = "Your DTI OneLink password was changed";

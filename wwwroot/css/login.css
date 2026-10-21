@@ -309,7 +309,7 @@ html, body {
 .remember-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
     margin: -4px 0 16px;
     flex-wrap: wrap;
@@ -334,6 +334,17 @@ html, body {
     height: 14px;
     accent-color: var(--navy);
     cursor: pointer;
+}
+
+/* "Remember this device" on the login-OTP page (EnterCode.cshtml). */
+.remember-device-row {
+    margin: -4px 0 16px;
+}
+
+.remember-device-hint {
+    margin: 2px 0 0 20px;
+    font-size: clamp(10px, 1.1vw, 12px);
+    color: #5a6b8c;
 }
 
 .form-summary-error {
