@@ -20,7 +20,12 @@
                 if (hasError) {
                     e.preventDefault();
                     shakeButton();
+                    return;
                 }
+
+                // Stop a slow connection from inviting a second click, which
+                // would resubmit the password and burn another rate-limit hit.
+                if (loginButton) loginButton.disabled = true;
             });
         }
 
@@ -40,6 +45,13 @@
                 togglePasswordBtn.classList.toggle("is-visible", isCurrentlyHidden);
                 togglePasswordBtn.setAttribute("aria-label", isCurrentlyHidden ? "Hide password" : "Show password");
             });
+        }
+
+        function shakeButton() {
+            if (!loginButton) return;
+            loginButton.classList.remove("shake");
+            void loginButton.offsetWidth;
+            loginButton.classList.add("shake");
         }
 
         function validateRequired(input) {

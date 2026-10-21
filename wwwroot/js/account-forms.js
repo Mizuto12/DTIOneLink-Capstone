@@ -26,6 +26,28 @@
             });
         }
 
+        // "Send a new code": a fresh code is already on its way whenever
+        // this page loads, so the button starts in its cooldown rather than
+        // waiting for a click to discover the server will say "too soon" —
+        // visibly counting down is what tells someone it will work again,
+        // instead of looking broken for the whole minute.
+        var resendBtn = document.querySelector(".resend-code-btn");
+        if (resendBtn) {
+            var secondsLeft = parseInt(resendBtn.getAttribute("data-resend-seconds"), 10) || 60;
+            var originalLabel = resendBtn.textContent;
+            resendBtn.disabled = true;
+            var tick = setInterval(function () {
+                secondsLeft -= 1;
+                if (secondsLeft <= 0) {
+                    clearInterval(tick);
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = originalLabel;
+                } else {
+                    resendBtn.textContent = originalLabel + " (" + secondsLeft + "s)";
+                }
+            }, 1000);
+        }
+
         document.querySelectorAll("form.account-form").forEach(function (form) {
             var current = form.querySelector("[name='CurrentPassword']");
             var newPass = form.querySelector("[name='NewPassword']");

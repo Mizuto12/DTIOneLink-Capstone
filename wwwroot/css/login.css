@@ -442,6 +442,19 @@ html, body {
     line-height: 0.95;
 }
 
+/* Orients the user inside a multi-step flow (Login -> Verify -> Set
+   Password). Plain text, not a progress bar: the destination is never in
+   doubt here, only "how much is left", so a bar would overpromise precision
+   this flow doesn't have. */
+.step-indicator {
+    margin: 0 0 10px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+}
+
 .form-summary-error {
     padding: 10px 14px;
     line-height: 1.35;
@@ -555,6 +568,16 @@ html, body {
     margin-top: 8px;
     text-align: center;
     color: var(--navy-dark);
+}
+
+.change-password-secondary:disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.change-password-secondary:disabled:hover {
+    text-decoration: none;
+    color: var(--text-muted);
 }
 
 .account-help {
@@ -690,6 +713,7 @@ html, body {
 
     .field-hint  { font-size: 13px; line-height: 1.4; margin-top: 6px; }
     .field-error { font-size: 13px; }
+    .step-indicator { font-size: 13px; margin-bottom: 6px; }
 
     .forgot-link {
         display: block;

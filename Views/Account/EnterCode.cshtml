@@ -9,9 +9,12 @@
     ViewData["Title"] = isLogin ? "Verify It's You" : "Verify Email";
     var minutes = (int)DTIOneLink.Security.AccountDefaults.CodeLifetime.TotalMinutes;
     var trustedHours = (int)DTIOneLink.Security.AccountDefaults.TrustedDeviceDuration.TotalHours;
+    var resendSeconds = (int)DTIOneLink.Security.AccountDefaults.CodeResendDelay.TotalSeconds;
     var verifyAction = isLogin ? "VerifyLoginCode" : "VerifyEmail";
     var resendAction = isLogin ? "ResendLoginCode" : "ResendVerifyEmail";
 }
+
+<p class="step-indicator">@(isLogin ? "Step 2 of 2 · Verify your identity" : "Step 2 of 3 · Confirm your email")</p>
 
 <h1 class="login-title change-password-title">
     @if (isLogin)
@@ -65,7 +68,7 @@
 
 <form asp-controller="Account" asp-action="@resendAction" method="post" class="change-password-secondary-form">
     @Html.AntiForgeryToken()
-    <button type="submit" class="change-password-secondary">Send a new code</button>
+    <button type="submit" class="change-password-secondary resend-code-btn" data-resend-seconds="@resendSeconds">Send a new code</button>
 </form>
 
 @if (isLogin)
