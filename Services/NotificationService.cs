@@ -71,6 +71,70 @@ namespace DTIOneLink.Services
             return notif;
         }
 
+        public record NotificationSpec(
+            int RecipientUserId,
+            NotificationType Type,
+            string Message,
+            int? RelatedTaskId = null,
+            int? RelatedRecordId = null,
+            string? Link = null,
+            string? EmailSubject = null,
+            string? EmailMessage = null);
+
+        // Same result as calling CreateAsync once per spec, but in exactly
+        // one recipient lookup and one SaveChangesAsync total, instead of up
+        // to two round trips PER recipient. Worth using wherever the same
+        // event notifies more than one person — a Whole Office task (every
+        // active Employee/Admin), a department-wide notice, or a multi-
+        // assignee task edit — since those are exactly the cases where the
+        // per-recipient round trips used to add up inside one HTTP request.
+        public async Task CreateManyAsync(IReadOnlyList<NotificationSpec> specs)
+        {
+            if (specs.Count == 0) return;
+
+            var emailCandidateIds = specs
+                .Where(s => s.EmailSubject != null)
+                .Select(s => s.RecipientUserId)
+                .Distinct()
+                .ToList();
+
+            var recipients = emailCandidateIds.Count == 0
+                ? new Dictionary<int, (string Email, string FullName)>()
+                : await _db.Users.AsNoTracking()
+                    .Where(u => emailCandidateIds.Contains(u.Id) && u.IsActive && u.EmailConfirmed && u.Email != "")
+                    .Select(u => new { u.Id, u.Email, u.FullName })
+                    .ToDictionaryAsync(u => u.Id, u => (u.Email, u.FullName));
+
+            foreach (var spec in specs)
+            {
+                _db.Notifications.Add(new Notification
+                {
+                    RecipientUserId = spec.RecipientUserId,
+                    Type = spec.Type,
+                    Message = spec.Message.Length > 500 ? spec.Message.Substring(0, 497) + "..." : spec.Message,
+                    RelatedTaskId = spec.RelatedTaskId,
+                    RelatedRecordId = spec.RelatedRecordId,
+                    Link = spec.Link
+                });
+
+                if (spec.EmailSubject != null && recipients.TryGetValue(spec.RecipientUserId, out var recipient))
+                {
+                    var email = EmailTemplates.Notification(
+                        recipient.Email, recipient.FullName, spec.EmailSubject, spec.EmailMessage ?? spec.Message, spec.Link, _baseUrl);
+                    _db.EmailOutbox.Add(new EmailOutboxMessage
+                    {
+                        ToEmail = email.ToEmail,
+                        ToName = email.ToName,
+                        Subject = email.Subject,
+                        TextBody = email.TextBody,
+                        HtmlBody = email.HtmlBody
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync();
+        }
+
         // Latest 30 only — enforced here, not left to the controller to remember.
         public async Task<List<Notification>> GetForUserAsync(int userId, int take = 30)
         {
@@ -513,16 +577,11 @@ namespace DTIOneLink.Services
         {
             var adminIds = await GetDepartmentAdminIdsAsync(taskId);
 
-            foreach (var adminId in adminIds.Where(id => id != excludeUserId))
-            {
-                await CreateAsync(
-                    recipientUserId: adminId,
-                    type: NotificationType.Task,
-                    message: message,
-                    relatedTaskId: taskId,
-                    link: link
-                );
-            }
+            var specs = adminIds.Where(id => id != excludeUserId)
+                .Select(adminId => new NotificationSpec(adminId, NotificationType.Task, message, RelatedTaskId: taskId, Link: link))
+                .ToList();
+
+            await CreateManyAsync(specs);
         }
 
         // OPD sent a Department Directive: goes to the Responsible Admin only.

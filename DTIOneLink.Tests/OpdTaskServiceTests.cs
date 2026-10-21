@@ -70,6 +70,31 @@ public class OpdTaskServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_WholeOffice_QueuesAnEmailForEachEligibleStaffer()
+    {
+        // The one spot in the app where "per recipient" can mean the whole
+        // office's headcount at once (CreateManyAsync, batched into one
+        // recipient lookup + one save) — confirms the batch still queues a
+        // real, correctly-addressed email per eligible staffer, not just an
+        // in-app notification.
+        using var db = InMemoryDbContextFactory.Create();
+        var confirmed = Staffer(1, "Employee");
+        confirmed.Email = "staff1@dti.gov.ph";
+        confirmed.EmailConfirmed = true;
+        var unconfirmed = Staffer(2, "Employee"); // Email/EmailConfirmed left unset
+        db.Users.AddRange(confirmed, unconfirmed);
+        await db.SaveChangesAsync();
+
+        var service = BuildService(db);
+        await service.CreateAsync(WholeOfficeSpec(), createdByUserId: 3, "note");
+
+        var outbox = await db.EmailOutbox.SingleAsync();
+        Assert.Equal("staff1@dti.gov.ph", outbox.ToEmail);
+        Assert.Equal("You have a new task in DTI OneLink", outbox.Subject);
+        Assert.Contains("Flag Raising", outbox.TextBody);
+    }
+
+    [Fact]
     public async Task CreateAsync_WholeOffice_LogsCreatedAndAssignedActivities()
     {
         using var db = InMemoryDbContextFactory.Create();

@@ -74,10 +74,17 @@ namespace DTIOneLink.Services
                     await _context.SaveChangesAsync();
                 }
 
-                foreach (var userId in staff)
-                {
-                    await _notifications.NotifyTaskAssignedAsync(userId, mainTask.Id, mainTask.TaskName);
-                }
+                // Batched into one recipient lookup + one save instead of up
+                // to 2 round trips PER staff member — this is the one case
+                // in the app where "per recipient" can mean the entire
+                // office's headcount at once. Message/link/subject match
+                // NotifyTaskAssignedAsync exactly, just issued as a batch.
+                await _notifications.CreateManyAsync(staff
+                    .Select(userId => new NotificationService.NotificationSpec(
+                        userId, NotificationType.Task, $"You've been assigned: \"{mainTask.TaskName}\"",
+                        RelatedTaskId: mainTask.Id, Link: $"/Employee/Details/{mainTask.Id}",
+                        EmailSubject: "You have a new task in DTI OneLink"))
+                    .ToList());
 
                 if (createdByUserId.HasValue)
                 {

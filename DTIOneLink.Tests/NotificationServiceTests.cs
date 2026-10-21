@@ -402,4 +402,85 @@ public class NotificationServiceTests
         var count = await db.Notifications.CountAsync(n => n.Type == NotificationType.Completed);
         Assert.Equal(1, count);
     }
+
+    [Fact]
+    public async Task CreateManyAsync_MixedRecipients_EachGetsTheirOwnNotificationAndOnlyEligibleOnesGetEmailed()
+    {
+        // One confirmed (emails fine), one unconfirmed (no email, bell still
+        // works), one inactive (no email) — same eligibility rule CreateAsync
+        // uses, just resolved once for the whole batch instead of per call.
+        using var db = InMemoryDbContextFactory.Create();
+        var confirmed = ActiveConfirmedUser(1);
+        var unconfirmed = ActiveConfirmedUser(2);
+        unconfirmed.EmailConfirmed = false;
+        var inactive = ActiveConfirmedUser(3);
+        inactive.IsActive = false;
+        db.Users.AddRange(confirmed, unconfirmed, inactive);
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.CreateManyAsync(new[]
+        {
+            new NotificationService.NotificationSpec(1, NotificationType.Task, "You've been assigned: \"Report\"",
+                RelatedTaskId: 5, Link: "/Employee/Details/5", EmailSubject: "You have a new task in DTI OneLink"),
+            new NotificationService.NotificationSpec(2, NotificationType.Task, "You've been assigned: \"Report\"",
+                RelatedTaskId: 5, Link: "/Employee/Details/5", EmailSubject: "You have a new task in DTI OneLink"),
+            new NotificationService.NotificationSpec(3, NotificationType.Task, "You've been assigned: \"Report\"",
+                RelatedTaskId: 5, Link: "/Employee/Details/5", EmailSubject: "You have a new task in DTI OneLink"),
+        });
+
+        Assert.Equal(3, await db.Notifications.CountAsync());
+        var outboxEmails = await db.EmailOutbox.Select(e => e.ToEmail).ToListAsync();
+        Assert.Equal(new[] { "user1@dti.gov.ph" }, outboxEmails);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_NoEmailSubjectOnAnySpec_NeverQueriesUsersForEmail()
+    {
+        // In-app-only batches (e.g. NotifyDepartmentAdminsAsync's four
+        // callers, none of which email) shouldn't pay for a recipient
+        // lookup they'll never use.
+        using var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(ActiveConfirmedUser(1));
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.CreateManyAsync(new[]
+        {
+            new NotificationService.NotificationSpec(1, NotificationType.Task, "msg", RelatedTaskId: 5, Link: "/x"),
+        });
+
+        Assert.Single(db.Notifications);
+        Assert.Empty(db.EmailOutbox);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_EmptyList_DoesNothing()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        var service = BuildService(db);
+
+        await service.CreateManyAsync(Array.Empty<NotificationService.NotificationSpec>());
+
+        Assert.Empty(db.Notifications);
+        Assert.Empty(db.EmailOutbox);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_MessageOver500Chars_IsTruncatedWithEllipsis()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(ActiveConfirmedUser(1));
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.CreateManyAsync(new[]
+        {
+            new NotificationService.NotificationSpec(1, NotificationType.Task, new string('a', 600)),
+        });
+
+        var notif = await db.Notifications.SingleAsync();
+        Assert.Equal(500, notif.Message.Length);
+        Assert.EndsWith("...", notif.Message);
+    }
 }
