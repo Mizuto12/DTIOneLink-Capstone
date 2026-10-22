@@ -1,21 +1,31 @@
 /* ==========================================================================
    Main Task Details (OPD directive rollup view)
-   Scoped under .mtd. Reuses .glass-card / .task-table / .progress-* /
-   .status-badge classes already defined in tasks-index.css — this file
-   only styles the parts unique to this page.
+   Scoped under .mtd. Single-column, large-type layout built for the OPD
+   field office's non-technical staff: one readable column, status always
+   said as a full sentence (not color alone), full-width primary actions,
+   subtasks shown as a connected timeline in due-date order.
+   Reuses .success-banner / .error-banner from tasks-index.css; everything
+   else specific to this page lives here.
    ========================================================================== */
 .mtd {
     --mtd-primary: #001e65;
-    --mtd-secondary: #5c5f61;
+    --mtd-secondary: #3f4348;
     --mtd-surface: #ffffff;
     --mtd-surface-low: #eff4ff;
     --mtd-outline-variant: #c5c5d2;
     --mtd-on-surface: #0b1c30;
+    --mtd-status-progress-bg: #dbeafe; --mtd-status-progress-fg: #1e40af;
+    --mtd-status-complete-bg: #dcfce7; --mtd-status-complete-fg: #166534;
+    --mtd-status-pending-bg: #f1f5f9;  --mtd-status-pending-fg: #475569;
+    --mtd-status-overdue-bg: #ffdad6;  --mtd-status-overdue-fg: #ba1a1a;
+    max-width: 880px;
     width: 100%;
+    margin: 0 auto;
     box-sizing: border-box;
-    padding-top: 32px; /* space below the top bar (same as Task Management) */
+    padding: 32px 24px 80px;
     font-family: 'Hanken Grotesk', sans-serif;
     color: var(--mtd-on-surface);
+    font-size: 15px;
 }
 
 .mtd *, .mtd *::before, .mtd *::after { box-sizing: border-box; }
@@ -23,7 +33,6 @@
 .mtd a:focus-visible,
 .mtd button:focus-visible,
 .mtd input:focus-visible,
-.mtd textarea:focus-visible,
 .mtd select:focus-visible {
     outline: 2px solid var(--mtd-primary);
     outline-offset: 2px;
@@ -32,217 +41,381 @@
 .mtd-breadcrumb {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    font-size: 14px;
-    color: var(--mtd-secondary);
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+.mtd-breadcrumb a { color: var(--mtd-primary); text-decoration: underline; }
+.mtd-breadcrumb a:hover { color: #0c2450; }
+.mtd-taskcode { font-size: 13px; color: var(--mtd-secondary); }
+
+/* ── Hero ─────────────────────────────────────────────────────────── */
+.mtd-hero {
+    background: var(--mtd-primary);
+    border-radius: 20px;
+    padding: 28px 26px;
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+.mtd-hero-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.15);
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+.mtd-hero-type .material-symbols-outlined { font-size: 17px; }
+
+.mtd-hero-title {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.3;
+    margin: 0 0 8px;
+}
+
+.mtd-hero-dept {
+    font-size: 14.5px;
+    opacity: 0.85;
+    margin-bottom: 14px;
+}
+
+.mtd-hero-desc {
+    font-size: 15.5px;
+    line-height: 1.6;
+    opacity: 0.9;
+    margin: 0 0 20px;
+    max-width: 680px;
+}
+
+.mtd-hero-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
     margin-bottom: 16px;
 }
+.mtd-hero-status .material-symbols-outlined { font-size: 24px; flex-shrink: 0; }
+.mtd-hero-status--overdue .material-symbols-outlined { color: #ffb4ab; }
+.mtd-hero-status--completed .material-symbols-outlined { color: #86efac; }
+.mtd-hero-status-line { font-size: 16px; font-weight: 800; }
+.mtd-hero-status-sub { font-size: 14px; opacity: 0.85; margin-top: 2px; }
 
-.mtd-breadcrumb a {
-    color: var(--mtd-secondary);
-    text-decoration: none;
-}
-.mtd-breadcrumb a:hover { color: var(--mtd-primary); }
-
-/* Subtasks card: heading, then the add row on the left underneath. */
-.mtd .mtd-subtask-toolbar { flex-direction: column; align-items: flex-start; }
-
-.mtd-add-subtask {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    width: 100%;
-}
-
-/* Same height and pill shape as the ADD SUBTASK button beside it. */
-.mtd-add-subtask input[type="text"] {
-    flex: 0 1 420px;
-    min-width: 220px;
-    height: 40px;
-    padding: 0 16px;
-    border: 1px solid var(--mtd-outline-variant);
+.mtd-hero-progress { margin-bottom: 4px; }
+.mtd-hero-progress > span { display: block; font-size: 13.5px; font-weight: 700; opacity: 0.8; margin-bottom: 8px; }
+.mtd-hero-progress-row { display: flex; align-items: center; gap: 14px; }
+.mtd-hero-progress-track {
+    flex: 1;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 9999px;
-    font-family: inherit;
-    font-size: 14px;
-    color: var(--mtd-on-surface);
+    overflow: hidden;
 }
-.mtd-add-subtask input[type="text"]:focus { outline: 2px solid var(--mtd-primary); outline-offset: 1px; }
+.mtd-hero-progress-fill { height: 100%; background: #60a5fa; border-radius: 9999px; transition: width 0.6s ease; }
+.mtd-hero-progress-row strong { font-size: 16px; font-weight: 800; min-width: 46px; text-align: right; }
 
-.mtd-header {
+.mtd-hero-facts {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
     gap: 16px;
     flex-wrap: wrap;
-    margin-bottom: 24px;
-}
-
-.mtd-eyebrow {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--mtd-primary);
-    margin-bottom: 4px;
-}
-
-.mtd-title {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0 0 8px;
-    color: var(--mtd-on-surface);
-}
-
-.mtd-desc {
     font-size: 14px;
-    color: var(--mtd-secondary);
-    max-width: 640px;
-    margin: 0;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
+.mtd-hero-facts span { display: block; opacity: 0.7; margin-bottom: 2px; }
+.mtd-hero-facts strong { font-size: 15px; }
 
-.mtd-header-actions { flex-shrink: 0; display: flex; gap: 8px; }
-
-.mtd-delete-btn { color: #b91c1c; border-color: #fecaca; }
-.mtd-delete-btn:hover { background: #fee2e2; }
-
-.mtd-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-    margin-bottom: 16px;
+.mtd-hero-reassign {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
+.mtd-hero-select {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 13.5px;
+    font-family: inherit;
+}
+.mtd-hero-select option { color: #0b1c30; }
+.mtd-hero-reassign-btn {
+    padding: 10px 18px;
+    border-radius: 9999px;
+    border: 1px solid #ffffff;
+    background: transparent;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.mtd-hero-reassign-btn:hover { background: rgba(255, 255, 255, 0.12); }
 
-.mtd-summary-card {
-    background: var(--mtd-surface);
-    border: 1px solid var(--mtd-outline-variant);
-    border-radius: 12px;
-    padding: 16px;
+.mtd-hero-repeats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 14px;
+}
+.mtd-hero-repeats .material-symbols-outlined { font-size: 19px; }
+.mtd-hero-stop-repeat {
+    margin-left: auto;
+    padding: 7px 14px;
+    border-radius: 9999px;
+    border: 1px solid #ffb4ab;
+    background: transparent;
+    color: #ffb4ab;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.mtd-hero-stop-repeat:hover { background: rgba(255, 180, 171, 0.12); }
+
+/* ── Primary actions ──────────────────────────────────────────────── */
+.mtd-actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+    margin-bottom: 28px;
 }
 
-.mtd-summary-label {
-    font-size: 11px;
+.mtd-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--mtd-secondary);
+    cursor: pointer;
+    text-decoration: none;
+    border: none;
+    font-family: inherit;
 }
+.mtd-btn .material-symbols-outlined { font-size: 22px; }
 
+.mtd-btn-outline {
+    border: 2px solid var(--mtd-primary);
+    background: #ffffff;
+    color: var(--mtd-primary);
+}
+.mtd-btn-outline:hover { background: var(--mtd-surface-low); }
+
+.mtd-btn-primary {
+    background: var(--mtd-primary);
+    color: #ffffff;
+}
+.mtd-btn-primary:hover { background: #0c2450; }
+
+.mtd-btn-danger {
+    border: 2px solid #b91c1c;
+    background: #ffffff;
+    color: #b91c1c;
+}
+.mtd-btn-danger:hover { background: #fee2e2; }
+
+.mtd-delete-disabled {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #eceef1;
+    color: #6b7076;
+    font-size: 14.5px;
+    line-height: 1.5;
+}
+.mtd-delete-disabled .material-symbols-outlined { font-size: 20px; flex-shrink: 0; }
+
+/* ── Note ─────────────────────────────────────────────────────────── */
 .mtd-note {
-    font-size: 13px;
-    font-style: italic;
+    font-size: 15px;
+    line-height: 1.6;
     color: var(--mtd-secondary);
     background: var(--mtd-surface-low);
     border: 1px solid var(--mtd-outline-variant);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin: 0 0 24px;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin: 0 0 32px;
 }
-/* "Stop repeating" (OPD only) inside the Repeats card */
-.mtd-stop-repeat {
-    margin-top: 8px;
-    padding: 6px 12px;
-    border: 1px solid #ba1a1a;
-    border-radius: 9999px;
-    background: #ffffff;
-    color: #ba1a1a;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-}
-.mtd-stop-repeat:hover { background: #ffdad6; }
 
-/* Reassign Responsible Admin (OPD only) inside the Responsible Admin card */
-.mtd-reassign-admin {
+.mtd-section-title {
+    font-size: 19px;
+    font-weight: 800;
+    margin: 0 0 18px;
+}
+
+/* ── Generic stacked card (Assigned Employees case) ─────────────────── */
+.mtd-stack { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+
+.mtd-card {
+    background: #ffffff;
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 16px;
+    padding: 20px 22px;
     display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
 }
-.mtd-reassign-select {
-    padding: 5px 8px;
-    border: 1px solid #c5c5d2;
-    border-radius: 8px;
-    font-size: 12px;
-    max-width: 220px;
-}
-.mtd-reassign-btn {
-    padding: 6px 12px;
-    border: 1px solid #001e65;
-    border-radius: 9999px;
-    background: #ffffff;
-    color: #001e65;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-}
-.mtd-reassign-btn:hover { background: #e5eeff; }
 
-/* Per-person Review link (OPD, Direct Admin / Whole Office tasks) */
-.mtd-review-btn {
+.mtd-card-title { font-size: 17px; font-weight: 700; line-height: 1.4; }
+.mtd-card-sub { font-size: 14.5px; color: var(--mtd-secondary); display: flex; align-items: center; gap: 6px; }
+.mtd-card-sub .material-symbols-outlined { font-size: 16px; }
+
+.mtd-card-status { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--mtd-on-surface); }
+.mtd-card-status .material-symbols-outlined { font-size: 18px; }
+
+.mtd-card-progress-row { display: flex; align-items: center; gap: 10px; }
+.mtd-card-progress-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(197, 197, 210, 0.3);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+.mtd-card-progress-fill { height: 100%; background: var(--mtd-status-progress-fg); border-radius: 9999px; transition: width 0.6s ease; }
+.mtd-card-progress-fill--done { background: #22c55e; }
+.mtd-card-progress-row strong { font-size: 12.5px; font-weight: 700; color: var(--mtd-primary); min-width: 36px; text-align: right; }
+
+.mtd-card-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    background: #001e65;
-    color: #ffffff;
-    font-size: 12px;
+    gap: 6px;
+    font-size: 15px;
     font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
+    color: var(--mtd-primary);
+    text-decoration: underline;
+    margin-top: 2px;
 }
-.mtd-review-btn:hover { background: #2b428b; }
-.mtd-review-btn .material-symbols-outlined { font-size: 16px; }
+.mtd-card-link .material-symbols-outlined { font-size: 18px; }
 
-/* Phones */
+/* ── Empty state ──────────────────────────────────────────────────── */
+.mtd-empty {
+    text-align: center;
+    padding: 40px 20px;
+    background: #ffffff;
+    border: 1px dashed var(--mtd-outline-variant);
+    border-radius: 16px;
+    margin-bottom: 28px;
+}
+.mtd-empty .material-symbols-outlined { font-size: 40px; color: var(--mtd-outline-variant); margin-bottom: 8px; }
+.mtd-empty p { margin: 0; font-size: 16px; font-weight: 600; color: var(--mtd-secondary); }
+.mtd-empty-sub { font-size: 13.5px !important; font-weight: 400 !important; color: var(--mtd-secondary); margin-top: 6px !important; }
+
+/* ── Subtask timeline ─────────────────────────────────────────────── */
+.mtd-timeline {
+    position: relative;
+    padding-left: 34px;
+    margin-bottom: 28px;
+}
+.mtd-timeline::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    background: var(--mtd-outline-variant);
+    border-radius: 2px;
+}
+
+.mtd-timeline-item { position: relative; margin-bottom: 18px; }
+.mtd-timeline-item:last-child { margin-bottom: 0; }
+
+.mtd-timeline-dot {
+    position: absolute;
+    left: -34px;
+    top: 4px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--mtd-status-pending-bg);
+    border: 4px solid #94a3b8;
+}
+.mtd-timeline-item--in-progress .mtd-timeline-dot,
+.mtd-timeline-item--for-review .mtd-timeline-dot {
+    background: var(--mtd-status-progress-bg);
+    border-color: var(--mtd-status-progress-fg);
+}
+.mtd-timeline-item--completed .mtd-timeline-dot {
+    background: var(--mtd-status-complete-bg);
+    border-color: #16a34a;
+}
+.mtd-timeline-item--overdue .mtd-timeline-dot {
+    background: var(--mtd-status-overdue-bg);
+    border-color: var(--mtd-status-overdue-fg);
+}
+
+.mtd-timeline-card {
+    background: #ffffff;
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 16px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mtd-timeline-due { font-size: 13.5px; color: var(--mtd-secondary); font-weight: 700; }
+.mtd-timeline-title { font-size: 17px; font-weight: 700; line-height: 1.4; }
+
+/* ── Add subtask ──────────────────────────────────────────────────── */
+.mtd-add-subtask {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    background: var(--mtd-surface-low);
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 16px;
+}
+.mtd-add-subtask-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--mtd-secondary);
+}
+.mtd-add-subtask input[type="text"] {
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+    border: 1px solid var(--mtd-outline-variant);
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--mtd-on-surface);
+    background: #ffffff;
+}
+.mtd-add-subtask input[type="text"]:focus { outline: 2px solid var(--mtd-primary); outline-offset: 1px; }
+.mtd-add-subtask .mtd-btn { margin-top: 2px; }
+
+/* ── Phones ───────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-    .mtd-title { font-size: 22px; }
-    .mtd-header-actions { width: 100%; }
-    .mtd-header-actions .et-btn { width: 100%; justify-content: center; min-height: 44px; }
-    .mtd-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-}
-
-/* ── Subtasks frame ──────────────────────────────────────────
-   No heading: the add row sits at the top. The count lives in the first
-   column header. The table area is at least three rows tall, so 0, 1, 2
-   or 3 subtasks give the same frame; more rows grow it normally. */
-.mtd-subtasks {
-    --mtd-sub-head: 40px;   /* column header row (measured) */
-    --mtd-sub-row: 63px;    /* one subtask row + the 8px gap under it (measured) */
-}
-.mtd-subtask-count { display: none; }
-
-@media (min-width: 768px) {
-    .mtd-subtasks .table-scroll {
-        min-height: calc(16px + var(--mtd-sub-head) + 3 * var(--mtd-sub-row));
-    }
-    /* No subtasks: icon and message centered in the same three-row space. */
-    .mtd-subtasks .task-table td.empty-state {
-        height: calc(3 * var(--mtd-sub-row) - 16px);
-        vertical-align: middle;
-        padding-top: 16px !important;
-        padding-bottom: 16px !important;
-    }
-}
-
-/* Phones: rows become cards and the column headers are hidden, so the
-   count is shown as a small label styled like a column header. */
-@media (max-width: 767px) {
-    .mtd-subtask-count {
-        display: block;
-        margin: 0;
-        padding: 16px 16px 0;
-        font-family: var(--font-ui, inherit);
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--mtd-primary);
-    }
+    .mtd { padding: 24px 16px 64px; }
+    .mtd-hero { padding: 22px 18px; }
+    .mtd-hero-title { font-size: 21px; }
+    .mtd-hero-facts { flex-direction: column; gap: 12px; }
 }

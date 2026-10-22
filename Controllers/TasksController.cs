@@ -1515,6 +1515,7 @@ public async Task<IActionResult> MainTaskDetails(int id)
         .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.User)
         .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.AssignedBy)
         .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.ReassignedFrom)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Submissions)
         .Include(t => t.Assignments).ThenInclude(a => a.User)
         .Include(t => t.Assignments).ThenInclude(a => a.AssignedBy)
         .Include(t => t.Assignments).ThenInclude(a => a.ReassignedFrom)
@@ -1539,6 +1540,15 @@ public async Task<IActionResult> MainTaskDetails(int id)
     {
         await PopulateResponsibleAdminsAsync();
     }
+
+    // Same rule Delete enforces server-side — surfaced here so the view can
+    // disable the Delete button before showing an irreversible-delete
+    // warning the server would refuse anyway.
+    var wholeTree = new List<TaskItem> { mainTask };
+    wholeTree.AddRange(mainTask.Subtasks);
+    ViewBag.HasStarted = wholeTree.Any(t =>
+        t.Submissions.Any() ||
+        t.Assignments.Any(a => a.Progress > 0 || !string.Equals(a.Status, TaskWorkflow.Pending, StringComparison.OrdinalIgnoreCase)));
 
     return View(mainTask);
 }

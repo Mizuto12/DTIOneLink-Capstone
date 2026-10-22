@@ -7,6 +7,7 @@
     ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
     var isOpd = Context.Session.GetString("UserRole") == "SuperAdmin";
     var isAssignedByOpd = DTIOneLink.Services.TaskTypes.IsAssignedByOpd(Model.TaskType);
+    var hasStarted = ViewBag.HasStarted as bool? ?? false;
 
     var task = Model;
     var taskCode = $"TASK-{task.Id:D4}";
@@ -15,15 +16,27 @@
 
     var subtasks = task.Subtasks?.OrderBy(s => s.DueDate).ToList() ?? new List<DTIOneLink.Models.TaskItem>();
 
-    string StatusBadgeClass(string ds) => ds switch
+    // Plain-language sentence + icon per status — this page states status as
+    // a full sentence first, not just a colored pill, for readers who may
+    // not reliably read color alone.
+    (string Sentence, string Icon) StatusSentence(string ds) => ds switch
     {
-        "in-progress" => "status-progress",
-        "for-review" => "status-progress",
-        "returned-for-correction" => "status-pending",
-        "completed" => "status-complete",
-        "overdue" => "status-overdue",
-        _ => "status-pending"
+        "overdue" => ("This task is overdue.", "warning"),
+        "in-progress" => ("This task is in progress.", "autorenew"),
+        "for-review" => ("Waiting for review.", "fact_check"),
+        "returned-for-correction" => ("Sent back for correction.", "undo"),
+        "completed" => ("This task is complete.", "check_circle"),
+        _ => ("Not started yet.", "radio_button_unchecked")
     };
+
+    (string Label, string Icon) TaskTypeInfo(string? type) => type switch
+    {
+        DTIOneLink.Services.TaskTypes.DepartmentDirective => ("Department Directive", "campaign"),
+        DTIOneLink.Services.TaskTypes.DirectAdmin => ("Direct Admin Task", "person"),
+        DTIOneLink.Services.TaskTypes.WholeOffice => ("Whole Office Task", "groups"),
+        _ => ("Task", "task")
+    };
+    var typeInfo = TaskTypeInfo(task.TaskType);
 }
 
 @section Styles {
@@ -47,275 +60,247 @@
             <span>@mtdError</span>
         </div>
     }
+
     <nav class="mtd-breadcrumb">
-        <a asp-controller="Tasks" asp-action="Index">Task Management</a>
-        <span>/</span>
-        <span>@taskCode</span>
+        <a asp-controller="Tasks" asp-action="Index">← Back to Task Management</a>
+        <span class="mtd-taskcode">@taskCode</span>
     </nav>
 
-    <div class="mtd-header">
-        <div>
-            <span class="mtd-eyebrow">Main Task — @task.OwningDepartment</span>
-            <h2 class="mtd-title">@task.TaskName</h2>
-            @if (!string.IsNullOrWhiteSpace(task.Description))
-            {
-                <p class="mtd-desc">@task.Description</p>
-            }
+    <!-- Hero: identity, status said as a full sentence, progress, and every
+         admin control that touches the Main Task itself (Reassign, Stop
+         Repeating) — kept here rather than cut, since they're real actions
+         this page already supports, not something the redesign removes. -->
+    <section class="mtd-hero">
+        <div class="mtd-hero-type">
+            <span class="material-symbols-outlined" aria-hidden="true">@typeInfo.Icon</span>@typeInfo.Label
         </div>
+        <h1 class="mtd-hero-title">@task.TaskName</h1>
+        <div class="mtd-hero-dept">@task.OwningDepartment</div>
+        @if (!string.IsNullOrWhiteSpace(task.Description))
+        {
+            <p class="mtd-hero-desc">@task.Description</p>
+        }
+
+        <div class="mtd-hero-status mtd-hero-status--@displayStatus">
+            <span class="material-symbols-outlined" aria-hidden="true">@StatusSentence(displayStatus).Icon</span>
+            <div>
+                <div class="mtd-hero-status-line">@StatusSentence(displayStatus).Sentence</div>
+                @if (displayStatus == "overdue")
+                {
+                    <div class="mtd-hero-status-sub">It was due on @DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate).</div>
+                }
+                else
+                {
+                    <div class="mtd-hero-status-sub">Due @DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate).</div>
+                }
+            </div>
+        </div>
+
+        <div class="mtd-hero-progress">
+            <span>Progress — @(task.Progress)% @(task.Progress == 0 ? "(not started)" : task.Progress == 100 ? "(complete)" : "done")</span>
+            <div class="mtd-hero-progress-row">
+                <div class="mtd-hero-progress-track"><div class="mtd-hero-progress-fill" style="width:@(task.Progress)%;"></div></div>
+                <strong>@task.Progress%</strong>
+            </div>
+        </div>
+
+        <div class="mtd-hero-facts">
+            <div>
+                <span>Responsible Admin</span>
+                <strong>@(task.ResponsibleAdmin?.FullName ?? "Unassigned")</strong>
+            </div>
+            <div>
+                <span>Created by</span>
+                <strong>@(task.CreatedBy?.FullName ?? "Unknown")</strong>
+            </div>
+        </div>
+
+        @if (isOpd && task.TaskType != DTIOneLink.Services.TaskTypes.WholeOffice && task.ResponsibleAdminUserId.HasValue)
+        {
+            var responsibleAdmins = (ViewBag.ResponsibleAdmins as List<DTIOneLink.Models.User>) ?? new List<DTIOneLink.Models.User>();
+            <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
+                  class="mtd-hero-reassign" id="mtdReassignForm" data-task-name="@task.TaskName">
+                @Html.AntiForgeryToken()
+                <select name="newResponsibleAdminUserId" class="mtd-hero-select" id="mtdReassignSelect" required>
+                    <option value="">Reassign to…</option>
+                    @foreach (var admin in responsibleAdmins.Where(a => a.Id != task.ResponsibleAdminUserId))
+                    {
+                        <option value="@admin.Id">@admin.FullName (@admin.Department)</option>
+                    }
+                </select>
+                <button type="submit" class="mtd-hero-reassign-btn">Reassign</button>
+            </form>
+        }
+
+        @if (task.Recurrence != null)
+        {
+            <div class="mtd-hero-repeats">
+                <span class="material-symbols-outlined" aria-hidden="true">event_repeat</span>
+                <span>Repeats @DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
+                @if (isOpd)
+                {
+                    <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post" id="mtdStopRepeatForm">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="mtd-hero-stop-repeat">Stop repeating</button>
+                    </form>
+                }
+            </div>
+        }
+    </section>
+
+    <!-- Primary actions -->
+    <div class="mtd-actions">
         @* Edit only opens for an Admin assigning people to a department task
            with no subtasks; in every other case TasksController.Edit sends
            them straight back here, so the button isn't shown. *@
         @if (!isOpd && !isAssignedByOpd && !subtasks.Any())
         {
-            <div class="mtd-header-actions">
-                <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="et-btn et-btn-outline">
-                    <span class="material-symbols-outlined">edit</span>
-                    Edit
-                </a>
-            </div>
+            <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="mtd-btn mtd-btn-outline">
+                <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                Edit this task
+            </a>
         }
         @if (isOpd)
         {
-            <div class="mtd-header-actions">
+            @if (hasStarted)
+            {
+                <div class="mtd-delete-disabled">
+                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                    Deleting is turned off — work has already started on this task@(subtasks.Any() ? " or one of its subtasks" : "").
+                </div>
+            }
+            else
+            {
                 <form asp-controller="Tasks" asp-action="Delete" asp-route-id="@task.Id" method="post"
                       id="mtdDeleteForm" data-has-subtasks="@Json.Serialize(subtasks.Any())">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="et-btn et-btn-outline mtd-delete-btn">
-                        <span class="material-symbols-outlined">delete</span>
-                        Delete
+                    <button type="submit" class="mtd-btn mtd-btn-danger">
+                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                        Delete this task
                     </button>
                 </form>
-            </div>
-        }
-    </div>
-
-    <div class="mtd-summary-grid">
-        <div class="mtd-summary-card">
-            <span class="mtd-summary-label">Overall Status</span>
-            <span class="status-badge @StatusBadgeClass(displayStatus)">@displayLabel</span>
-        </div>
-        <div class="mtd-summary-card">
-            <span class="mtd-summary-label">Overall Progress</span>
-            <div class="progress-cell">
-                <div class="progress-track">
-                    <div class="progress-fill" style="width: @(task.Progress)%;"></div>
-                </div>
-                <span class="progress-pct">@task.Progress%</span>
-            </div>
-        </div>
-        <div class="mtd-summary-card">
-            <span class="mtd-summary-label">Due Date</span>
-            <span>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</span>
-        </div>
-        <div class="mtd-summary-card">
-            <span class="mtd-summary-label">Responsible Admin</span>
-            <span>@(task.ResponsibleAdmin?.FullName ?? "Unassigned")</span>
-            @if (isOpd && task.TaskType != DTIOneLink.Services.TaskTypes.WholeOffice && task.ResponsibleAdminUserId.HasValue)
-            {
-                var responsibleAdmins = (ViewBag.ResponsibleAdmins as List<DTIOneLink.Models.User>) ?? new List<DTIOneLink.Models.User>();
-                <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
-                      class="mtd-reassign-admin" id="mtdReassignForm" data-task-name="@task.TaskName">
-                    @Html.AntiForgeryToken()
-                    <select name="newResponsibleAdminUserId" class="mtd-reassign-select" id="mtdReassignSelect" required>
-                        <option value="">Reassign to…</option>
-                        @foreach (var admin in responsibleAdmins.Where(a => a.Id != task.ResponsibleAdminUserId))
-                        {
-                            <option value="@admin.Id">@admin.FullName (@admin.Department)</option>
-                        }
-                    </select>
-                    <button type="submit" class="mtd-reassign-btn">Reassign</button>
-                </form>
             }
-        </div>
-        <div class="mtd-summary-card">
-            <span class="mtd-summary-label">Created By</span>
-            <span>@(task.CreatedBy?.FullName ?? "Unknown")</span>
-        </div>
-        @if (task.Recurrence != null)
-        {
-            <div class="mtd-summary-card">
-                <span class="mtd-summary-label">Repeats</span>
-                <span>@DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
-                @if (isOpd)
-                {
-                    <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post" id="mtdStopRepeatForm">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="mtd-stop-repeat">Stop repeating</button>
-                    </form>
-                }
-            </div>
         }
     </div>
 
     <p class="mtd-note">
-        Overall status/progress is calculated from the subtasks below — it
-        only reaches For Review once every subtask has been submitted for
-        review or completed, and only becomes Completed once every subtask
-        is individually completed.
+        This task's overall status and progress come from the subtasks below —
+        it only reaches For Review once every subtask has been submitted for
+        review or completed, and only becomes Completed once every subtask is
+        individually completed.
     </p>
 
     @if (!subtasks.Any() && task.Assignments != null && task.Assignments.Any())
     {
-        <div class="glass-card">
-            <div class="card-toolbar">
-                <h3 style="margin:0;">Assigned Employees (@task.Assignments.Count)</h3>
-            </div>
-            <div class="table-scroll">
-                <table class="task-table">
-                    <thead>
-                        <tr>
-                            <th>Employee</th>
-                            <th>Progress</th>
-                            <th>Status</th>
-                            <th>Assigned By</th>
-                            @if (isOpd)
-                            {
-                                <th></th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var a in task.Assignments.OrderByDescending(x => x.IsPrimaryAssignee).ThenBy(x => x.User?.FullName))
-                        {
-                            var aDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(a.Status, task.DueDate);
-                            var aDisplayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(a.Status, task.DueDate);
-                            <tr class="task-row">
-                                <td class="td-first">
-                                    @(a.User?.FullName ?? "Unknown")@(a.IsPrimaryAssignee ? " (Primary)" : "")
-                                    @if (a.ReassignedFrom != null)
-                                    {
-                                        <br /><span class="td-muted">Took over from @a.ReassignedFrom.FullName</span>
-                                    }
-                                </td>
-                                <td class="td-progress" data-label="Progress">
-                                    <div class="progress-cell">
-                                        <div class="progress-track">
-                                            <div class="progress-fill" style="width: @(a.Progress)%;"></div>
-                                        </div>
-                                        <span class="progress-pct">@a.Progress%</span>
-                                    </div>
-                                </td>
-                                <td class="td-status" data-label="Status"><span class="status-badge @StatusBadgeClass(aDisplayStatus)">@aDisplayLabel</span></td>
-                                <td data-label="Assigned by"><span class="td-muted">@(a.AssignedBy?.FullName ?? "Unknown")</span></td>
-                                @if (isOpd)
-                                {
-                                    // Review each person as soon as they submit, without
-                                    // waiting for everyone (OPD reviews these task types).
-                                    var pending = DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType)
-                                                  && DTIOneLink.Services.TaskWorkflow.Normalize(a.Status) == DTIOneLink.Services.TaskWorkflow.ForReview
-                                        ? task.Submissions.Where(s => s.TaskAssignmentId == a.Id && s.Decision == null)
-                                                          .OrderByDescending(s => s.SubmittedAt).FirstOrDefault()
-                                        : null;
-                                    <td>
-                                        @if (pending != null)
-                                        {
-                                            <a asp-controller="Tasks" asp-action="Review" asp-route-id="@pending.Id" class="mtd-review-btn">
-                                                <span class="material-symbols-outlined">fact_check</span>
-                                                Review
-                                            </a>
-                                        }
-                                    </td>
-                                }
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+        <h2 class="mtd-section-title">Assigned Employees (@task.Assignments.Count)</h2>
+        <div class="mtd-stack">
+            @foreach (var a in task.Assignments.OrderByDescending(x => x.IsPrimaryAssignee).ThenBy(x => x.User?.FullName))
+            {
+                var aDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(a.Status, task.DueDate);
+                var pending = isOpd && DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType)
+                              && DTIOneLink.Services.TaskWorkflow.Normalize(a.Status) == DTIOneLink.Services.TaskWorkflow.ForReview
+                    ? task.Submissions.Where(s => s.TaskAssignmentId == a.Id && s.Decision == null)
+                                      .OrderByDescending(s => s.SubmittedAt).FirstOrDefault()
+                    : null;
+                <div class="mtd-card">
+                    <div class="mtd-card-title">
+                        @(a.User?.FullName ?? "Unknown")@(a.IsPrimaryAssignee ? " (Primary)" : "")
+                    </div>
+                    @if (a.ReassignedFrom != null)
+                    {
+                        <div class="mtd-card-sub">Took over from @a.ReassignedFrom.FullName</div>
+                    }
+                    <div class="mtd-card-status">
+                        <span class="material-symbols-outlined" aria-hidden="true">@StatusSentence(aDisplayStatus).Icon</span>
+                        <span>@StatusSentence(aDisplayStatus).Sentence</span>
+                    </div>
+                    <div class="mtd-card-progress-row">
+                        <div class="mtd-card-progress-track"><div class="mtd-card-progress-fill" style="width:@(a.Progress)%;"></div></div>
+                        <strong>@a.Progress%</strong>
+                    </div>
+                    <div class="mtd-card-sub">Assigned by @(a.AssignedBy?.FullName ?? "Unknown")</div>
+                    @if (pending != null)
+                    {
+                        <a asp-controller="Tasks" asp-action="Review" asp-route-id="@pending.Id" class="mtd-card-link">
+                            <span class="material-symbols-outlined" aria-hidden="true">fact_check</span>
+                            Review submission
+                        </a>
+                    }
+                </div>
+            }
         </div>
     }
 
-    @* Subtasks frame: the add row at the top (directives only), the count in
-       the first column header, and the same minimum height (3 rows) whether
-       there are 0, 1 or 3 subtasks. *@
-    <div class="glass-card mtd-subtasks">
-        @* Only the OPD (SuperAdmin) creates tasks or adds subtasks — an
-           Admin/Supervisor only assigns the subtasks already there. *@
-        @if (isOpd && DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
+    @* Subtasks only exist on a Department Directive — suppressing this
+       whole section for the other two task types (rather than showing it
+       permanently empty) is the one behavior change from the original page. *@
+    @if (DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
+    {
+        <h2 class="mtd-section-title">Subtasks (@subtasks.Count)@(subtasks.Any() ? " — in order of due date" : "")</h2>
+
+        @if (!subtasks.Any())
         {
-            <div class="card-toolbar mtd-subtask-toolbar">
-                <form asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@task.Id" method="post" class="mtd-add-subtask">
-                    @Html.AntiForgeryToken()
-                    <input type="text" name="subtaskName" data-capitalize="title" placeholder="New Subtask Name" maxlength="200" required aria-label="New subtask name">
-                    @* Same pill as Task Management's CREATE TASK button. *@
-                    <button type="submit" class="btn-primary-pill">
-                        <span class="material-symbols-outlined">add</span>
-                        ADD SUBTASK
-                    </button>
-                </form>
+            <div class="mtd-empty">
+                <span class="material-symbols-outlined" aria-hidden="true">assignment</span>
+                <p>No subtasks yet</p>
+                @if (!isOpd && !isAssignedByOpd)
+                {
+                    <p class="mtd-empty-sub">Click Edit above to assign employees to this directive directly.</p>
+                }
             </div>
         }
-        @* Phones hide the table's column headers, so the count shows here instead. *@
-        <p class="mtd-subtask-count">Subtasks (@subtasks.Count)</p>
-        <div class="table-scroll">
-            <table class="task-table">
-                <thead>
-                    <tr>
-                        <th>Subtasks (@subtasks.Count)</th>
-                        <th>Assignees</th>
-                        <th>Assigned By</th>
-                        <th>Due Date</th>
-                        <th>Progress</th>
-                        <th>Status</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (subtasks.Any())
-                    {
-                        foreach (var sub in subtasks)
-                        {
-                            var subDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(sub.Status, sub.DueDate);
-                            var subDisplayLabel = DTIOneLink.Services.TaskWorkflow.DisplayLabel(sub.Status, sub.DueDate);
-                            var assigneeNames = sub.Assignments != null && sub.Assignments.Any()
-                                ? string.Join(", ", sub.Assignments.Select(a => (a.User?.FullName ?? "Unknown")
-                                    + (a.ReassignedFrom != null ? $" (took over from {a.ReassignedFrom.FullName})" : "")))
-                                : "Unassigned";
-                            // Distinct, since two assignees on the same subtask are often
-                            // added by the same Admin in one Edit save.
-                            var assignedByNames = sub.Assignments != null && sub.Assignments.Any()
-                                ? string.Join(", ", sub.Assignments.Select(a => a.AssignedBy?.FullName ?? "Unknown").Distinct())
-                                : "—";
-                            <tr class="task-row">
-                                <td class="td-first td-task-name">@sub.TaskName</td>
-                                <td class="td-task" data-label="Assignees"><span class="td-muted">@assigneeNames</span></td>
-                                <td data-label="Assigned by"><span class="td-muted">@assignedByNames</span></td>
-                                <td data-label="Due date"><span class="td-date">@DTIOneLink.Helpers.DisplayHelpers.FormalDate(sub.DueDate)</span></td>
-                                <td class="td-progress" data-label="Progress">
-                                    <div class="progress-cell">
-                                        <div class="progress-track">
-                                            <div class="progress-fill" style="width: @(sub.Progress)%;"></div>
-                                        </div>
-                                        <span class="progress-pct">@sub.Progress%</span>
-                                    </div>
-                                </td>
-                                <td class="td-status" data-label="Status"><span class="status-badge @StatusBadgeClass(subDisplayStatus)">@subDisplayLabel</span></td>
-                                <td class="td-last">
-                                    <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@sub.Id" class="more-btn" aria-label="Edit subtask">
-                                        <span class="material-symbols-outlined">edit</span>
-                                    </a>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="7" class="empty-state">
-                                <div class="empty-state-content">
-                                    <span class="material-symbols-outlined empty-icon">assignment</span>
-                                    <p class="empty-text">No subtasks yet</p>
-                                    @if (!isOpd && !isAssignedByOpd)
-                                    {
-                                        <p class="empty-sub">Click Edit above to assign employees to this directive directly.</p>
-                                    }
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
+        else
+        {
+            <div class="mtd-timeline">
+                @foreach (var sub in subtasks)
+                {
+                    var subDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(sub.Status, sub.DueDate);
+                    var assigneeNames = sub.Assignments != null && sub.Assignments.Any()
+                        ? string.Join(", ", sub.Assignments.Select(a => (a.User?.FullName ?? "Unknown")
+                            + (a.ReassignedFrom != null ? $" (took over from {a.ReassignedFrom.FullName})" : "")))
+                        : null;
+                    <div class="mtd-timeline-item mtd-timeline-item--@subDisplayStatus">
+                        <div class="mtd-timeline-dot" aria-hidden="true"></div>
+                        <div class="mtd-timeline-card">
+                            <div class="mtd-timeline-due">Due @DTIOneLink.Helpers.DisplayHelpers.FormalDate(sub.DueDate)</div>
+                            <div class="mtd-timeline-title">@sub.TaskName</div>
+                            <div class="mtd-card-status">
+                                <span class="material-symbols-outlined" aria-hidden="true">@StatusSentence(subDisplayStatus).Icon</span>
+                                <span>@StatusSentence(subDisplayStatus).Sentence</span>
+                            </div>
+                            <div class="mtd-card-progress-row">
+                                <div class="mtd-card-progress-track"><div class="mtd-card-progress-fill mtd-card-progress-fill--@(sub.Progress == 100 ? "done" : "")" style="width:@(sub.Progress)%;"></div></div>
+                                <strong>@sub.Progress%</strong>
+                            </div>
+                            <div class="mtd-card-sub">
+                                <span class="material-symbols-outlined" aria-hidden="true">@(assigneeNames == null ? "person_off" : "group")</span>
+                                @(assigneeNames ?? "Not yet assigned to anyone")
+                            </div>
+                            <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@sub.Id" class="mtd-card-link">
+                                <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                                Edit this subtask
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @* Only the OPD (SuperAdmin) creates tasks or adds subtasks — an
+           Admin/Supervisor only assigns the subtasks already there. *@
+        @if (isOpd)
+        {
+            <form asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@task.Id" method="post" class="mtd-add-subtask">
+                @Html.AntiForgeryToken()
+                <label for="mtdNewSubtask" class="mtd-add-subtask-label">New subtask name</label>
+                <input type="text" id="mtdNewSubtask" name="subtaskName" data-capitalize="title" placeholder="e.g. Submit consolidated report" maxlength="200" required>
+                <button type="submit" class="mtd-btn mtd-btn-primary">
+                    <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                    Add a new subtask
+                </button>
+            </form>
+        }
+    }
 </div>
 
 <partial name="_NoticeDialog" />
