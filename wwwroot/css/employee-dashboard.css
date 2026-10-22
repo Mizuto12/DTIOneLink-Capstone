@@ -455,19 +455,25 @@
 .ed-stat--overdue dt .material-symbols-outlined { font-size: 15px; }
 .ed-stat--overdue dd { color: var(--tone-overdue); font-size: 15px; }
 
-.ed-progress__link {
-    display: inline-flex;
+.ed-progress__cta {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 2px;
-    color: var(--primary, #001e65);
-    font-size: 13px;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 11px 16px;
+    border-radius: 9999px;
+    background: var(--primary, #001e65);
+    color: #fff;
+    font-size: 13.5px;
     font-weight: 700;
     text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
 }
-.ed-progress__link .material-symbols-outlined { font-size: 16px; }
-.ed-progress__link:hover { text-decoration: underline; text-underline-offset: 3px; }
-.ed-progress__link:focus-visible { outline: 2px solid var(--primary, #001e65); outline-offset: 2px; border-radius: 4px; }
+.ed-progress__cta .material-symbols-outlined { font-size: 17px; transition: transform 0.15s ease; }
+.ed-progress__cta:hover { background: #0c2450; }
+.ed-progress__cta:hover .material-symbols-outlined { transform: translateX(2px); }
+.ed-progress__cta:focus-visible { outline: 2px solid var(--primary, #001e65); outline-offset: 2px; }
 
 /* ── Records overview (reuses records-overview.js's exact markup/classes
    unchanged — same component already shipped on SuperAdmin's rail) ──── */
