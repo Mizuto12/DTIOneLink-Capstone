@@ -33,16 +33,18 @@
     }
 </h1>
 
-<form asp-controller="Account" asp-action="@verifyAction" method="post" novalidate class="change-password-form account-form">
+<form asp-controller="Account" asp-action="@verifyAction" method="post" novalidate class="change-password-form account-form otp-form">
     @Html.AntiForgeryToken()
 
+    @* Spam/Junk guidance folded into the one note instead of a second line
+       under the field below it — one thing to read before typing, not two. *@
     @if (isLogin)
     {
-        <p class="change-password-note">We sent a 6-digit code to <strong>@email</strong> to finish signing in. Enter it to continue. It expires in @minutes minutes.</p>
+        <p class="change-password-note">We sent a 6-digit code to <strong>@email</strong> to finish signing in. It expires in @minutes minutes — check Spam/Junk if it's not in your inbox.</p>
     }
     else
     {
-        <p class="change-password-note">We sent a 6-digit code to <strong>@email</strong>. Enter it to confirm this is your email. It expires in @minutes minutes.</p>
+        <p class="change-password-note">We sent a 6-digit code to <strong>@email</strong> to confirm this is your email. It expires in @minutes minutes — check Spam/Junk if it's not in your inbox.</p>
     }
 
     @if (TempData["CodeNotice"] is string codeNotice)
@@ -54,38 +56,33 @@
         <label asp-for="Code">6-digit code</label>
         <input asp-for="Code" class="text-input code-input" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" pattern="[0-9]*" placeholder="000000" autofocus />
-        <span class="field-hint">Can't find it? Check your Spam or Junk folder.</span>
         <span asp-validation-for="Code" class="field-error"></span>
     </div>
 
     @if (isLogin)
     {
-        <div class="remember-device-row">
-            <label class="remember-me-label">
-                <input type="checkbox" asp-for="RememberDevice" />
-                <span>Remember this device</span>
-            </label>
-            <p class="remember-device-hint">Skip the code on this browser for the next @trustedDurationText. Don't use on shared computers.</p>
-        </div>
+        <label class="remember-me-label otp-remember-row">
+            <input type="checkbox" asp-for="RememberDevice" />
+            <span>Remember this device <small>— skip the code here for @trustedDurationText. Not on shared computers.</small></span>
+        </label>
     }
 
-    <button type="submit" class="btn-login">VERIFY</button>
+    <button type="submit" class="btn-login otp-verify-btn">VERIFY</button>
 </form>
 
-<form asp-controller="Account" asp-action="@resendAction" method="post" class="change-password-secondary-form">
-    @Html.AntiForgeryToken()
-    <button type="submit" class="change-password-secondary resend-code-btn" data-resend-seconds="@resendSeconds">Send a new code</button>
-</form>
+<div class="otp-secondary">
+    <form asp-controller="Account" asp-action="@resendAction" method="post" class="change-password-secondary-form">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="change-password-secondary resend-code-btn" data-resend-seconds="@resendSeconds">Send a new code</button>
+    </form>
 
-@if (isLogin)
-{
-    <p class="field-hint account-help">Not expecting this? Someone may have your password — cancel below and tell your administrator.</p>
-}
-else
-{
-    <p class="field-hint account-help">Not your email address? Ask your administrator to correct it, then log in again.</p>
-}
-<form asp-controller="Account" asp-action="Logout" method="post" class="change-password-secondary-form">
-    @Html.AntiForgeryToken()
-    <button type="submit" class="change-password-secondary">@(isLogin ? "Cancel" : "Log out instead")</button>
-</form>
+    <p class="field-hint account-help otp-fineprint">
+        @(isLogin
+            ? "Not expecting this? Someone may have your password — cancel and tell your administrator."
+            : "Not your email address? Ask your administrator to correct it, then log in again.")
+    </p>
+    <form asp-controller="Account" asp-action="Logout" method="post" class="change-password-secondary-form">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="change-password-secondary">@(isLogin ? "Cancel" : "Log out instead")</button>
+    </form>
+</div>

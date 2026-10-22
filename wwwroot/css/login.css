@@ -336,14 +336,23 @@ html, body {
     cursor: pointer;
 }
 
-/* "Remember this device" on the login-OTP page (EnterCode.cshtml). */
-.remember-device-row {
-    margin: -4px 0 16px;
+/* "Remember this device" on the login-OTP page (EnterCode.cshtml) — one
+   compact line (checkbox + label + fine-print aside) instead of a label
+   plus its own separate paragraph underneath, which read as two stacked
+   blocks for one decision. */
+.otp-remember-row {
+    align-items: flex-start;
+    gap: 8px;
+    margin: 4px 0 18px;
 }
-
-.remember-device-hint {
-    margin: 2px 0 0 20px;
-    font-size: clamp(10px, 1.1vw, 12px);
+.otp-remember-row input[type="checkbox"] {
+    margin-top: 2px;
+}
+.otp-remember-row small {
+    display: block;
+    margin-top: 2px;
+    font-size: clamp(10px, 1.1vw, 11px);
+    font-weight: 400;
     color: #5a6b8c;
 }
 
@@ -568,6 +577,26 @@ html, body {
     margin-top: 8px;
     text-align: center;
     color: var(--navy-dark);
+}
+
+/* Verify It's You / Verify Email — tightened rhythm and a clearly-dominant
+   VERIFY button, so the one real action on this screen doesn't have to
+   compete with half a dozen secondary ones for attention. */
+.otp-form .change-password-note {
+    margin-bottom: 14px;
+}
+.otp-verify-btn {
+    width: 100%;
+    margin-top: 22px;
+}
+.otp-secondary {
+    margin-top: 18px;
+    opacity: 0.85;
+}
+.otp-fineprint {
+    margin: 10px 0 0;
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 .change-password-secondary:disabled {
