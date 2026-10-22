@@ -264,18 +264,35 @@
     text-align: center;
 }
 
-/* Scales with the viewport instead of a stingy fixed height — a fixed
-   520px only showed ~3 cards before forcing a scroll inside the column,
-   which still reads as "too much scrolling" even though it's contained
-   to one column. 70vh shows far more cards up front on most screens;
-   it still scrolls on its own past that, same as before. */
+/* No internal scrollbar at all now — superadmin-dashboard.js caps each
+   column to BOARD_CARD_LIMIT cards (sorted overdue-first, so the ones
+   that matter most are always the ones showing) and reveals the rest via
+   .sa-show-more on click. A capped list plus one explicit action reads as
+   far less scrolling than a tall column quietly scrolling on its own,
+   and the column now simply grows to fit what's visible instead of
+   carving out its own separate scroll region. */
 .sa-col__cards {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 70vh;
-    overflow-y: auto;
     padding: 0 10px 12px;
+}
+
+.sa-show-more {
+    margin: 2px 0 0;
+    padding: 9px 0;
+    border: 1.5px dashed var(--outline-variant);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--tone);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.sa-show-more:hover,
+.sa-show-more:focus-visible {
+    border-color: var(--tone);
+    background: var(--tone-soft);
 }
 
 .sa-col__empty {

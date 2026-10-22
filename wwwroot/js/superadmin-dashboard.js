@@ -60,14 +60,25 @@
         };
     }
 
+    // Cards shown per column before "Show N more" — every card stays in the
+    // DOM (just hidden past this count), so the division filter below still
+    // sees and counts every one of them correctly; this only changes how
+    // many render visible at once. Replaces each column's old internal
+    // scrollbar (max-height + overflow-y) entirely: a capped list with one
+    // explicit "show more" action reads as far less scrolling than a tall
+    // column that quietly scrolls on its own past a few cards.
+    var BOARD_CARD_LIMIT = 5;
+
     document.addEventListener("DOMContentLoaded", function () {
         var board = document.getElementById("saBoard");
         if (!board) return;
 
         var chips = Array.from(board.querySelectorAll(".sa-chip"));
         var columns = Array.from(board.querySelectorAll(".sa-col"));
+        var currentDivision = "";
 
         function apply(division) {
+            currentDivision = division;
             chips.forEach(function (chip) {
                 var on = chip.dataset.division === division;
                 chip.classList.toggle("is-active", on);
@@ -75,16 +86,35 @@
             });
 
             columns.forEach(function (col) {
-                var shown = 0;
+                var matching = [];
                 col.querySelectorAll(".sa-kcard").forEach(function (card) {
-                    var match = !division || card.dataset.division === division;
-                    card.hidden = !match;
-                    if (match) shown++;
+                    if (!division || card.dataset.division === division) {
+                        matching.push(card);
+                    } else {
+                        card.hidden = true;
+                    }
                 });
+
+                var expanded = col.dataset.expanded === "true";
+                var limit = expanded ? matching.length : BOARD_CARD_LIMIT;
+                matching.forEach(function (card, index) {
+                    card.hidden = index >= limit;
+                });
+
                 var count = col.querySelector("[data-count]");
-                if (count) count.textContent = String(shown);
+                if (count) count.textContent = String(matching.length);
+
                 var empty = col.querySelector(".sa-col__empty");
-                if (empty) empty.hidden = shown > 0;
+                if (empty) empty.hidden = matching.length > 0;
+
+                var moreBtn = col.querySelector(".sa-show-more");
+                if (moreBtn) {
+                    var remaining = matching.length - limit;
+                    moreBtn.hidden = expanded || remaining <= 0;
+                    if (!moreBtn.hidden) {
+                        moreBtn.textContent = "Show " + remaining + " more";
+                    }
+                }
             });
 
             // Remember the choice for this tab, so live refreshes keep it.
@@ -93,14 +123,28 @@
 
         var STORAGE_KEY = "saBoardDivision";
         chips.forEach(function (chip) {
-            chip.addEventListener("click", function () { apply(chip.dataset.division); });
+            chip.addEventListener("click", function () {
+                // Switching divisions is a new view of each column, not a
+                // continuation of the last one — expanding CPD shouldn't
+                // leave "All divisions" (or any other division) stuck
+                // showing everything too, with no way back to the capped view.
+                columns.forEach(function (col) { col.dataset.expanded = "false"; });
+                apply(chip.dataset.division);
+            });
+        });
+
+        columns.forEach(function (col) {
+            var moreBtn = col.querySelector(".sa-show-more");
+            if (!moreBtn) return;
+            moreBtn.addEventListener("click", function () {
+                col.dataset.expanded = "true";
+                apply(currentDivision);
+            });
         });
 
         var saved = "";
         try { saved = sessionStorage.getItem(STORAGE_KEY) || ""; } catch (e) { /* storage blocked */ }
-        if (saved && chips.some(function (c) { return c.dataset.division === saved; })) {
-            apply(saved);
-        }
+        apply(saved && chips.some(function (c) { return c.dataset.division === saved; }) ? saved : "");
     });
 
     // Overdue Tasks table: no filter, just paginate the full row list.
