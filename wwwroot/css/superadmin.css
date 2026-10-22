@@ -5,7 +5,6 @@
 
 /* Status colors, shared by cards, the status bar, legend dots and board
    columns. Each .sa-tone-* sets --tone (strong) and --tone-soft (tint). */
-.sa-tone-total     { --tone: var(--primary); --tone-soft: var(--surface-container); }
 .sa-tone-todo      { --tone: #64748b;        --tone-soft: #f1f5f9; }
 .sa-tone-progress  { --tone: #2563eb;        --tone-soft: #e0ebff; }
 .sa-tone-review    { --tone: #7c3aed;        --tone-soft: #f1e9ff; }
@@ -23,10 +22,57 @@
     color: var(--on-surface);
 }
 
-/* ── Summary cards ─────────────────────────────────────── */
+/* ── Summary cards ─────────────────────────────────────────
+   Total Tasks leads as a headline figure (.sa-cards__hero); the other 7
+   statuses pack into a fixed 4-column strip beside it. Fixed columns
+   (not the old auto-fit grid) mean 7 cards always lay out as 4-then-3 —
+   a shorter last row reads as normal, unlike the single card the old
+   8-up auto-fit grid could orphan onto a row of its own. ───────────── */
 .sa-cards {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.sa-cards__hero {
+    width: 200px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 20px;
+    background: var(--primary);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 30, 101, 0.06), 0 4px 12px rgba(0, 30, 101, 0.04);
+    color: var(--on-primary);
+}
+.sa-cards__hero-icon {
+    font-size: 22px;
+    opacity: 0.85;
+}
+.sa-cards__hero-value {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1;
+}
+.sa-cards__hero-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.sa-cards__strip {
+    flex: 1;
+    min-width: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 16px;
 }
 
@@ -60,7 +106,6 @@
     line-height: 1.1;
     color: var(--tone);
 }
-.sa-tone-total .sa-card__value,
 .sa-tone-todo .sa-card__value { color: var(--on-surface); }
 
 .sa-card__label {
@@ -70,6 +115,14 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--on-surface-variant);
+}
+
+@media (max-width: 900px) {
+    .sa-cards { flex-direction: column; }
+    .sa-cards__hero { width: auto; flex-direction: row; justify-content: flex-start; gap: 14px; }
+}
+@media (max-width: 560px) {
+    .sa-cards__strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ── Section shell ─────────────────────────────────────── */
@@ -133,6 +186,33 @@
     font-size: 13px;
     color: var(--on-surface-variant);
 }
+
+/* Collapsed-section preview: a one-line hint of what's inside (Overdue
+   Tasks, Employee Workload) so the closed state isn't just a bare title
+   bar — shown whether the section is open or closed. */
+.sa-section__preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: var(--on-surface-variant);
+}
+.sa-mini-avatars { display: flex; flex-shrink: 0; }
+.sa-mini-avatar {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    background: var(--surface-container);
+    color: var(--primary);
+    font-size: 9px;
+    font-weight: 700;
+    border: 2px solid var(--surface-container-lowest);
+    margin-left: -6px;
+}
+.sa-mini-avatars .sa-mini-avatar:first-child { margin-left: 0; }
 
 .sa-pill {
     padding: 6px 14px;

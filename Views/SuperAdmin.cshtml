@@ -54,6 +54,14 @@
             _ => "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(due)
         };
     }
+
+    // Collapsed-section previews: a one-line hint of what's inside before
+    // expanding, so the closed state isn't just a bare title bar.
+    var overdueByAge = Model.OverdueItems.OrderBy(t => t.DueDate).ToList();
+    var overduePreviewNames = overdueByAge.Select(t => t.TaskName).Take(2).ToList();
+    var overdueMoreCount = overdueByAge.Count - overduePreviewNames.Count;
+    var oldestOverdueDays = overdueByAge.Any() ? (today - overdueByAge[0].DueDate.Date).Days : 0;
+    var busiestEmployee = Model.EmployeeWorkloads.OrderByDescending(w => w.TotalAssigned).FirstOrDefault();
 }
 
 @section Styles {
@@ -63,18 +71,28 @@
 
 <div class="sa-dashboard">
 
-    <!-- ── Summary cards ─────────────────────────────────── -->
+    <!-- ── Summary cards: Total Tasks leads as a headline figure; the other
+         7 statuses pack into a 4-wide strip beside it. (A fixed 4-column
+         strip also means these can never orphan a lone card onto its own
+         row the way the old 8-up auto-fit grid could.) ───────────────── -->
     <section class="sa-cards" aria-label="Task summary">
-        @foreach (var c in cards)
-        {
-            <div class="sa-card sa-tone-@c.Tone">
-                <span class="sa-card__icon material-symbols-outlined" aria-hidden="true">@c.Icon</span>
-                <div>
-                    <p class="sa-card__value">@c.Value</p>
-                    <p class="sa-card__label">@c.Label</p>
+        <div class="sa-cards__hero">
+            <span class="sa-cards__hero-icon material-symbols-outlined" aria-hidden="true">@cards[0].Icon</span>
+            <p class="sa-cards__hero-value">@cards[0].Value</p>
+            <p class="sa-cards__hero-label">@cards[0].Label</p>
+        </div>
+        <div class="sa-cards__strip">
+            @foreach (var c in cards.Skip(1))
+            {
+                <div class="sa-card sa-tone-@c.Tone">
+                    <span class="sa-card__icon material-symbols-outlined" aria-hidden="true">@c.Icon</span>
+                    <div>
+                        <p class="sa-card__value">@c.Value</p>
+                        <p class="sa-card__label">@c.Label</p>
+                    </div>
                 </div>
-            </div>
-        }
+            }
+        </div>
     </section>
 
     <!-- ── Hero row: Task Board is the primary surface and loads without
@@ -217,6 +235,18 @@
                 <span class="material-symbols-outlined">expand_more</span>
             </button>
         </div>
+        @if (overdueByAge.Any())
+        {
+            <div class="sa-section__preview">
+                <span class="sa-mini-avatars">
+                    @foreach (var t in overdueByAge.Take(3))
+                    {
+                        <span class="sa-mini-avatar">@Initials(t.AssigneeName)</span>
+                    }
+                </span>
+                <span>@string.Join(", ", overduePreviewNames)@(overdueMoreCount > 0 ? $" +{overdueMoreCount} more" : "") — oldest is @(oldestOverdueDays == 1 ? "1 day" : $"{oldestOverdueDays} days") late</span>
+            </div>
+        }
         <div id="saOverdueBody" hidden>
         @if (!Model.OverdueItems.Any())
         {
@@ -293,6 +323,13 @@
                 <span class="material-symbols-outlined">expand_more</span>
             </button>
         </div>
+        @if (busiestEmployee != null)
+        {
+            <div class="sa-section__preview">
+                <span class="sa-mini-avatar">@Initials(busiestEmployee.FullName)</span>
+                <span>Busiest: @busiestEmployee.FullName (@busiestEmployee.TotalAssigned task@(busiestEmployee.TotalAssigned == 1 ? "" : "s"))</span>
+            </div>
+        }
         <div id="saWorkloadBody" hidden>
         @if (Model.EmployeeWorkloads.Any())
         {
