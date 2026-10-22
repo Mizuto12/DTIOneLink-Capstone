@@ -190,6 +190,41 @@
 }
 .sa-status-legend strong { color: var(--on-surface); }
 
+/* Rail width is too narrow for the legend to wrap into neat rows of its
+   own, so it stacks into one column instead of wrapping awkwardly. */
+.sa-status-legend--stacked {
+    flex-direction: column;
+    gap: 7px;
+}
+
+/* ── Hero row: Task Board is the primary surface; Status Distribution and
+   Completion Trend sit in a side rail next to it instead of stacking
+   above it full-width. Same rail width Employee's dashboard already uses
+   (.ed-workspace), so ct-chart is already proven to render at this size. */
+.sa-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    gap: 16px;
+    align-items: start;
+}
+.sa-hero__main { min-width: 0; }
+.sa-hero__rail {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+.sa-section--rail {
+    padding: 18px;
+}
+.sa-section--rail .sa-section__title { font-size: 15px; }
+
+@media (max-width: 1100px) {
+    .sa-hero { grid-template-columns: 1fr; }
+    .sa-hero__rail { flex-direction: row; flex-wrap: wrap; }
+    .sa-hero__rail > .sa-section { flex: 1 1 260px; }
+}
+
 .sa-dot {
     display: inline-block;
     flex-shrink: 0;
