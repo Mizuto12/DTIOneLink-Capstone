@@ -155,26 +155,30 @@
                         @foreach (var task in boardTasks)
                         {
                             var overdue = IsOverdue(task);
+                            var atRisk = IsAtRisk(task);
                             var progress = ProgressOf(task);
                             var division = DivisionOf(task);
-                            <a class="ed-card @(overdue ? "is-overdue" : "")" href="@Url.Action("Details", "Dashboard", new { id = task.Id })">
-                                @if (division != null || overdue || IsAtRisk(task))
-                                {
-                                    <span class="ed-card__tags">
-                                        @if (division != null)
-                                        {
-                                            <span class="ed-tag ed-tag--division">@division</span>
-                                        }
-                                        @if (overdue)
-                                        {
-                                            <span class="ed-tag ed-tag--overdue">Overdue</span>
-                                        }
-                                        else if (IsAtRisk(task))
-                                        {
-                                            <span class="ed-tag ed-tag--risk">At risk</span>
-                                        }
-                                    </span>
-                                }
+                            var priorityKey = (task.Priority ?? "").Trim().ToLowerInvariant();
+                            <a class="ed-card" href="@Url.Action("Details", "Dashboard", new { id = task.Id })">
+                                <span class="ed-card__tags">
+                                    <span class="ed-card__dot @(overdue ? "is-overdue" : atRisk ? "is-risk" : "")" aria-hidden="true"></span>
+                                    @if (division != null)
+                                    {
+                                        <span class="ed-tag ed-tag--division">@division</span>
+                                    }
+                                    @if (priorityKey is "high" or "medium" or "low")
+                                    {
+                                        <span class="ed-prio ed-prio--@priorityKey">@TitleCase(task.Priority)</span>
+                                    }
+                                    @if (overdue)
+                                    {
+                                        <span class="ed-card__status is-overdue">Overdue</span>
+                                    }
+                                    else if (atRisk)
+                                    {
+                                        <span class="ed-card__status is-risk">At risk</span>
+                                    }
+                                </span>
                                 <span class="ed-card__title">@task.TaskName</span>
                                 <span class="ed-card__progress" title="@progress% done">
                                     <span class="ed-bar"><span style="width:@progress%;"></span></span>
@@ -196,7 +200,38 @@
 
         <div class="ed-rule" aria-hidden="true"></div>
 
-        <aside class="ed-side" aria-label="Calendar and progress">
+        <aside class="ed-side" aria-label="Progress, calendar, records, and trend">
+            <!-- My progress: leads the sidebar — the number worth checking
+                 first, before the calendar or anything else. -->
+            <section class="ed-progress" aria-labelledby="edProgressTitle">
+                <div class="ed-progress__head">
+                    <span class="ed-progress__badge" aria-hidden="true"><span class="material-symbols-outlined">checklist</span></span>
+                    <h2 class="ed-progress__title" id="edProgressTitle">My progress</h2>
+                </div>
+                <div class="ed-progress__hero">
+                    <span class="ed-progress__hero-num">@total</span>
+                    <span class="ed-progress__hero-label">task@(total == 1 ? "" : "s") assigned to you</span>
+                </div>
+                <dl class="ed-progress__stats">
+                    @foreach (var s in progressStats.Where(s => s.Tone != "overdue"))
+                    {
+                        <div class="ed-stat ed-tone-@s.Tone">
+                            <dt><span class="ed-stat__dot" aria-hidden="true"></span>@s.Label</dt>
+                            <dd>@s.Value</dd>
+                        </div>
+                    }
+                    @{ var overdueStat = progressStats.First(s => s.Tone == "overdue"); }
+                    <div class="ed-stat ed-stat--overdue">
+                        <dt><span class="material-symbols-outlined" aria-hidden="true">warning</span>@overdueStat.Label</dt>
+                        <dd>@overdueStat.Value</dd>
+                    </div>
+                </dl>
+                <a class="ed-progress__link" asp-controller="Employee" asp-action="TaskManagement">
+                    Open Task Management
+                    <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                </a>
+            </section>
+
             <!-- Calendar preview: opens the full calendar -->
             <button type="button" class="ed-calcard" id="edCalOpen"
                     aria-controls="edCalendar" aria-expanded="false" aria-describedby="edCalOpenHint">
@@ -211,33 +246,44 @@
                 <span class="visually-hidden" id="edCalOpenHint">Opens the full calendar with the work due on each day.</span>
             </button>
 
-            <!-- My progress -->
-            <section class="ed-progress" aria-labelledby="edProgressTitle">
-                <span class="material-symbols-outlined ed-progress__icon" aria-hidden="true">military_tech</span>
-                <h2 class="ed-progress__title" id="edProgressTitle">My progress</h2>
-                <p class="ed-progress__summary"><strong>@total</strong> task@(total == 1 ? "" : "s") assigned to you</p>
-                <dl class="ed-progress__stats">
-                    @foreach (var s in progressStats)
+            <!-- Records overview: same component already on SuperAdmin's
+                 rail (records-overview.js, RecordsController.Overview),
+                 scoped here to the records this employee has personally
+                 logged — Employee doesn't manage/approve, so it's the same
+                 "own records" scope Admin's own dashboard widget uses. -->
+            <section class="ed-progress" aria-label="Records overview" id="recordsOverview">
+                <div class="ed-progress__head">
+                    <span class="ed-progress__badge" aria-hidden="true"><span class="material-symbols-outlined">folder_open</span></span>
+                    <div>
+                        <h2 class="ed-progress__title">Records overview</h2>
+                        <p class="ed-progress__sub">Records you've logged.</p>
+                    </div>
+                </div>
+                <div class="records-overview__cards" id="recordsOverviewCards" aria-busy="true">
+                    @for (var i = 0; i < 4; i++)
                     {
-                        <div class="ed-stat ed-tone-@s.Tone">
-                            <dt><span class="ed-stat__dot" aria-hidden="true"></span>@s.Label</dt>
-                            <dd>@s.Value</dd>
+                        <div class="ro-card ro-card--skeleton" aria-hidden="true">
+                            <span class="ro-card__icon skeleton skeleton-circle"></span>
+                            <div>
+                                <span class="skeleton ro-skel-value"></span>
+                                <span class="skeleton ro-skel-label"></span>
+                            </div>
                         </div>
                     }
-                </dl>
-                <a class="ed-progress__link" asp-controller="Employee" asp-action="TaskManagement">
-                    Open Task Management
-                    <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
-                </a>
+                </div>
             </section>
 
             <!-- Completion Trend: this employee's own weekly approved-submission
                  count. Filled in by completion-trend.js
                  (DashboardController.GetCompletionTrend). -->
             <section class="ed-progress" aria-labelledby="edTrendTitle">
-                <span class="material-symbols-outlined ed-progress__icon" aria-hidden="true">trending_up</span>
-                <h2 class="ed-progress__title" id="edTrendTitle">Completion trend</h2>
-                <p class="ed-progress__summary" id="completionTrendSub">Tasks you completed per week, last 8 weeks.</p>
+                <div class="ed-progress__head">
+                    <span class="ed-progress__badge" aria-hidden="true"><span class="material-symbols-outlined">trending_up</span></span>
+                    <div>
+                        <h2 class="ed-progress__title" id="edTrendTitle">Completion trend</h2>
+                        <p class="ed-progress__sub" id="completionTrendSub">Tasks you completed per week, last 8 weeks.</p>
+                    </div>
+                </div>
                 <div class="ct-widget">
                     <div class="ct-chart ct-skeleton" id="completionTrendChart" aria-busy="true" aria-label="Completion trend chart"></div>
                 </div>
@@ -291,4 +337,5 @@
 @section Scripts {
     <script src="~/js/employee-dashboard.js" asp-append-version="true"></script>
     <script src="~/js/completion-trend.js" asp-append-version="true" defer></script>
+    <script src="~/js/records-overview.js" asp-append-version="true" defer></script>
 }

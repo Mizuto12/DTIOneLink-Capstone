@@ -80,7 +80,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) 1px minmax(260px, 300px);
     gap: 20px;
-    height: clamp(560px, calc(100vh - 170px), 900px);
+    align-items: start;
 }
 
 .ed-workspace[hidden] { display: none; }
@@ -140,14 +140,10 @@
 }
 
 .ed-col__cards {
-    flex: 1;
-    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
     padding: 4px 12px 14px;
-    overflow-y: auto;
-    scrollbar-width: thin;
 }
 
 .ed-empty {
@@ -167,7 +163,6 @@
     gap: 10px;
     padding: 14px 16px;
     border-radius: 14px;
-    border-left: 3px solid transparent;
     background: #fff;
     box-shadow: 0 1px 2px rgba(0, 30, 101, 0.08);
     color: inherit;
@@ -177,9 +172,29 @@
 
 .ed-card:hover { box-shadow: 0 8px 20px -8px rgba(0, 30, 101, 0.28); transform: translateY(-1px); }
 .ed-card:focus-visible { outline: 2px solid var(--primary, #001e65); outline-offset: 2px; }
-.ed-card.is-overdue { border-left-color: var(--tone-overdue); }
 
-.ed-card__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ed-card__tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+/* Status dot replaces the old colored left-border — same reasoning as
+   SuperAdmin's Task Board: a border accent on a rounded card reads as a
+   dated "AI-generated UI" tell, and the two boards should match. */
+.ed-card__dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--tone-todo);
+}
+.ed-card__dot.is-overdue { background: var(--tone-overdue); }
+.ed-card__dot.is-risk { background: #b45309; }
+
+.ed-card__status {
+    margin-left: auto;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+.ed-card__status.is-overdue { color: var(--tone-overdue); }
+.ed-card__status.is-risk { color: #b45309; }
 
 .ed-tag {
     padding: 2px 9px;
@@ -354,65 +369,156 @@
     font-weight: 800;
 }
 
-/* My progress (trophy card) */
+/* Sidebar panels (My progress, Records overview, Completion trend) — white
+   card + a colored icon badge, the same shell SuperAdmin's rail and Time
+   Logs' day-cards use. Replaces the old slate (#96a5c1) tint, which didn't
+   match any other color in the app. */
 .ed-progress {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    min-height: 0;
+    gap: 12px;
     padding: 18px;
     border-radius: 18px;
-    background: var(--ed-slate);
-    color: #0b1c30;
-    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--outline-variant, #c5c5d2);
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05);
+    color: var(--on-surface, #0b1c30);
 }
 
-.ed-progress__icon { font-size: 30px; color: #001e65; }
+.ed-progress__head { display: flex; align-items: center; gap: 10px; }
+
+.ed-progress__badge {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #e3ebff;
+    color: var(--primary, #001e65);
+}
+.ed-progress__badge .material-symbols-outlined { font-size: 19px; }
 
 .ed-progress__title {
     margin: 0;
     font-family: var(--font-display, 'Hanken Grotesk', sans-serif);
-    font-size: 17px;
-    font-weight: 800;
-    color: #001e65;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary, #001e65);
 }
 
-.ed-progress__summary { margin: 0; font-size: 14px; }
-.ed-progress__summary strong { font-size: 22px; color: #001e65; }
+.ed-progress__sub {
+    margin: 1px 0 0;
+    font-size: 12.5px;
+    color: var(--on-surface-variant, #444651);
+}
 
+/* My progress only: the number worth checking first, before the breakdown. */
+.ed-progress__hero { display: flex; align-items: baseline; gap: 7px; }
+.ed-progress__hero-num {
+    font-family: var(--font-display, 'Hanken Grotesk', sans-serif);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--primary, #001e65);
+    line-height: 1;
+}
+.ed-progress__hero-label { font-size: 13px; font-weight: 600; color: var(--on-surface-variant, #444651); }
+
+/* 2-column grid instead of 5 stacked rows — shorter card, same info. */
 .ed-progress__stats {
     display: grid;
-    gap: 6px;
-    margin: 4px 0 0;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
 }
 
 .ed-stat {
     display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--surface-container-low, #eff4ff);
+}
+.ed-stat dt { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--on-surface-variant, #444651); }
+.ed-stat dd { margin: 0; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--on-surface, #0b1c30); }
+.ed-stat__dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--tone); }
+
+/* Overdue gets its own full-width row — the one stat that needs action. */
+.ed-stat--overdue {
+    grid-column: 1 / -1;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 7px 10px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.55);
+    background: #fee4e2;
 }
-.ed-stat dt { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-.ed-stat dd { margin: 0; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.ed-stat__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+.ed-stat--overdue dt { color: var(--tone-overdue); font-weight: 700; font-size: 13px; }
+.ed-stat--overdue dt .material-symbols-outlined { font-size: 15px; }
+.ed-stat--overdue dd { color: var(--tone-overdue); font-size: 15px; }
 
 .ed-progress__link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin-top: auto;
-    padding-top: 6px;
-    color: #001e65;
+    margin-top: 2px;
+    color: var(--primary, #001e65);
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
 }
 .ed-progress__link .material-symbols-outlined { font-size: 16px; }
 .ed-progress__link:hover { text-decoration: underline; text-underline-offset: 3px; }
-.ed-progress__link:focus-visible { outline: 2px solid #001e65; outline-offset: 2px; border-radius: 4px; }
+.ed-progress__link:focus-visible { outline: 2px solid var(--primary, #001e65); outline-offset: 2px; border-radius: 4px; }
+
+/* ── Records overview (reuses records-overview.js's exact markup/classes
+   unchanged — same component already shipped on SuperAdmin's rail) ──── */
+.ed .records-overview__cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.ed .ro-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: var(--surface-container-low, #eff4ff);
+    border-radius: 12px;
+}
+.ed .ro-card__icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: var(--ro-tone-soft, var(--surface-container, #e5eeff));
+    color: var(--ro-tone, var(--primary, #001e65));
+    font-size: 15px;
+}
+.ed .ro-card__value {
+    margin: 0;
+    font-family: var(--font-display, 'Hanken Grotesk', sans-serif);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--ro-tone, var(--on-surface, #0b1c30));
+}
+.ed .ro-card__label {
+    margin: 2px 0 0;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant, #444651);
+}
+.ed .ro-tone-total    { --ro-tone: var(--primary, #001e65); --ro-tone-soft: var(--surface-container, #e5eeff); }
+.ed .ro-tone-due-soon { --ro-tone: #d97706; --ro-tone-soft: #fff3dc; }
+.ed .ro-tone-overdue  { --ro-tone: #dc2626; --ro-tone-soft: #fee4e2; }
+.ed .ro-tone-saved    { --ro-tone: #16a34a; --ro-tone-soft: #e3f8ea; }
+.ed .records-overview__cards .ro-card--skeleton .ro-card__icon { background: none; }
+.ed .records-overview__cards .ro-skel-value { width: 30px; height: 16px; margin-bottom: 6px; }
+.ed .records-overview__cards .ro-skel-label { width: 50px; height: 10px; }
+.ed .records-overview__empty { padding: 8px 4px; color: var(--on-surface-variant, #444651); font-size: 12.5px; }
 
 /* ── Expanded calendar (in place of the workspace) ─────────── */
 .ed-calendar {
@@ -668,9 +774,8 @@
 /* Tablets: boards on top, calendar + progress side by side below. */
 @media (max-width: 1024px) {
     .ed { padding: 16px; }
-    .ed-workspace { grid-template-columns: 1fr; height: auto; }
+    .ed-workspace { grid-template-columns: 1fr; }
     .ed-workspace > .ed-rule { display: none; }
-    .ed-col__cards { max-height: 460px; }
     .ed-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
 
     .ed-calendar[open] { grid-template-columns: 1fr; min-height: 0; }
