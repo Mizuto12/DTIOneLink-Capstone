@@ -99,68 +99,74 @@
         <div class="mtd-hero-progress">
             <span>Progress — @(task.Progress)% @(task.Progress == 0 ? "(not started)" : task.Progress == 100 ? "(complete)" : "done")</span>
             <div class="mtd-hero-progress-row">
-                <div class="mtd-hero-progress-track"><div class="mtd-hero-progress-fill" style="width:@(task.Progress)%;"></div></div>
+                <div class="mtd-hero-progress-track"><div class="mtd-hero-progress-fill mtd-hero-progress-fill--@(task.Progress == 100 ? "done" : "")" style="width:@(task.Progress)%;"></div></div>
                 <strong>@task.Progress%</strong>
             </div>
         </div>
 
-        <div class="mtd-hero-facts">
-            <div>
-                <span>Responsible Admin</span>
-                <strong>@(task.ResponsibleAdmin?.FullName ?? "Unassigned")</strong>
-            </div>
-            <div>
-                <span>Created by</span>
-                <strong>@(task.CreatedBy?.FullName ?? "Unknown")</strong>
-            </div>
-        </div>
-
-        @if (isOpd && task.TaskType != DTIOneLink.Services.TaskTypes.WholeOffice && task.ResponsibleAdminUserId.HasValue)
-        {
-            var responsibleAdmins = (ViewBag.ResponsibleAdmins as List<DTIOneLink.Models.User>) ?? new List<DTIOneLink.Models.User>();
-            // The Responsible Admin must stay within the task's own department
-            // — same rule ValidateResponsibleAdminAsync enforces at creation.
-            var sameDeptAdmins = responsibleAdmins
-                .Where(a => a.Id != task.ResponsibleAdminUserId && a.Department == task.OwningDepartment)
-                .ToList();
-            @if (sameDeptAdmins.Any())
-            {
-                <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
-                      class="mtd-hero-reassign" id="mtdReassignForm" data-task-name="@task.TaskName">
-                    @Html.AntiForgeryToken()
-                    <select name="newResponsibleAdminUserId" class="mtd-hero-select" id="mtdReassignSelect" required>
-                        <option value="">Reassign to…</option>
-                        @foreach (var admin in sameDeptAdmins)
-                        {
-                            <option value="@admin.Id">@admin.FullName</option>
-                        }
-                    </select>
-                    <button type="submit" class="mtd-hero-reassign-btn">Reassign</button>
-                </form>
-            }
-            else
-            {
-                <div class="mtd-hero-reassign-empty">
-                    <span class="material-symbols-outlined" aria-hidden="true">info</span>
-                    No other Admin in @task.OwningDepartment to reassign this to.
+        <!-- One bordered "meta" block instead of three separately-divided
+             strips — Responsible Admin/Created by, Reassign, and Repeats
+             are all facts about the same thing (who's accountable for this
+             task), so they read as one group, not a stack of accordions. -->
+        <div class="mtd-hero-meta">
+            <div class="mtd-hero-facts">
+                <div>
+                    <span>Responsible Admin</span>
+                    <strong>@(task.ResponsibleAdmin?.FullName ?? "Unassigned")</strong>
                 </div>
-            }
-        }
+                <div>
+                    <span>Created by</span>
+                    <strong>@(task.CreatedBy?.FullName ?? "Unknown")</strong>
+                </div>
+            </div>
 
-        @if (task.Recurrence != null)
-        {
-            <div class="mtd-hero-repeats">
-                <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
-                <span>Repeats @DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
-                @if (isOpd)
+            @if (isOpd && task.TaskType != DTIOneLink.Services.TaskTypes.WholeOffice && task.ResponsibleAdminUserId.HasValue)
+            {
+                var responsibleAdmins = (ViewBag.ResponsibleAdmins as List<DTIOneLink.Models.User>) ?? new List<DTIOneLink.Models.User>();
+                // The Responsible Admin must stay within the task's own department
+                // — same rule ValidateResponsibleAdminAsync enforces at creation.
+                var sameDeptAdmins = responsibleAdmins
+                    .Where(a => a.Id != task.ResponsibleAdminUserId && a.Department == task.OwningDepartment)
+                    .ToList();
+                @if (sameDeptAdmins.Any())
                 {
-                    <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post" id="mtdStopRepeatForm">
+                    <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
+                          class="mtd-hero-reassign" id="mtdReassignForm" data-task-name="@task.TaskName">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="mtd-hero-stop-repeat">Stop repeating</button>
+                        <select name="newResponsibleAdminUserId" class="mtd-hero-select" id="mtdReassignSelect" required>
+                            <option value="">Reassign to…</option>
+                            @foreach (var admin in sameDeptAdmins)
+                            {
+                                <option value="@admin.Id">@admin.FullName</option>
+                            }
+                        </select>
+                        <button type="submit" class="mtd-hero-reassign-btn">Reassign</button>
                     </form>
                 }
-            </div>
-        }
+                else
+                {
+                    <div class="mtd-hero-reassign-empty">
+                        <span class="material-symbols-outlined" aria-hidden="true">info</span>
+                        No other Admin in @task.OwningDepartment to reassign this to.
+                    </div>
+                }
+            }
+
+            @if (task.Recurrence != null)
+            {
+                <div class="mtd-hero-repeats">
+                    <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+                    <span>Repeats @DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
+                    @if (isOpd)
+                    {
+                        <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post" id="mtdStopRepeatForm">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="mtd-hero-stop-repeat">Stop repeating</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
     </section>
 
     <!-- Primary actions -->

@@ -99,16 +99,28 @@
     gap: 12px;
     padding: 14px 16px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.12);
-    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
 }
 .mtd-hero-status .material-symbols-outlined { font-size: 24px; flex-shrink: 0; }
-.mtd-hero-status--overdue .material-symbols-outlined { color: #ffb4ab; }
-.mtd-hero-status--completed .material-symbols-outlined { color: #86efac; }
 .mtd-hero-status-line { font-size: 16px; font-weight: 800; }
 .mtd-hero-status-sub { font-size: 14px; opacity: 0.85; margin-top: 2px; }
 
-.mtd-hero-progress { margin-bottom: 4px; }
+/* Status is said as a full sentence everywhere on this page — the tinted
+   wash here is a second, faster read for the same information, not the
+   only signal (contrast against navy stays well above 3:1 for all four). */
+.mtd-hero-status--overdue { background: rgba(255, 108, 92, 0.22); }
+.mtd-hero-status--overdue .material-symbols-outlined { color: #ffb4ab; }
+.mtd-hero-status--completed { background: rgba(74, 222, 128, 0.2); }
+.mtd-hero-status--completed .material-symbols-outlined { color: #86efac; }
+.mtd-hero-status--in-progress,
+.mtd-hero-status--for-review { background: rgba(96, 165, 250, 0.22); }
+.mtd-hero-status--in-progress .material-symbols-outlined,
+.mtd-hero-status--for-review .material-symbols-outlined { color: #93c5fd; }
+.mtd-hero-status--returned-for-correction { background: rgba(252, 211, 77, 0.2); }
+.mtd-hero-status--returned-for-correction .material-symbols-outlined { color: #fde68a; }
+
+.mtd-hero-progress { margin-bottom: 20px; }
 .mtd-hero-progress > span { display: block; font-size: 13.5px; font-weight: 700; opacity: 0.8; margin-bottom: 8px; }
 .mtd-hero-progress-row { display: flex; align-items: center; gap: 14px; }
 .mtd-hero-progress-track {
@@ -119,7 +131,18 @@
     overflow: hidden;
 }
 .mtd-hero-progress-fill { height: 100%; background: #60a5fa; border-radius: 9999px; transition: width 0.6s ease; }
+.mtd-hero-progress-fill--done { background: #4ade80; }
 .mtd-hero-progress-row strong { font-size: 16px; font-weight: 800; min-width: 46px; text-align: right; }
+
+/* ── Meta: Responsible Admin/Created by, Reassign, Repeats — one group,
+   one divider, consistent internal rhythm instead of three stacked
+   bordered strips. ──────────────────────────────────────────────── */
+.mtd-hero-meta {
+    padding-top: 18px;
+    margin-top: 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+.mtd-hero-meta > * + * { margin-top: 16px; }
 
 .mtd-hero-facts {
     display: flex;
@@ -127,9 +150,6 @@
     gap: 16px;
     flex-wrap: wrap;
     font-size: 14px;
-    padding-top: 16px;
-    margin-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 .mtd-hero-facts span { display: block; opacity: 0.7; margin-bottom: 2px; }
 .mtd-hero-facts strong { font-size: 15px; }
@@ -138,9 +158,6 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 .mtd-hero-select {
     flex: 1;
@@ -171,9 +188,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
     font-size: 13.5px;
     opacity: 0.75;
 }
@@ -184,9 +198,6 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
     font-size: 14px;
 }
 .mtd-hero-repeats .material-symbols-outlined { font-size: 19px; }
@@ -291,6 +302,11 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.mtd-card:hover {
+    border-color: #a9b2c6;
+    box-shadow: 0 8px 20px -10px rgba(0, 30, 101, 0.22);
 }
 
 .mtd-card-title { font-size: 17px; font-weight: 700; line-height: 1.4; }
@@ -389,6 +405,11 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.mtd-timeline-card:hover {
+    border-color: #a9b2c6;
+    box-shadow: 0 8px 20px -10px rgba(0, 30, 101, 0.22);
 }
 
 .mtd-timeline-due { font-size: 13.5px; color: var(--mtd-secondary); font-weight: 700; }
