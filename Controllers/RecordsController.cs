@@ -415,12 +415,24 @@ namespace DTIOneLink.Controllers
             return View();
         }
 
-        // GET: /Records/Overview — a compact summary for the Dashboard: how
-        // many active records this user has logged, how many are due for
-        // disposal review soon or already overdue (same thresholds as the
-        // per-row reminder colours, see RetentionState), and how many
-        // masterlists they've saved. Scoped the same as everywhere else in
-        // Records: only the records this user logged (VisibilityClause).
+        // GET: /Records/Overview — a compact summary for the Dashboard.
+        //
+        // Admin/Employee: how many active (RecordStatus = 'Retention')
+        // records this user has logged, how many are due for disposal
+        // review soon or already overdue (same thresholds as the per-row
+        // reminder colours, see RetentionState), and how many masterlists
+        // they've saved. Scoped the same as everywhere else in Records:
+        // only the records this user logged (VisibilityClause).
+        //
+        // SuperAdmin (CanApprove) sees every record office-wide already
+        // (VisibilityClause is "1 = 1" for them), but the overview itself
+        // only counts records a records officer has actually raised for
+        // the SuperAdmin's attention — RecordStatus IN ('Disposal',
+        // 'Disposed'), i.e. MarkForDisposal/MarkDisposed has been called —
+        // rather than every still-active Retention record office-wide.
+        // "Saved Masterlists" follows the same rule: masterlists that
+        // contain at least one such record, not every masterlist anyone
+        // has ever saved.
         [HttpGet]
         public IActionResult Overview()
         {
@@ -436,6 +448,9 @@ namespace DTIOneLink.Controllers
                 conn.Open();
                 var source = HasSystemColumns(conn) ? "Records r" : LegacyRecordsSource;
                 var today = PhilippineToday();
+                var statusFilter = user.CanApprove
+                    ? "r.RecordStatus IN ('Disposal', 'Disposed')"
+                    : "r.RecordStatus = 'Retention'";
 
                 int total, dueSoon, overdue;
                 using (var cmd = new SqlCommand($@"
@@ -444,7 +459,7 @@ SELECT
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate <= @Today THEN 1 ELSE 0 END),
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate > @Today AND r.RetentionDueDate <= @SoonLimit THEN 1 ELSE 0 END)
 FROM {source}
-WHERE {VisibilityClause(user)} AND r.RecordStatus = 'Retention'", conn))
+WHERE {VisibilityClause(user)} AND {statusFilter}", conn))
                 {
                     AddVisibilityParameters(cmd, user);
                     cmd.Parameters.Add("@Today", SqlDbType.Date).Value = today;
@@ -459,10 +474,22 @@ WHERE {VisibilityClause(user)} AND r.RecordStatus = 'Retention'", conn))
                 var savedMasterlists = 0;
                 if (HasMasterlists(conn))
                 {
-                    using var cmd = new SqlCommand(
-                        "SELECT COUNT(*) FROM dbo.RecordMasterlists WHERE CreatedByUserId = @UserId", conn);
-                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
-                    savedMasterlists = (int)cmd.ExecuteScalar();
+                    if (user.CanApprove)
+                    {
+                        using var cmd = new SqlCommand($@"
+SELECT COUNT(DISTINCT r.MasterlistId)
+FROM {source}
+WHERE {VisibilityClause(user)} AND r.MasterlistId IS NOT NULL AND {statusFilter}", conn);
+                        AddVisibilityParameters(cmd, user);
+                        savedMasterlists = (int)cmd.ExecuteScalar();
+                    }
+                    else
+                    {
+                        using var cmd = new SqlCommand(
+                            "SELECT COUNT(*) FROM dbo.RecordMasterlists WHERE CreatedByUserId = @UserId", conn);
+                        cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                        savedMasterlists = (int)cmd.ExecuteScalar();
+                    }
                 }
 
                 return Json(new { total, dueSoon, overdue, savedMasterlists });

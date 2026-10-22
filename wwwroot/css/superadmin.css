@@ -305,6 +305,101 @@
     .sa-hero__rail > .sa-section { flex: 1 1 260px; }
 }
 
+/* ── Records overview (rail card) ──────────────────────────────────────
+   Same markup and class names as Admin/Employee's version (records-overview.js
+   is shared across all three dashboards unchanged), styled here with
+   SuperAdmin's own tokens instead of admindashboard.css's --dash-* set,
+   and sized for the ~260-300px rail instead of a full-width column. */
+.records-overview__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.records-overview__title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.records-overview__title-group > .material-symbols-outlined {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    background: var(--surface-container);
+    color: var(--primary);
+    font-size: 18px;
+}
+.records-overview__link {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.records-overview__link:hover { text-decoration: underline; }
+
+.records-overview__cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.ro-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: var(--surface-container-low);
+    border-radius: 12px;
+}
+.ro-card__icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: var(--ro-tone-soft, var(--surface-container));
+    color: var(--ro-tone, var(--primary));
+    font-size: 15px;
+}
+.ro-card__value {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--ro-tone, var(--on-surface));
+}
+.ro-card__label {
+    margin: 2px 0 0;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+}
+
+.ro-tone-total    { --ro-tone: var(--primary); --ro-tone-soft: var(--surface-container); }
+.ro-tone-due-soon { --ro-tone: #d97706;        --ro-tone-soft: #fff3dc; }
+.ro-tone-overdue  { --ro-tone: #dc2626;        --ro-tone-soft: #fee4e2; }
+.ro-tone-saved    { --ro-tone: #16a34a;        --ro-tone-soft: #e3f8ea; }
+
+.records-overview__cards .ro-card--skeleton .ro-card__icon { background: none; }
+.records-overview__cards .ro-skel-value { width: 30px; height: 16px; margin-bottom: 6px; }
+.records-overview__cards .ro-skel-label { width: 50px; height: 10px; }
+
+.records-overview__empty {
+    padding: 8px 4px;
+    color: var(--on-surface-variant);
+    font-size: 12.5px;
+}
+
 .sa-dot {
     display: inline-block;
     flex-shrink: 0;
