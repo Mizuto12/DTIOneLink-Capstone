@@ -92,33 +92,37 @@
         </div>
     </header>
 
-    <div class="quick-filters" role="group" aria-label="Quick date range">
-        @foreach (var r in quickRanges)
-        {
-            var isActive = fromDateStr == r.From && toDateStr == r.To;
-            <a class="chip@(isActive ? " is-active" : "")" href="@Url.Action("Index", new { from = r.From, to = r.To })" aria-pressed="@(isActive ? "true" : "false")">@r.Label</a>
-        }
-    </div>
-
-    <form class="time-logs-filter" method="get">
-        <div class="field">
-            <label for="filter-from">From</label>
-            <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate" max="@Iso(today)">
-        </div>
-        <div class="field">
-            <label for="filter-to">To</label>
-            <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate" max="@Iso(today)">
-        </div>
-        <div class="filter-actions">
-            <button class="btn btn-primary" type="submit">
-                <span class="material-symbols-outlined">filter_list</span> Filter
-            </button>
-            @if (ViewBag.FromDate != null || ViewBag.ToDate != null)
+    <div class="time-logs-toolbar">
+        <div class="quick-filters" role="group" aria-label="Quick date range">
+            @foreach (var r in quickRanges)
             {
-                <a class="btn btn-outline" href="@Url.Action("Index")">Clear</a>
+                var isActive = fromDateStr == r.From && toDateStr == r.To;
+                <a class="chip@(isActive ? " is-active" : "")" href="@Url.Action("Index", new { from = r.From, to = r.To })" aria-pressed="@(isActive ? "true" : "false")">@r.Label</a>
             }
         </div>
-    </form>
+
+        <div class="toolbar-divider" aria-hidden="true"></div>
+
+        <form class="time-logs-filter" method="get">
+            <div class="field">
+                <label for="filter-from">From</label>
+                <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate" max="@Iso(today)">
+            </div>
+            <div class="field">
+                <label for="filter-to">To</label>
+                <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate" max="@Iso(today)">
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-primary" type="submit">
+                    <span class="material-symbols-outlined">filter_list</span> Filter
+                </button>
+                @if (ViewBag.FromDate != null || ViewBag.ToDate != null)
+                {
+                    <a class="btn btn-outline" href="@Url.Action("Index")">Clear</a>
+                }
+            </div>
+        </form>
+    </div>
 
     @{
         var filterActive = ViewBag.FromDate != null || ViewBag.ToDate != null;

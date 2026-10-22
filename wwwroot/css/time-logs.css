@@ -66,12 +66,39 @@
     margin: 2px 0 0;
 }
 
-/* ---------- Quick-filter chips ---------- */
+/* ---------- Toolbar: quick-filter chips + custom date range, as one
+   cohesive unit instead of two stacked, visually disconnected rows. The
+   divider between them signals "quick pick" vs "custom range" without
+   needing a label to say so. ---------- */
+.time-logs-page .time-logs-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.time-logs-page .toolbar-divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--outline-variant);
+}
+/* A wrapped toolbar (chips on their own line above From/To) has nothing
+   for a vertical divider to sit between — drop it rather than let it
+   float oddly across the wrap. */
+@media (max-width: 760px) {
+    .time-logs-page .toolbar-divider { display: none; }
+}
+
 .time-logs-page .quick-filters {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 14px;
 }
 
 .time-logs-page .chip {
@@ -104,7 +131,6 @@
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 12px;
-    margin-bottom: 20px;
 }
 
 .time-logs-page .time-logs-filter .field {
@@ -171,7 +197,8 @@
 .time-logs-page .btn-outline:hover { background: var(--surface-container-low); }
 
 @media (max-width: 640px) {
-    .time-logs-page .time-logs-filter { flex-direction: column; align-items: stretch; }
+    .time-logs-page .time-logs-toolbar { padding: 16px; }
+    .time-logs-page .time-logs-filter { flex-direction: column; align-items: stretch; width: 100%; }
     .time-logs-page .time-logs-filter .field { width: 100%; }
     .time-logs-page .filter-actions { width: 100%; }
     .time-logs-page .filter-actions .btn { flex: 1 1 0; justify-content: center; }
