@@ -129,7 +129,7 @@ namespace DTIOneLink.Controllers
                 {
                     tag = "Completed";
                     icon = "task_alt";
-                    tone = "secondary";
+                    tone = "completed";
                 }
                 else if (TaskWorkflow.IsOverdue(t.Status, t.DueDate))
                 {

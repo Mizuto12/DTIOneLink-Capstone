@@ -38,11 +38,17 @@
   function renderReportItem(r) {
     const el = document.createElement('div');
     el.className = 'report-item';
-    // Red is reserved for Overdue. Every row has the same structure:
-    // owner · details, plus a badge only when there is one.
-    const overdue = r.badge === 'Overdue';
+    // Red is reserved for "needs attention now" (Overdue, Retention ended);
+    // amber for "needs attention soon" (At risk, Disposal due soon) — same
+    // two tiers the Records and Task Management pages already use.
+    const overdue = r.badge === 'Overdue' || r.badge === 'Retention ended';
+    const risk = r.badge === 'At risk' || r.badge === 'Disposal due soon';
     const tone = overdue ? 'overdue' : r.tone;
-    const showBadge = r.badge && r.badge !== r.tag;
+    const badgeClass = overdue ? 'is-overdue' : risk ? 'is-risk' : '';
+    // A record's whole tag IS its badge text ("Retention ended" etc.) — show
+    // that as the colored badge instead of flattening it to plain gray tag
+    // text. A task's tag and badge are independent, so both can show.
+    const tagIsBadge = r.badge && r.badge === r.tag;
     el.innerHTML = `
       <div class="item-icon tone-${tone}">
         <span class="material-symbols-outlined filled-icon">${r.icon}</span>
@@ -52,10 +58,10 @@
         <div class="item-meta">
           <span class="meta-owner">${escapeHtml(r.owner)}</span>
           <span class="meta-dot"></span>
-          ${overdue
-            ? `<span class="meta-badge is-overdue">${escapeHtml(r.badge)}</span>`
-            : `<span class="meta-tag">${escapeHtml(r.tag || '—')}</span>`}
-          ${showBadge && !overdue ? `<span class="meta-badge">${escapeHtml(r.badge)}</span>` : ''}
+          ${tagIsBadge
+            ? `<span class="meta-badge ${badgeClass}">${escapeHtml(r.tag)}</span>`
+            : `<span class="meta-tag">${escapeHtml(r.tag || '—')}</span>
+               ${r.badge ? `<span class="meta-badge ${badgeClass}">${escapeHtml(r.badge)}</span>` : ''}`}
         </div>
       </div>
       <div class="item-right">
