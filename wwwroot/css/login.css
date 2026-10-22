@@ -553,25 +553,6 @@ html, body {
 }
 
 /* Verify Email / Enter Code / Forgot Password */
-
-/* Signals "this step is actively protecting your account" instead of
-   reading as just another form — same soft tinted-circle + icon language
-   as notice-dialog.css's .notice-icon, reused here as the page's own cue. */
-.otp-security-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 14px;
-    border-radius: 50%;
-    background: rgba(28, 63, 148, 0.1);
-    color: var(--navy);
-}
-.otp-security-badge .material-symbols-outlined {
-    font-size: 30px;
-}
-
 .code-input {
     font-size: clamp(20px, 2.2vw, 26px);
     letter-spacing: 10px;

@@ -20,15 +20,6 @@
     var resendAction = isLogin ? "ResendLoginCode" : "ResendVerifyEmail";
 }
 
-@* A plain form reads as routine; a second verification step is the one
-   moment in the app actively protecting the account right now, and it
-   should look like it — this badge is the same soft tinted-circle +
-   icon language as notice-dialog's .notice-icon, just reused here as
-   the page's own visual signal rather than a dialog's. *@
-<div class="otp-security-badge" aria-hidden="true">
-    <span class="material-symbols-outlined">verified_user</span>
-</div>
-
 <p class="step-indicator">@(isLogin ? "Step 2 of 2 · Verify your identity" : "Step 2 of 3 · Confirm your email")</p>
 
 <h1 class="login-title change-password-title">
