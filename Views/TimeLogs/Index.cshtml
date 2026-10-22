@@ -1,4 +1,5 @@
 @model List<DTIOneLink.Models.TimeLog>
+@using DTIOneLink.Services
 @{
     var userRole = Context.Session.GetString("UserRole");
     Layout = userRole == "SuperAdmin"
@@ -7,6 +8,48 @@
             ? "~/Views/Admin/AdminLayout.cshtml"
             : "~/Views/Employee/EmployeeLayout.cshtml";
     ViewData["Title"] = "Time Logs";
+
+    int page = ViewBag.Page ?? 1;
+    int totalPages = ViewBag.TotalPages ?? 1;
+
+    // Friendly duration ("1h 14m", "17m") for the day total and each
+    // session's badge; FullTimestamp/PreciseDuration below carry the exact
+    // millisecond value, shown only on hover so the card itself stays easy
+    // to skim.
+    string FormatDuration(TimeSpan span)
+    {
+        var totalMinutes = Math.Max(0, (int)span.TotalMinutes);
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+        return hours > 0 ? $"{hours}h {minutes}m" : $"{minutes}m";
+    }
+
+    string FullTimestamp(DateTime phTime) => phTime.ToString("MMM d, yyyy 'at' h:mm:ss.fff tt");
+    string PreciseDuration(TimeSpan span) => span.ToString(@"hh\:mm\:ss\.fff");
+
+    // Each day's sessions, newest day first (logs already arrive newest
+    // session first from the controller, so grouping preserves that order).
+    var days = Model
+        .Select(log => new
+        {
+            Log = log,
+            TimeInPh = TimeZoneHelper.ToPhilippineTime(log.TimeInUtc),
+            TimeOutPh = log.TimeOutUtc.HasValue ? TimeZoneHelper.ToPhilippineTime(log.TimeOutUtc.Value) : (DateTime?)null
+        })
+        .GroupBy(x => x.TimeInPh.Date)
+        .Select(g => new
+        {
+            Date = g.Key,
+            Sessions = g.ToList(),
+            HasActive = g.Any(x => x.TimeOutPh == null),
+            // An active session (no TimeOutPh yet) counts toward the day's
+            // total using the current time, so "logged so far" reflects the
+            // running session, not just completed ones.
+            Total = TimeSpan.FromTicks(g.Sum(x => ((x.TimeOutPh ?? TimeZoneHelper.ToPhilippineTime(DateTime.UtcNow)) - x.TimeInPh).Ticks))
+        })
+        .ToList();
+
+    string PageUrl(int p) => Url.Action("Index", new { from = ViewBag.FromDate, to = ViewBag.ToDate, page = p }) ?? "";
 }
 
 @section Styles {
@@ -51,69 +94,102 @@
         var filterActive = ViewBag.FromDate != null || ViewBag.ToDate != null;
     }
 
-    <section class="card">
-        <div class="table-wrapper">
-            <table>
-                <colgroup>
-                    <col style="width:34%">
-                    <col style="width:33%">
-                    <col style="width:33%">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Time In</th>
-                        <th>Time Out</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (!Model.Any())
+    @if (!Model.Any())
+    {
+        <section class="card">
+            <div class="empty-state">
+                <span class="material-symbols-outlined">history</span>
+                @if (filterActive)
+                {
+                    <span>No time logs in this date range.</span>
+                    <a class="empty-state-clear" href="@Url.Action("Index")">Clear the filter</a>
+                }
+                else
+                {
+                    <span>No time logs yet.</span>
+                }
+            </div>
+        </section>
+    }
+    else
+    {
+        <div class="day-stack">
+            @foreach (var day in days)
+            {
+                <section class="day-card">
+                    <div class="day-card__head">
+                        <span class="day-card__date">@day.Date.ToString("MMM d, yyyy")</span>
+                        <span class="day-card__meta">
+                            @day.Sessions.Count session@(day.Sessions.Count == 1 ? "" : "s")
+                            &middot;
+                            <span class="day-card__total">@FormatDuration(day.Total) logged@(day.HasActive ? " so far" : "")</span>
+                        </span>
+                    </div>
+                    @foreach (var s in day.Sessions)
                     {
-                        <tr class="empty-row">
-                            <td colspan="3" class="empty-state">
-                                <span class="material-symbols-outlined">history</span>
-                                @if (filterActive)
-                                {
-                                    <span>No time logs in this date range.</span>
-                                    <a class="empty-state-clear" href="@Url.Action("Index")">Clear the filter</a>
-                                }
-                                else
-                                {
-                                    <span>No time logs yet.</span>
-                                }
-                            </td>
-                        </tr>
+                        <div class="session-row">
+                            <span class="time" title="@FullTimestamp(s.TimeInPh)">@s.TimeInPh.ToString("h:mm tt")</span>
+                            <span class="arrow material-symbols-outlined" aria-hidden="true">arrow_right_alt</span>
+                            @if (s.TimeOutPh.HasValue)
+                            {
+                                <span class="time" title="@FullTimestamp(s.TimeOutPh.Value)">@s.TimeOutPh.Value.ToString("h:mm tt")</span>
+                                <span class="dur" title="Exact duration: @PreciseDuration(s.TimeOutPh.Value - s.TimeInPh)">@FormatDuration(s.TimeOutPh.Value - s.TimeInPh)</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-active">
+                                    <span class="badge-dot"></span> Still signed in
+                                </span>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="pagination">
+                <div class="pagination-controls">
+                    @if (page > 1)
+                    {
+                        <a class="page-nav" href="@PageUrl(page - 1)" aria-label="Previous page">
+                            <span class="material-symbols-outlined">chevron_left</span>
+                        </a>
                     }
                     else
                     {
-                        @foreach (var log in Model)
+                        <span class="page-nav" aria-disabled="true">
+                            <span class="material-symbols-outlined">chevron_left</span>
+                        </span>
+                    }
+                    @for (var p = 1; p <= totalPages; p++)
+                    {
+                        @if (p == page)
                         {
-                            var timeIn = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(log.TimeInUtc);
-                            var timeOut = log.TimeOutUtc.HasValue
-                                ? DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(log.TimeOutUtc.Value)
-                                : (DateTime?)null;
-
-                            <tr class="pill-row">
-                                <td data-label="Date" class="title-cell">@timeIn.ToString("MMM d, yyyy")</td>
-                                <td data-label="Time In">@timeIn.ToString("h:mm tt")</td>
-                                <td data-label="Time Out">
-                                    @if (timeOut.HasValue)
-                                    {
-                                        @timeOut.Value.ToString("h:mm tt")
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-active">
-                                            <span class="badge-dot"></span> Still signed in
-                                        </span>
-                                    }
-                                </td>
-                            </tr>
+                            <span class="page-btn is-active" aria-current="page">@p</span>
+                        }
+                        else
+                        {
+                            <a class="page-btn" href="@PageUrl(p)">@p</a>
                         }
                     }
-                </tbody>
-            </table>
-        </div>
-    </section>
+                    @if (page < totalPages)
+                    {
+                        <a class="page-nav" href="@PageUrl(page + 1)" aria-label="Next page">
+                            <span class="material-symbols-outlined">chevron_right</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="page-nav" aria-disabled="true">
+                            <span class="material-symbols-outlined">chevron_right</span>
+                        </span>
+                    }
+                </div>
+                <span class="pagination-status">Page @(page) of @totalPages</span>
+            </div>
+        }
+    }
 
 </main>

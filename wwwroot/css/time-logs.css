@@ -145,7 +145,7 @@
     .time-logs-page .filter-actions .btn { flex: 1 1 0; justify-content: center; }
 }
 
-/* ---------- Card ---------- */
+/* ---------- Card (used only for the empty state now) ---------- */
 .time-logs-page .card {
     background: var(--surface);
     border: 1px solid var(--outline-variant);
@@ -154,42 +154,141 @@
     padding: 24px;
 }
 
-.time-logs-page .table-wrapper {
-    overflow-x: auto;
+/* ---------- Day cards ----------
+   One card per day: a header with the session count and that day's total
+   hours, then a compact time-in -> time-out list underneath. Replaces the
+   old flat table — the date no longer repeats on every row. */
+.time-logs-page .day-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.time-logs-page table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px;
+.time-logs-page .day-card {
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05);
+    padding: 16px 20px;
 }
 
-.time-logs-page thead th {
-    text-align: left;
-    font-size: 11px;
+.time-logs-page .day-card__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--surface-container-low);
+}
+
+.time-logs-page .day-card__date {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: 15px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--on-surface-variant);
-    padding: 0 16px 8px;
-}
-
-.time-logs-page tbody td {
-    background: var(--surface-container-low);
-    font-size: 14px;
-    padding: 14px 16px;
-}
-
-.time-logs-page tbody td:first-child {
-    border-top-left-radius: var(--radius-full);
-    border-bottom-left-radius: var(--radius-full);
     color: var(--primary);
-    font-weight: 700;
 }
 
-.time-logs-page tbody td:last-child {
-    border-top-right-radius: var(--radius-full);
-    border-bottom-right-radius: var(--radius-full);
+.time-logs-page .day-card__meta {
+    font-size: 12.5px;
+    color: var(--on-surface-variant);
+}
+
+.time-logs-page .day-card__total {
+    font-weight: 700;
+    color: var(--on-surface);
+}
+
+.time-logs-page .session-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 13.5px;
+}
+
+.time-logs-page .session-row .time {
+    color: var(--on-surface);
+    font-weight: 600;
+    min-width: 76px;
+    /* The friendly "7:06 PM" is what's visible; hovering (title attribute)
+       reveals the exact value down to the millisecond — useful for QA
+       without cluttering the everyday view with sub-second noise. */
+    cursor: help;
+    text-decoration: underline dotted var(--outline-variant);
+    text-underline-offset: 3px;
+}
+
+.time-logs-page .session-row .arrow {
+    color: var(--on-surface-variant);
+    font-size: 16px;
+}
+
+.time-logs-page .session-row .dur {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    background: var(--surface-container-low);
+    padding: 3px 11px;
+    border-radius: var(--radius-full);
+    cursor: help;
+}
+
+/* ---------- Pagination ---------- */
+.time-logs-page .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.time-logs-page .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.time-logs-page .page-nav,
+.time-logs-page .page-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--outline-variant);
+    background: var(--surface);
+    color: var(--on-surface-variant);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.time-logs-page .page-nav:hover,
+.time-logs-page .page-btn:hover {
+    background: var(--surface-container-low);
+}
+
+.time-logs-page .page-nav[aria-disabled="true"] {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.time-logs-page .page-btn.is-active {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+.time-logs-page .pagination-status {
+    font-size: 13px;
+    color: var(--on-surface-variant);
 }
 
 /* ---------- Status badge ---------- */
@@ -217,7 +316,7 @@
 }
 
 /* ---------- Empty state ---------- */
-.time-logs-page .empty-row .empty-state {
+.time-logs-page .empty-state {
     background: transparent;
     text-align: center;
     display: flex;
@@ -228,7 +327,7 @@
     color: var(--on-surface-variant);
 }
 
-.time-logs-page .empty-row .material-symbols-outlined {
+.time-logs-page .empty-state .material-symbols-outlined {
     font-size: 32px;
     color: var(--outline-variant);
 }
@@ -241,47 +340,9 @@
 }
 .time-logs-page .empty-state-clear:hover { text-decoration: underline; }
 
-/* ---------- Phones: each log becomes a card ---------- */
+/* ---------- Phones ---------- */
 @media (max-width: 640px) {
-    .time-logs-page tbody,
-    .time-logs-page table { display: block; }
-    .time-logs-page thead { display: none; }
-
-    .time-logs-page tbody tr.pill-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 10px;
-        padding: 14px 16px;
-        border-radius: 16px;
-        background: var(--surface-container-low);
-    }
-
-    .time-logs-page tbody tr.pill-row td {
-        display: block;
-        padding: 0;
-        border-radius: 0;
-        background: transparent !important;
-    }
-
-    .time-logs-page tbody tr.pill-row td.title-cell {
-        grid-column: 1 / -1;
-        font-size: 15px;
-    }
-
-    .time-logs-page tbody td[data-label]::before {
-        content: attr(data-label);
-        display: block;
-        margin-bottom: 2px;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--on-surface-variant);
-    }
-
-    .time-logs-page tbody tr:not(.pill-row) { display: block; }
-    .time-logs-page tbody tr:not(.pill-row) > td { display: block; }
-
+    .time-logs-page .day-card { padding: 14px 16px; }
+    .time-logs-page .session-row .time { min-width: 68px; }
     .time-logs-page .card { padding: 16px; }
 }

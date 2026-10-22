@@ -18,12 +18,17 @@ namespace DTIOneLink.Controllers
             _db = db;
         }
 
+        // Rows per page. Logs are grouped by day for display (see Index.cshtml),
+        // so a day's sessions can span a page boundary — the same tradeoff
+        // Records' table makes by paging rows rather than logical groups.
+        private const int PageSize = 15;
+
         // from/to are calendar dates in the office's time zone (Philippine),
         // same as the date picker shows — converted to UTC bounds against
         // TimeInUtc since that's what's stored. Both optional; either can be
         // used alone (e.g. "from" only = "since this date").
         [HttpGet]
-        public async Task<IActionResult> Index(DateTime? from, DateTime? to)
+        public async Task<IActionResult> Index(DateTime? from, DateTime? to, int page = 1)
         {
             var userId = HttpContext.Session.GetInt32("UserId") ?? 0;
 
@@ -40,13 +45,20 @@ namespace DTIOneLink.Controllers
                 query = query.Where(t => t.TimeInUtc < toUtc);
             }
 
+            var totalCount = await query.CountAsync();
+            var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+            page = Math.Clamp(page, 1, totalPages);
+
             var logs = await query
                 .OrderByDescending(t => t.TimeInUtc)
-                .Take(200)
+                .Skip((page - 1) * PageSize)
+                .Take(PageSize)
                 .ToListAsync();
 
             ViewBag.FromDate = from?.ToString("yyyy-MM-dd");
             ViewBag.ToDate = to?.ToString("yyyy-MM-dd");
+            ViewBag.Page = page;
+            ViewBag.TotalPages = totalPages;
             return View(logs);
         }
     }
