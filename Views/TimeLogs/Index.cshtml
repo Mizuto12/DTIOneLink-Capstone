@@ -12,26 +12,19 @@
     int page = ViewBag.Page ?? 1;
     int totalPages = ViewBag.TotalPages ?? 1;
 
-    // Friendly duration ("1h 14m", "17m") for the day total and each
-    // session's badge; FullTimestamp/PreciseDuration below carry the exact
-    // millisecond value, shown only on hover so the card itself stays easy
-    // to skim.
-    string FormatDuration(TimeSpan span)
-    {
-        var totalMinutes = Math.Max(0, (int)span.TotalMinutes);
-        var hours = totalMinutes / 60;
-        var minutes = totalMinutes % 60;
-        return hours > 0 ? $"{hours}h {minutes}m" : $"{minutes}m";
-    }
-
+    // This page is an audit trail of account access — when did this account
+    // sign in and out — not attendance/hours tracking, which this project's
+    // stated scope excludes. No duration is computed anywhere below: no
+    // per-session length, no daily/weekly/monthly totals. FullTimestamp
+    // carries the exact millisecond value, shown only on hover, for the
+    // same reason an audit trail cares about exact timestamps — forensic
+    // precision, not "hours worked."
     string FullTimestamp(DateTime phTime) => phTime.ToString("MMM d, yyyy 'at' h:mm:ss.fff tt");
-    string PreciseDuration(TimeSpan span) => span.ToString(@"hh\:mm\:ss\.fff");
 
-    // A session stays grouped under the day it started (so a day's row
-    // count/total never double-counts a session that's also "part of" the
-    // next day), but an overnight session's time-out needs a visible marker
-    // — otherwise "11:05 PM -> 9:48 AM" reads as a time-logic error instead
-    // of a shift that crossed midnight.
+    // A session stays grouped under the day it started, but an overnight
+    // session's time-out needs a visible marker — otherwise "11:05 PM ->
+    // 9:48 AM" reads as a time-logic error instead of a timestamp that
+    // crossed midnight. This flags which calendar date, not how long.
     string OvernightSuffix(DateTime timeInPh, DateTime timeOutPh) =>
         timeOutPh.Date > timeInPh.Date ? $" +{(timeOutPh.Date - timeInPh.Date).Days}d" : "";
 
@@ -40,22 +33,7 @@
         d == today ? "Today" :
         d == today.AddDays(-1) ? "Yesterday" :
         d.ToString("MMM d, yyyy");
-
-    // Quick-filter chips: Today / This Week (Sunday through today, matching
-    // the calendar elsewhere in the app) / This Month. Highlighted as active
-    // when the current from/to filter matches that range exactly, so a chip
-    // click stays visibly selected after the page reloads.
-    var weekStart = today.AddDays(-(int)today.DayOfWeek);
-    var monthStart = new DateTime(today.Year, today.Month, 1);
     string Iso(DateTime d) => d.ToString("yyyy-MM-dd");
-    var quickRanges = new[]
-    {
-        (Label: "Today", From: Iso(today), To: Iso(today)),
-        (Label: "This Week", From: Iso(weekStart), To: Iso(today)),
-        (Label: "This Month", From: Iso(monthStart), To: Iso(today)),
-    };
-    string? fromDateStr = ViewBag.FromDate;
-    string? toDateStr = ViewBag.ToDate;
 
     // Each day's sessions, newest day first (logs already arrive newest
     // session first from the controller, so grouping preserves that order).
@@ -72,16 +50,6 @@
             Date = g.Key,
             Sessions = g.ToList(),
             HasActive = g.Any(x => x.TimeOutPh == null),
-            // A session that crosses midnight stays grouped under the day it
-            // started (never split or double-counted), but its full duration
-            // still goes into that one day's total — which can then read as
-            // more than 24h logged. HasOvernight flags that so the total can
-            // explain itself instead of looking like an error.
-            HasOvernight = g.Any(x => x.TimeOutPh.HasValue && x.TimeOutPh.Value.Date > x.TimeInPh.Date),
-            // An active session (no TimeOutPh yet) counts toward the day's
-            // total using the current time, so "logged so far" reflects the
-            // running session, not just completed ones.
-            Total = TimeSpan.FromTicks(g.Sum(x => ((x.TimeOutPh ?? TimeZoneHelper.ToPhilippineTime(DateTime.UtcNow)) - x.TimeInPh).Ticks))
         })
         .ToList();
 
@@ -95,16 +63,6 @@
 <main class="time-logs-page">
 
     <div class="time-logs-toolbar">
-        <div class="quick-filters" role="group" aria-label="Quick date range">
-            @foreach (var r in quickRanges)
-            {
-                var isActive = fromDateStr == r.From && toDateStr == r.To;
-                <a class="chip@(isActive ? " is-active" : "")" href="@Url.Action("Index", new { from = r.From, to = r.To })" aria-pressed="@(isActive ? "true" : "false")">@r.Label</a>
-            }
-        </div>
-
-        <div class="toolbar-divider" aria-hidden="true"></div>
-
         <form class="time-logs-filter" method="get">
             <div class="field">
                 <label for="filter-from">From</label>
@@ -164,8 +122,6 @@
                         </span>
                         <span class="day-card__meta">
                             @day.Sessions.Count session@(day.Sessions.Count == 1 ? "" : "s")
-                            &middot;
-                            <span class="day-card__total"@(day.HasOvernight ? Html.Raw(" title=\"Includes a session that continued past midnight, counted in full on the day it started\"") : null)>@FormatDuration(day.Total) logged@(day.HasActive ? " so far" : "")@(day.HasOvernight ? "*" : "")</span>
                         </span>
                     </div>
                     @for (var i = 0; i < day.Sessions.Count; i++)
@@ -182,7 +138,6 @@
                                 {
                                     <span class="overnight-tag" title="Signed out @s.TimeOutPh.Value.ToString("MMM d") — crossed midnight">@overnight</span>
                                 }
-                                <span class="dur" title="Exact duration: @PreciseDuration(s.TimeOutPh.Value - s.TimeInPh)">@FormatDuration(s.TimeOutPh.Value - s.TimeInPh)</span>
                             }
                             else
                             {

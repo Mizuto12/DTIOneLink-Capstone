@@ -35,10 +35,10 @@
     outline-offset: 2px;
 }
 
-/* ---------- Toolbar: quick-filter chips + custom date range, as one
-   cohesive unit instead of two stacked, visually disconnected rows. The
-   divider between them signals "quick pick" vs "custom range" without
-   needing a label to say so. ---------- */
+/* ---------- Toolbar: just the custom date-range filter. An audit trail
+   needs to pull records from an arbitrary window; it doesn't need
+   "This Week"/"This Month" shortcuts, which read as timesheet/payroll
+   period framing — out of scope for what this page is (see Index.cshtml). */
 .time-logs-page .time-logs-toolbar {
     display: flex;
     align-items: center;
@@ -50,48 +50,6 @@
     border: 1px solid var(--outline-variant);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
-}
-
-.time-logs-page .toolbar-divider {
-    width: 1px;
-    align-self: stretch;
-    background: var(--outline-variant);
-}
-/* A wrapped toolbar (chips on their own line above From/To) has nothing
-   for a vertical divider to sit between — drop it rather than let it
-   float oddly across the wrap. */
-@media (max-width: 760px) {
-    .time-logs-page .toolbar-divider { display: none; }
-}
-
-.time-logs-page .quick-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.time-logs-page .chip {
-    display: inline-flex;
-    align-items: center;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 7px 16px;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--outline-variant);
-    background: var(--surface);
-    color: var(--on-surface-variant);
-    text-decoration: none;
-    cursor: pointer;
-}
-.time-logs-page .chip:hover {
-    background: var(--surface-container-low);
-    color: var(--on-surface);
-}
-.time-logs-page .chip.is-active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #ffffff;
 }
 
 /* ---------- Date filter ---------- */
@@ -241,16 +199,6 @@
     color: var(--on-surface-variant);
 }
 
-.time-logs-page .day-card__total {
-    font-weight: 700;
-    color: var(--on-surface);
-}
-.time-logs-page .day-card__total[title] {
-    cursor: help;
-    text-decoration: underline dotted var(--outline-variant);
-    text-underline-offset: 3px;
-}
-
 .time-logs-page .session-row {
     display: flex;
     align-items: center;
@@ -294,17 +242,6 @@
     vertical-align: super;
     cursor: help;
     text-decoration: none;
-}
-
-.time-logs-page .session-row .dur {
-    margin-left: auto;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--on-surface-variant);
-    background: var(--surface-container-low);
-    padding: 3px 11px;
-    border-radius: var(--radius-full);
-    cursor: help;
 }
 
 /* A day's session list caps at 5 (Index.cshtml); this reveals the rest in
@@ -398,10 +335,6 @@
     letter-spacing: 0.02em;
     padding: 4px 12px;
     border-radius: var(--radius-full);
-    /* Occupies the same slot a "Time Out" + duration pill would on a
-       completed session, so it lands on the same right edge instead of
-       sitting wherever it falls right after the arrow. */
-    margin-left: auto;
 }
 
 .time-logs-page .badge-active {
