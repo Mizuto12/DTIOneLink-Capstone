@@ -1,0 +1,144 @@
+/* ==========================================================================
+   Shared confirm/notice dialog — replaces window.confirm()/alert() wherever
+   a page includes this file, _NoticeDialog.cshtml, and notice-dialog.js.
+   Extracted from the Records page's own notice-dialog (wwwroot/js/records.js),
+   the first place this pattern was built; unscoped here (no ".records-page"
+   prefix) so any page using the same design tokens (--primary,
+   --surface-container, --on-surface, --radius-lg, --radius-full — already
+   defined by adminlayout.css/tasks-index.css and every major page's own
+   stylesheet) can reuse it without pulling in Records' other styles.
+   ========================================================================== */
+.notice-dialog {
+  --tone: var(--primary);
+  --tone-soft: var(--surface-container);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(16, 24, 40, 0.25);
+  padding: 28px 24px 24px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  color: var(--on-surface);
+  text-align: center;
+}
+.notice-dialog[data-tone="danger"] { --tone: #b42318; --tone-soft: #fee4e2; }
+.notice-dialog::backdrop { background: rgba(15, 23, 42, 0.45); }
+.notice-dialog [hidden] { display: none !important; }
+
+.notice-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-full);
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 28px;
+}
+
+.notice-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.notice-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-container-low);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.notice-message {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--on-surface-variant);
+}
+
+.notice-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.notice-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.notice-step-num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--surface-container);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notice-note {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff4d6;
+  color: #5c4300;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* Self-contained button styles, scoped to this dialog only — pages that
+   already define their own .btn/.btn-outline/.btn-primary (like Records)
+   keep using theirs via the same class names; pages that don't (Tasks,
+   Employee) still get a correctly-styled pair of buttons without needing
+   to adopt an unrelated page's button system just for this dialog. */
+.notice-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.notice-actions .btn {
+  flex: 1;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+}
+.notice-actions .btn-outline {
+  flex: 0 0 120px;
+  background: transparent;
+  border-color: var(--surface-container-highest, #d9dde3);
+  color: var(--on-surface);
+}
+.notice-actions .btn-primary {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.notice-dialog[data-tone="danger"] .btn-primary { background: var(--tone); }
+
+@media (max-width: 480px) {
+  .notice-actions { flex-direction: column-reverse; }
+  .notice-actions .btn-outline { flex: none; width: 100%; }
+}

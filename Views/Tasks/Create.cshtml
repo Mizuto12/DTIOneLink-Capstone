@@ -8,6 +8,7 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/help-hint.css" asp-append-version="true" />
 }
 
 <!-- ── The real Task Management list, behind the form ───── -->
@@ -67,7 +68,11 @@
                 {
                     <!-- Task Type -->
                     <div class="field-group">
-                        <label class="field-label" for="taskType">TASK TYPE <span class="required-star">*</span></label>
+                        <label class="field-label" for="taskType">
+                            TASK TYPE <span class="required-star">*</span>
+                            <button type="button" class="help-hint" aria-label="What's the difference between task types?" aria-expanded="false"
+                                    data-help-text="Direct Admin Task: one Admin does the work themselves. Department Directive: sent to a division, whose Admin then assigns it to employees. Whole Office: every active staff member gets and submits their own copy.">?</button>
+                        </label>
                         <div class="select-wrap">
                             <select class="pill-input" id="taskType" asp-for="TaskType">
                                 <option value="">Select Task Type</option>
@@ -210,6 +215,7 @@
 </dialog>
 
 @section Scripts {
+    <script src="~/js/help-hint.js" asp-append-version="true"></script>
     <script src="~/js/responsible-admin-lookup.js" asp-append-version="true"></script>
     <script src="~/js/subtask-list.js" asp-append-version="true"></script>
     <script src="~/js/tasks-create.js" asp-append-version="true"></script>

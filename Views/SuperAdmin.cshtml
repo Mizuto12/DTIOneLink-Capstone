@@ -201,7 +201,11 @@
     <section class="sa-section">
         <div class="sa-section__head">
             <h4 class="sa-section__title">Overdue Tasks <span class="sa-count sa-count--danger">@Model.OverdueCount</span></h4>
+            <button type="button" class="sa-collapse-toggle" aria-expanded="false" aria-controls="saOverdueBody" data-collapse-label="Overdue Tasks">
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
         </div>
+        <div id="saOverdueBody" hidden>
         @if (!Model.OverdueItems.Any())
         {
             <div class="sa-empty-state sa-empty-state--good">
@@ -263,6 +267,7 @@
                 </div>
             </div>
         }
+        </div>
     </section>
 
     <!-- ── Employee workload ─────────────────────────────── -->
@@ -272,17 +277,21 @@
                 <h4 class="sa-section__title">Employee Workload</h4>
                 <p class="sa-section__sub">How many tasks each person has, and where they stand.</p>
             </div>
-            @if (Model.EmployeeWorkloads.Any())
-            {
-                <div class="sa-chips" role="group" aria-label="Filter by division">
-                    <button type="button" class="sa-chip is-active" data-division="">All divisions</button>
-                    @foreach (var d in divisions)
-                    {
-                        <button type="button" class="sa-chip" data-division="@d.Name" title="@d.Name">@d.Short</button>
-                    }
-                </div>
-            }
+            <button type="button" class="sa-collapse-toggle" aria-expanded="false" aria-controls="saWorkloadBody" data-collapse-label="Employee Workload">
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
         </div>
+        <div id="saWorkloadBody" hidden>
+        @if (Model.EmployeeWorkloads.Any())
+        {
+            <div class="sa-chips" role="group" aria-label="Filter by division">
+                <button type="button" class="sa-chip is-active" data-division="">All divisions</button>
+                @foreach (var d in divisions)
+                {
+                    <button type="button" class="sa-chip" data-division="@d.Name" title="@d.Name">@d.Short</button>
+                }
+            </div>
+        }
         @if (!Model.EmployeeWorkloads.Any())
         {
             <div class="sa-empty-state">No assigned tasks yet.</div>
@@ -347,6 +356,7 @@
                 </div>
             </div>
         }
+        </div>
     </section>
 
 </div>

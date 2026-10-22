@@ -153,7 +153,7 @@ body{
    Kanban board
    -------------------------------------------------------------------- */
 /* One white workspace (Canva page 3). The five boards fill the full width:
-   desktop  → To Do · In Progress · For Review on top, Rejected · Completed
+   desktop  → To Do · In Progress · For Review on top, Returned · Completed
               sharing the second row (6 tracks: 2+2+2 / 3+3);
    tablet   → two per row, Completed spanning the last row;
    phone    → one per row.

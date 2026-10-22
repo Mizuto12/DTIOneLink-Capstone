@@ -12,6 +12,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/records.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/css/help-hint.css" asp-append-version="true">
 }
 
 <main class="records-page" data-division="@userDivision">
@@ -85,7 +86,11 @@
                  pattern=".*\S.*" title="Please type a value." hidden>
         </div>
         <div class="field">
-          <label for="access">Access Control</label>
+          <label for="access">
+            Access Control
+            <button type="button" class="help-hint" aria-label="What does Access Control mean?" aria-expanded="false"
+                    data-help-text="Who is allowed to see or request this record: Confidential (restricted), Public Record (anyone may request it), Exclusive (named staff only), or DTI Only (internal use).">?</button>
+          </label>
           <select id="access" name="access" required data-other-input="access-other">
             <option value="" disabled selected>Select Access Control</option>
             <option value="Confidential">Confidential</option>
@@ -105,7 +110,11 @@
       </div>
 
       <div class="field" style="max-width: 260px; margin-top: 16px;">
-        <label for="retention">Retention Period</label>
+        <label for="retention">
+          Retention Period
+          <button type="button" class="help-hint" aria-label="What does Retention Period mean?" aria-expanded="false"
+                  data-help-text="How long this record must be kept before it's due for disposal, e.g. &quot;5 Years&quot; or &quot;Permanent&quot;. The office will be reminded when this period is ending.">?</button>
+        </label>
         <input id="retention" name="retention" type="text" placeholder="e.g. 5 Years" required>
       </div>
     </form>
@@ -339,5 +348,6 @@
 </main>
 
 @section Scripts {
+    <script src="~/js/help-hint.js" asp-append-version="true"></script>
     <script src="~/js/records.js" asp-append-version="true" defer></script>
 }

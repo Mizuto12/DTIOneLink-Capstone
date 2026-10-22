@@ -89,6 +89,34 @@
     margin-bottom: 16px;
 }
 
+/* Collapsed by default: a dense dashboard's heaviest sections (Overdue
+   Tasks, Employee Workload) start closed so the first scan isn't a wall of
+   tables, and expand on demand without losing any of the content. */
+.sa-collapse-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--outline-variant, #d9dde3);
+    border-radius: 50%;
+    background: var(--surface, #fff);
+    color: var(--on-surface-variant, #6b7280);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.sa-collapse-toggle:hover,
+.sa-collapse-toggle:focus-visible {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.sa-collapse-toggle .material-symbols-outlined {
+    font-size: 20px;
+    transition: transform 0.15s ease;
+}
+.sa-collapse-toggle[aria-expanded="true"] .material-symbols-outlined {
+    transform: rotate(180deg);
+}
+
 .sa-section__title {
     display: flex;
     align-items: center;

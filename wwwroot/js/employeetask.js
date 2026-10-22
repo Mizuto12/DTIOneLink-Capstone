@@ -55,15 +55,26 @@ function initCompletedColumnMenu() {
     var form = panel.querySelector('.delete-all-form');
     if (form) {
         form.addEventListener('submit', function (event) {
+            if (form.dataset.confirmed === 'true') {
+                return;
+            }
+            event.preventDefault();
+
             var count = form.getAttribute('data-count') || 'all';
             var noun = count === '1' ? 'completed task' : 'completed tasks';
-            var ok = window.confirm(
-                'Permanently delete ' + count + ' ' + noun + '?\n\n' +
-                'This removes them for everyone, including their proof files, ' +
-                'comments, and history. This cannot be undone.');
-            if (!ok) {
-                event.preventDefault();
-            }
+            window.showNotice({
+                tone: 'danger',
+                icon: 'delete_forever',
+                title: 'Permanently delete ' + count + ' ' + noun + '?',
+                message: 'This removes them for everyone, including their proof files, comments, and history. This cannot be undone.',
+                okText: 'Delete',
+                cancelText: 'Cancel'
+            }).then(function (ok) {
+                if (ok) {
+                    form.dataset.confirmed = 'true';
+                    form.requestSubmit ? form.requestSubmit() : form.submit();
+                }
+            });
         });
     }
 }
@@ -124,10 +135,18 @@ function initFilterButton() {
  * Clicking (or pressing Enter/Space on) a task card opens that
  * task's detail view. Clicks on the pencil "edit" button or the
  * delete button inside a card are excluded so they don't also
- * trigger navigation.
+ * trigger navigation — the edit button has its own destination,
+ * wired separately below.
  */
 function initTaskCardNavigation() {
     var cards = document.querySelectorAll('.task-card[data-href]');
+
+    document.querySelectorAll('.task-edit-btn[data-href]').forEach(function (btn) {
+        btn.addEventListener('click', function (event) {
+            event.stopPropagation();
+            window.location.href = btn.getAttribute('data-href');
+        });
+    });
 
     cards.forEach(function (card) {
         card.addEventListener('click', function (event) {
@@ -166,14 +185,25 @@ function initDeleteCompletedTask() {
 
     forms.forEach(function (form) {
         form.addEventListener('submit', function (event) {
-            var name = form.getAttribute('data-task-name') || 'this task';
-            var ok = window.confirm(
-                'Permanently delete "' + name + '"?\n\n' +
-                'This removes the task for everyone, including its proof files, ' +
-                'comments, and history. This cannot be undone.');
-            if (!ok) {
-                event.preventDefault();
+            if (form.dataset.confirmed === 'true') {
+                return;
             }
+            event.preventDefault();
+
+            var name = form.getAttribute('data-task-name') || 'this task';
+            window.showNotice({
+                tone: 'danger',
+                icon: 'delete',
+                title: 'Permanently delete "' + name + '"?',
+                message: 'This removes the task for everyone, including its proof files, comments, and history. This cannot be undone.',
+                okText: 'Delete',
+                cancelText: 'Cancel'
+            }).then(function (ok) {
+                if (ok) {
+                    form.dataset.confirmed = 'true';
+                    form.requestSubmit ? form.requestSubmit() : form.submit();
+                }
+            });
         });
     });
 }

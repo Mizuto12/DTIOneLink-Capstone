@@ -29,6 +29,7 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/main-task-details.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notice-dialog.css" asp-append-version="true" />
 }
 
 <div class="mtd">
@@ -77,7 +78,7 @@
         {
             <div class="mtd-header-actions">
                 <form asp-controller="Tasks" asp-action="Delete" asp-route-id="@task.Id" method="post"
-                      onsubmit="return confirm('Delete this task permanently? This cannot be undone.' + (@Json.Serialize(subtasks.Any()) ? ' Every subtask under it will be deleted too.' : ''));">
+                      id="mtdDeleteForm" data-has-subtasks="@Json.Serialize(subtasks.Any())">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="et-btn et-btn-outline mtd-delete-btn">
                         <span class="material-symbols-outlined">delete</span>
@@ -137,8 +138,7 @@
                 <span>@DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
                 @if (isOpd)
                 {
-                    <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post"
-                          onsubmit="return confirm('Stop repeating this task? No more copies will be sent out. Copies already sent are not affected.');">
+                    <form asp-controller="Tasks" asp-action="StopRepeating" asp-route-id="@task.Id" method="post" id="mtdStopRepeatForm">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="mtd-stop-repeat">Stop repeating</button>
                     </form>
@@ -318,6 +318,9 @@
     </div>
 </div>
 
+<partial name="_NoticeDialog" />
+
 @section Scripts {
+    <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
     <script src="~/js/main-task-details.js" asp-append-version="true"></script>
 }

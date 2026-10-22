@@ -165,4 +165,23 @@
 
         apply(""); // initial render: all divisions, page 1
     });
+
+    // Collapsed-by-default sections (Overdue Tasks, Employee Workload):
+    // toggling just flips the body's `hidden` attribute, which doesn't touch
+    // the row-count-based pagers above — they already ran at DOMContentLoaded
+    // regardless of whether their section happened to be visible yet.
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".sa-collapse-toggle").forEach(function (btn) {
+            var body = document.getElementById(btn.getAttribute("aria-controls"));
+            if (!body) return;
+
+            btn.addEventListener("click", function () {
+                var expanded = btn.getAttribute("aria-expanded") === "true";
+                btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+                body.hidden = expanded;
+                var label = btn.getAttribute("data-collapse-label") || "section";
+                btn.setAttribute("aria-label", (expanded ? "Expand " : "Collapse ") + label);
+            });
+        });
+    });
 })();

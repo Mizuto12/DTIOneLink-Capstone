@@ -1,0 +1,46 @@
+/* ==========================================================================
+   Shared inline help hint — a small "?" button next to a label/term that
+   reveals a short plain-language explanation on click (not just hover, so
+   it works on touch devices — a plain title="" tooltip doesn't). Include
+   this file plus help-hint.js on any page that uses the .help-hint markup
+   pattern (see wwwroot/js/help-hint.js for the exact HTML shape).
+   ========================================================================== */
+.help-hint {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  border: 1px solid var(--on-surface-variant, #6b7280);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--on-surface-variant, #6b7280);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.help-hint:hover,
+.help-hint:focus-visible,
+.help-hint[aria-expanded="true"] {
+  border-color: var(--primary, #1c3f94);
+  color: var(--primary, #1c3f94);
+  background: var(--surface-container, #f1f3f8);
+}
+
+.help-hint-popover {
+  position: absolute;
+  z-index: 50;
+  max-width: 260px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--on-surface, #1d2733);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 400;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.25);
+}
+.help-hint-popover[hidden] { display: none; }
