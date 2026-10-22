@@ -32,7 +32,7 @@
     (string Label, string Icon) TaskTypeInfo(string? type) => type switch
     {
         DTIOneLink.Services.TaskTypes.DepartmentDirective => ("Department Directive", "campaign"),
-        DTIOneLink.Services.TaskTypes.DirectAdmin => ("Direct Admin Task", "person"),
+        DTIOneLink.Services.TaskTypes.DirectAdmin => ("Direct Admin Task", "badge"),
         DTIOneLink.Services.TaskTypes.WholeOffice => ("Whole Office Task", "groups"),
         _ => ("Task", "task")
     };
@@ -135,7 +135,7 @@
         @if (task.Recurrence != null)
         {
             <div class="mtd-hero-repeats">
-                <span class="material-symbols-outlined" aria-hidden="true">event_repeat</span>
+                <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
                 <span>Repeats @DTIOneLink.Services.TaskRecurrence.Label(task.Recurrence)</span>
                 @if (isOpd)
                 {

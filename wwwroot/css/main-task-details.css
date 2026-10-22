@@ -18,7 +18,7 @@
     --mtd-status-complete-bg: #dcfce7; --mtd-status-complete-fg: #166534;
     --mtd-status-pending-bg: #f1f5f9;  --mtd-status-pending-fg: #475569;
     --mtd-status-overdue-bg: #ffdad6;  --mtd-status-overdue-fg: #ba1a1a;
-    max-width: 880px;
+    max-width: 1140px;
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
@@ -90,7 +90,7 @@
     line-height: 1.6;
     opacity: 0.9;
     margin: 0 0 20px;
-    max-width: 680px;
+    max-width: 760px;
 }
 
 .mtd-hero-status {
@@ -253,6 +253,7 @@
 .mtd-note {
     font-size: 15px;
     line-height: 1.6;
+    max-width: 760px;
     color: var(--mtd-secondary);
     background: var(--mtd-surface-low);
     border: 1px solid var(--mtd-outline-variant);
