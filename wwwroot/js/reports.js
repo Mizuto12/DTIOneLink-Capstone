@@ -1,5 +1,20 @@
 (function () {
-  const PAGE_SIZE = 6; // six rows per page; the list frame always holds six (reports.css)
+  const PAGE_SIZE = 6; // six rows per page, used only when one specific category is selected
+
+  // Category -> { icon, density }. "grid" categories are the ones someone
+  // scans for "what needs me" (two-up cards, badge up front); "stack"
+  // categories are look-up-only — nobody scans Completed or History for
+  // urgency — so they stay a single plain row. Shown in this order when
+  // "All Categories" is selected.
+  const GROUPS = [
+    { category: 'Active Tasks',     icon: 'bolt',         density: 'grid' },
+    { category: 'Retained',         icon: 'folder',        density: 'grid' },
+    { category: 'Completed Tasks',  icon: 'task_alt',      density: 'stack' },
+    { category: 'Task History',     icon: 'history',       density: 'stack' },
+    { category: 'Archived',         icon: 'inventory_2',   density: 'stack' },
+    { category: 'Disposed',         icon: 'delete',        density: 'stack' }
+  ];
+  const GROUP_CAP = 4; // items shown per group before "Show N more"
 
   // ---------- Data layer ----------
   // Starts empty. Each report: { id, title, owner, tag, badge, icon, tone, time, category }
@@ -35,20 +50,29 @@
   }
 
   // ---------- Rendering ----------
-  function renderReportItem(r) {
-    const el = document.createElement('div');
-    el.className = 'report-item';
-    // Red is reserved for "needs attention now" (Overdue, Retention ended);
-    // amber for "needs attention soon" (At risk, Disposal due soon) — same
-    // two tiers the Records and Task Management pages already use.
+  // Red is reserved for "needs attention now" (Overdue, Retention ended);
+  // amber for "needs attention soon" (At risk, Disposal due soon) — same
+  // two tiers the Records and Task Management pages already use.
+  function reportVisuals(r) {
     const overdue = r.badge === 'Overdue' || r.badge === 'Retention ended';
     const risk = r.badge === 'At risk' || r.badge === 'Disposal due soon';
-    const tone = overdue ? 'overdue' : r.tone;
-    const badgeClass = overdue ? 'is-overdue' : risk ? 'is-risk' : '';
-    // A record's whole tag IS its badge text ("Retention ended" etc.) — show
-    // that as the colored badge instead of flattening it to plain gray tag
-    // text. A task's tag and badge are independent, so both can show.
-    const tagIsBadge = r.badge && r.badge === r.tag;
+    return {
+      tone: overdue ? 'overdue' : r.tone,
+      badgeClass: overdue ? 'is-overdue' : risk ? 'is-risk' : '',
+      // A record's whole tag IS its badge text ("Retention ended" etc.) —
+      // show that as the colored badge instead of flattening it to plain
+      // gray tag text. A task's tag and badge are independent, so both show.
+      tagIsBadge: !!(r.badge && r.badge === r.tag)
+    };
+  }
+
+  // Single plain row — used for look-up-only groups (Completed, History,
+  // Archived, Disposed) and for the flat paginated view when one specific
+  // category is selected.
+  function renderReportRow(r) {
+    const { tone, badgeClass, tagIsBadge } = reportVisuals(r);
+    const el = document.createElement('div');
+    el.className = 'report-row';
     el.innerHTML = `
       <div class="item-icon tone-${tone}">
         <span class="material-symbols-outlined filled-icon">${r.icon}</span>
@@ -70,6 +94,82 @@
       </div>
     `;
     return el;
+  }
+
+  // Two-up card — used for the groups someone actually scans for "what
+  // needs me" (Active Tasks, Retained), badge up front in the corner.
+  function renderReportCard(r) {
+    const { tone, badgeClass, tagIsBadge } = reportVisuals(r);
+    const el = document.createElement('div');
+    el.className = 'report-card';
+    el.innerHTML = `
+      <div class="report-card__top">
+        <div class="item-icon tone-${tone}">
+          <span class="material-symbols-outlined filled-icon">${r.icon}</span>
+        </div>
+        ${tagIsBadge ? `<span class="meta-badge ${badgeClass}">${escapeHtml(r.tag)}</span>`
+          : (r.badge ? `<span class="meta-badge ${badgeClass}">${escapeHtml(r.badge)}</span>` : '')}
+      </div>
+      <h3 class="item-title">${escapeHtml(r.title)}</h3>
+      <div class="item-meta">
+        ${tagIsBadge
+          ? `<span class="meta-owner">${escapeHtml(r.owner)}</span>`
+          : `<span class="meta-owner">${escapeHtml(r.owner)}</span>${r.tag ? `<span class="meta-dot"></span><span class="meta-tag">${escapeHtml(r.tag)}</span>` : ''}`}
+      </div>
+      <div class="report-card__foot">
+        <span class="item-time">${escapeHtml(r.time)}</span>
+        <span class="item-id">#${escapeHtml(r.id)}</span>
+      </div>
+    `;
+    return el;
+  }
+
+  // One category section: header (icon, name, count) + its items at the
+  // density that category's own job calls for, capped with a "Show N more"
+  // expand past GROUP_CAP (same reveal-in-place pattern Time Logs already
+  // uses for a long session list).
+  function renderGroup(def, items) {
+    const wrap = document.createElement('div');
+    wrap.className = 'report-group';
+
+    const head = document.createElement('div');
+    head.className = 'report-group__head';
+    head.innerHTML = `
+      <span class="report-group__icon"><span class="material-symbols-outlined">${def.icon}</span></span>
+      <span class="report-group__name">${escapeHtml(def.category)}</span>
+      <span class="report-group__count">${items.length}</span>
+      <span class="report-group__line"></span>
+    `;
+    wrap.appendChild(head);
+
+    const container = document.createElement('div');
+    container.className = def.density === 'grid' ? 'report-grid' : 'report-stack';
+    wrap.appendChild(container);
+
+    const renderOne = def.density === 'grid' ? renderReportCard : renderReportRow;
+    const extra = items.length - GROUP_CAP;
+    items.forEach((r, i) => {
+      const el = renderOne(r);
+      if (i >= GROUP_CAP) { el.hidden = true; el.dataset.extraReportItem = 'true'; }
+      container.appendChild(el);
+    });
+
+    if (extra > 0) {
+      const moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'report-group__more';
+      moreBtn.innerHTML = `<span class="material-symbols-outlined" aria-hidden="true">expand_more</span><span>Show ${extra} more</span>`;
+      moreBtn.addEventListener('click', () => {
+        const hiddenEls = container.querySelectorAll('[data-extra-report-item]');
+        const expanding = !moreBtn.classList.contains('is-expanded');
+        hiddenEls.forEach(el => { el.hidden = !expanding; });
+        moreBtn.classList.toggle('is-expanded', expanding);
+        moreBtn.querySelector('span:last-child').textContent = expanding ? 'Show fewer' : `Show ${extra} more`;
+      });
+      wrap.appendChild(moreBtn);
+    }
+
+    return wrap;
   }
 
   function renderEmptyState(message) {
@@ -112,9 +212,6 @@
   function render() {
     if (!loaded) return; // keep the placeholders (or the error) on screen
     const filtered = getFilteredReports();
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    if (currentPage > totalPages) currentPage = totalPages;
-
     reportListEl.innerHTML = '';
 
     if (filtered.length === 0) {
@@ -123,21 +220,48 @@
         ? (periodChosen ? 'No activity in this period.' : 'No reports yet.')
         : 'No reports match your search or filter.';
       reportListEl.appendChild(renderEmptyState(message));
-    } else {
-      const start = (currentPage - 1) * PAGE_SIZE;
-      const pageItems = filtered.slice(start, start + PAGE_SIZE);
-      pageItems.forEach(r => reportListEl.appendChild(renderReportItem(r)));
+      paginationControlsEl.innerHTML = '';
+      paginationStatusEl.textContent = 'Showing 0 of 0 reports';
+      return;
     }
 
-    // Pagination bar is always visible; only the enabled/disabled state of the
-    // arrows changes based on whether there's a previous/next page.
-    renderPageNumbers(totalPages);
+    if (currentFilter === 'All Categories') {
+      renderGrouped(filtered);
+    } else {
+      renderFlatPaged(filtered);
+    }
+  }
 
-    const shownStart = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  // "All Categories": grouped by category, each at the density that
+  // category's job calls for, capped with a per-group expand — no numbered
+  // pagination, since every group is already capped on its own.
+  function renderGrouped(filtered) {
+    const byCategory = {};
+    filtered.forEach(r => { (byCategory[r.category] = byCategory[r.category] || []).push(r); });
+    const groupDefs = GROUPS.filter(g => byCategory[g.category] && byCategory[g.category].length);
+    groupDefs.forEach(g => reportListEl.appendChild(renderGroup(g, byCategory[g.category])));
+
+    paginationControlsEl.innerHTML = '';
+    paginationStatusEl.textContent =
+      `Showing ${filtered.length} of ${reports.length} report${reports.length === 1 ? '' : 's'} across ${groupDefs.length} categor${groupDefs.length === 1 ? 'y' : 'ies'}`;
+  }
+
+  // One specific category selected: back to a flat, numbered-paginated list
+  // — there's only one group in view, so grouping has nothing left to do,
+  // and a single long category (e.g. many Archived records) still wants
+  // real pagination rather than one long expand.
+  function renderFlatPaged(filtered) {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + PAGE_SIZE);
+    pageItems.forEach(r => reportListEl.appendChild(renderReportRow(r)));
+
+    renderPageNumbers(totalPages);
+    const shownStart = (currentPage - 1) * PAGE_SIZE + 1;
     const shownEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
-    paginationStatusEl.textContent = filtered.length === 0
-      ? 'Showing 0 of 0 reports'
-      : `Showing ${shownStart}-${shownEnd} of ${filtered.length} reports`;
+    paginationStatusEl.textContent = `Showing ${shownStart}-${shownEnd} of ${filtered.length} reports`;
   }
 
   function goToPage(num) {

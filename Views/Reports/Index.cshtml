@@ -18,55 +18,56 @@
   <!-- Dashboard Style Container -->
   <div class="reports-card">
 
-    <!-- Filter & Search Toolbar -->
+    <!-- Filter & Search Toolbar — one flowing row (search, category,
+         period), Export Data alone pinned to the far right. Previously two
+         separately space-between'd clusters, which left a wide empty gap
+         between "All Categories" and "All Time" at normal desktop widths. -->
     <div class="toolbar">
-      <div class="toolbar-left">
-        <div class="search-pill">
-          <span class="material-symbols-outlined search-icon">search</span>
-          <input id="report-search" type="text" placeholder="Search reports or filter by keyword..." aria-label="Search reports">
-        </div>
+      <div class="search-pill">
+        <span class="material-symbols-outlined search-icon">search</span>
+        <input id="report-search" type="text" placeholder="Search reports or filter by keyword..." aria-label="Search reports">
+      </div>
 
-        <div class="filter-dropdown-wrapper">
-          <button class="filter-btn" id="filterBtn" type="button">
-            <span id="currentFilter">All Categories</span>
-            <span class="material-symbols-outlined">expand_more</span>
-          </button>
-          <div class="filter-dropdown" id="filterDropdown">
-            <button class="filter-option active" data-value="All Categories">All Categories</button>
-            <button class="filter-option" data-value="Task History">Task History</button>
-            <button class="filter-option" data-value="Archived">Archived</button>
-            <button class="filter-option" data-value="Disposed">Disposed</button>
-            <button class="filter-option" data-value="Retained">Retained</button>
-            <button class="filter-option" data-value="Active Tasks">Active Tasks</button>
-            <button class="filter-option" data-value="Completed Tasks">Completed Tasks</button>
-          </div>
+      <div class="filter-dropdown-wrapper">
+        <button class="filter-btn" id="filterBtn" type="button">
+          <span class="filter-btn-label">Category</span>
+          <span class="filter-btn-value" id="currentFilter">All Categories</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </button>
+        <div class="filter-dropdown" id="filterDropdown">
+          <button class="filter-option active" data-value="All Categories">All Categories</button>
+          <button class="filter-option" data-value="Task History">Task History</button>
+          <button class="filter-option" data-value="Archived">Archived</button>
+          <button class="filter-option" data-value="Disposed">Disposed</button>
+          <button class="filter-option" data-value="Retained">Retained</button>
+          <button class="filter-option" data-value="Active Tasks">Active Tasks</button>
+          <button class="filter-option" data-value="Completed Tasks">Completed Tasks</button>
         </div>
       </div>
 
       <!-- Period filter (reports.js): the server returns only items with
            activity in the chosen period. Month options are filled in by JS. -->
-      <div class="toolbar-right period-filter">
-        <label class="period-select-wrap">
-          <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
-          <span class="visually-hidden">Period</span>
-          <select id="period-select" aria-label="Period">
-            <option value="all">All Time</option>
-            @* January–December of the current year, filled in by reports.js. *@
-            <optgroup label="Month" id="period-months"></optgroup>
-            <option value="custom">Custom Dates…</option>
-          </select>
-        </label>
-        <form class="period-custom" id="period-custom" hidden>
-          <label>From <input type="date" id="period-from" required></label>
-          <label>To <input type="date" id="period-to" required></label>
-          <button type="submit" class="period-apply">Apply</button>
-        </form>
-        @* Downloads what is listed now (reports.js). *@
-        <button class="btn-primary" type="button" id="export-btn">
-          <span class="material-symbols-outlined icon-20">download</span>
-          Export Data
-        </button>
-      </div>
+      <label class="period-select-wrap">
+        <span class="period-select-label">Period</span>
+        <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+        <select id="period-select" aria-label="Period">
+          <option value="all">All Time</option>
+          @* January–December of the current year, filled in by reports.js. *@
+          <optgroup label="Month" id="period-months"></optgroup>
+          <option value="custom">Custom Dates…</option>
+        </select>
+      </label>
+      <form class="period-custom" id="period-custom" hidden>
+        <label>From <input type="date" id="period-from" required></label>
+        <label>To <input type="date" id="period-to" required></label>
+        <button type="submit" class="period-apply">Apply</button>
+      </form>
+
+      @* Downloads what is listed now (reports.js). *@
+      <button class="btn-primary" type="button" id="export-btn">
+        <span class="material-symbols-outlined icon-20">download</span>
+        Export Data
+      </button>
     </div>
 
     <p class="period-summary" id="period-summary" hidden></p>
@@ -77,7 +78,7 @@
            these placeholders show instead of "No reports yet". -->
       @for (var i = 0; i < 4; i++)
       {
-        <div class="report-item is-skeleton" aria-hidden="true">
+        <div class="report-row is-skeleton" aria-hidden="true">
           <span class="skeleton skeleton-circle"></span>
           <div class="item-info">
             <span class="skeleton skeleton-title"></span>
