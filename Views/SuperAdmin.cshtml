@@ -158,7 +158,7 @@
                     <div class="sa-col__cards">
                         @foreach (var i in items)
                         {
-                            <a class="sa-kcard @(i.IsOverdue ? "is-overdue" : "")" data-division="@i.Division"
+                            <a class="sa-kcard @(i.IsOverdue ? "is-overdue" : i.IsAtRisk ? "is-at-risk" : "")" data-division="@i.Division"
                                asp-controller="Dashboard" asp-action="Details" asp-route-id="@i.TaskId">
                                 <div class="sa-kcard__top">
                                     @if (!string.IsNullOrEmpty(ShortDivision(i.Division)))
@@ -167,11 +167,11 @@
                                     }
                                     @if (i.IsOverdue)
                                     {
-                                        <span class="sa-tag sa-tag--overdue">Overdue</span>
+                                        <span class="sa-kcard__status sa-kcard__status--overdue">Overdue</span>
                                     }
                                     else if (i.IsAtRisk)
                                     {
-                                        <span class="sa-tag sa-tag--risk">At risk</span>
+                                        <span class="sa-kcard__status sa-kcard__status--risk">At risk</span>
                                     }
                                 </div>
                                 <p class="sa-kcard__name">@i.TaskName</p>
