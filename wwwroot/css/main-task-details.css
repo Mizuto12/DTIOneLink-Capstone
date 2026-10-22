@@ -167,6 +167,18 @@
 }
 .mtd-hero-reassign-btn:hover { background: rgba(255, 255, 255, 0.12); }
 
+.mtd-hero-reassign-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 13.5px;
+    opacity: 0.75;
+}
+.mtd-hero-reassign-empty .material-symbols-outlined { font-size: 18px; }
+
 .mtd-hero-repeats {
     display: flex;
     align-items: center;

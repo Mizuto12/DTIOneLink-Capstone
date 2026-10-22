@@ -118,18 +118,33 @@
         @if (isOpd && task.TaskType != DTIOneLink.Services.TaskTypes.WholeOffice && task.ResponsibleAdminUserId.HasValue)
         {
             var responsibleAdmins = (ViewBag.ResponsibleAdmins as List<DTIOneLink.Models.User>) ?? new List<DTIOneLink.Models.User>();
-            <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
-                  class="mtd-hero-reassign" id="mtdReassignForm" data-task-name="@task.TaskName">
-                @Html.AntiForgeryToken()
-                <select name="newResponsibleAdminUserId" class="mtd-hero-select" id="mtdReassignSelect" required>
-                    <option value="">Reassign to…</option>
-                    @foreach (var admin in responsibleAdmins.Where(a => a.Id != task.ResponsibleAdminUserId))
-                    {
-                        <option value="@admin.Id">@admin.FullName (@admin.Department)</option>
-                    }
-                </select>
-                <button type="submit" class="mtd-hero-reassign-btn">Reassign</button>
-            </form>
+            // The Responsible Admin must stay within the task's own department
+            // — same rule ValidateResponsibleAdminAsync enforces at creation.
+            var sameDeptAdmins = responsibleAdmins
+                .Where(a => a.Id != task.ResponsibleAdminUserId && a.Department == task.OwningDepartment)
+                .ToList();
+            @if (sameDeptAdmins.Any())
+            {
+                <form asp-controller="Tasks" asp-action="ReassignResponsibleAdmin" asp-route-id="@task.Id" method="post"
+                      class="mtd-hero-reassign" id="mtdReassignForm" data-task-name="@task.TaskName">
+                    @Html.AntiForgeryToken()
+                    <select name="newResponsibleAdminUserId" class="mtd-hero-select" id="mtdReassignSelect" required>
+                        <option value="">Reassign to…</option>
+                        @foreach (var admin in sameDeptAdmins)
+                        {
+                            <option value="@admin.Id">@admin.FullName</option>
+                        }
+                    </select>
+                    <button type="submit" class="mtd-hero-reassign-btn">Reassign</button>
+                </form>
+            }
+            else
+            {
+                <div class="mtd-hero-reassign-empty">
+                    <span class="material-symbols-outlined" aria-hidden="true">info</span>
+                    No other Admin in @task.OwningDepartment to reassign this to.
+                </div>
+            }
         }
 
         @if (task.Recurrence != null)

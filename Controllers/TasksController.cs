@@ -474,12 +474,9 @@ namespace DTIOneLink.Controllers
         }
 
         // POST: /Tasks/ReassignResponsibleAdmin/5 — OPD only. Hands a Main
-        // Task to a different Admin (e.g. covering for one on leave).
-        // Deliberately no department filter on the new Admin, unlike
-        // ValidateResponsibleAdminAsync used at creation — the Admin's
-        // personal ResponsibleAdminUserId match in IsWithinMainTaskScope
-        // already grants them access to this one task regardless of their
-        // own department, so this works safely across divisions too.
+        // Task to a different Admin (e.g. covering for one on leave). The new
+        // Admin must be in the task's own OwningDepartment — same rule
+        // ValidateResponsibleAdminAsync enforces at creation.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReassignResponsibleAdmin(int id, int newResponsibleAdminUserId)
@@ -508,6 +505,12 @@ namespace DTIOneLink.Controllers
             if (newAdmin == null)
             {
                 TempData["ErrorMessage"] = "Select an active Admin to hand this task to.";
+                return RedirectToAction(nameof(MainTaskDetails), new { id });
+            }
+
+            if (newAdmin.Department != task.OwningDepartment)
+            {
+                TempData["ErrorMessage"] = $"Select an Admin from {task.OwningDepartment} — the Responsible Admin must belong to the task's own department.";
                 return RedirectToAction(nameof(MainTaskDetails), new { id });
             }
 
