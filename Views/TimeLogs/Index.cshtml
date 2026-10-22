@@ -27,6 +27,14 @@
     string FullTimestamp(DateTime phTime) => phTime.ToString("MMM d, yyyy 'at' h:mm:ss.fff tt");
     string PreciseDuration(TimeSpan span) => span.ToString(@"hh\:mm\:ss\.fff");
 
+    // A session stays grouped under the day it started (so a day's row
+    // count/total never double-counts a session that's also "part of" the
+    // next day), but an overnight session's time-out needs a visible marker
+    // — otherwise "11:05 PM -> 9:48 AM" reads as a time-logic error instead
+    // of a shift that crossed midnight.
+    string OvernightSuffix(DateTime timeInPh, DateTime timeOutPh) =>
+        timeOutPh.Date > timeInPh.Date ? $" +{(timeOutPh.Date - timeInPh.Date).Days}d" : "";
+
     var today = TimeZoneHelper.PhilippineToday;
     string DateLabel(DateTime d) =>
         d == today ? "Today" :
@@ -64,6 +72,12 @@
             Date = g.Key,
             Sessions = g.ToList(),
             HasActive = g.Any(x => x.TimeOutPh == null),
+            // A session that crosses midnight stays grouped under the day it
+            // started (never split or double-counted), but its full duration
+            // still goes into that one day's total — which can then read as
+            // more than 24h logged. HasOvernight flags that so the total can
+            // explain itself instead of looking like an error.
+            HasOvernight = g.Any(x => x.TimeOutPh.HasValue && x.TimeOutPh.Value.Date > x.TimeInPh.Date),
             // An active session (no TimeOutPh yet) counts toward the day's
             // total using the current time, so "logged so far" reflects the
             // running session, not just completed ones.
@@ -79,18 +93,6 @@
 }
 
 <main class="time-logs-page">
-
-    <header class="page-header">
-        <div class="header-left">
-            <div class="icon-badge">
-                <span class="material-symbols-outlined">schedule</span>
-            </div>
-            <div>
-                <h1 class="page-title">Time Logs</h1>
-                <p class="page-subtitle">Your own sign-in and sign-out history.</p>
-            </div>
-        </div>
-    </header>
 
     <div class="time-logs-toolbar">
         <div class="quick-filters" role="group" aria-label="Quick date range">
@@ -163,7 +165,7 @@
                         <span class="day-card__meta">
                             @day.Sessions.Count session@(day.Sessions.Count == 1 ? "" : "s")
                             &middot;
-                            <span class="day-card__total">@FormatDuration(day.Total) logged@(day.HasActive ? " so far" : "")</span>
+                            <span class="day-card__total"@(day.HasOvernight ? Html.Raw(" title=\"Includes a session that continued past midnight, counted in full on the day it started\"") : null)>@FormatDuration(day.Total) logged@(day.HasActive ? " so far" : "")@(day.HasOvernight ? "*" : "")</span>
                         </span>
                     </div>
                     @for (var i = 0; i < day.Sessions.Count; i++)
@@ -174,7 +176,12 @@
                             <span class="arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                             @if (s.TimeOutPh.HasValue)
                             {
+                                var overnight = OvernightSuffix(s.TimeInPh, s.TimeOutPh.Value);
                                 <span class="time" title="@FullTimestamp(s.TimeOutPh.Value)">@s.TimeOutPh.Value.ToString("h:mm tt")</span>
+                                @if (overnight != "")
+                                {
+                                    <span class="overnight-tag" title="Signed out @s.TimeOutPh.Value.ToString("MMM d") — crossed midnight">@overnight</span>
+                                }
                                 <span class="dur" title="Exact duration: @PreciseDuration(s.TimeOutPh.Value - s.TimeInPh)">@FormatDuration(s.TimeOutPh.Value - s.TimeInPh)</span>
                             }
                             else

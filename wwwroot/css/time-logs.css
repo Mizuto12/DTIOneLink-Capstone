@@ -17,6 +17,12 @@
     font-family: 'Inter', system-ui, sans-serif;
     color: var(--on-surface);
     width: 100%;
+    /* The layout shell's own padding-top only clears the fixed top bar; this
+       is this page's own breathing room below it — the same role Records'
+       page-level padding-top plays, since neither page carries an in-page
+       header of its own (the sidebar nav already marks "Time Logs" as the
+       active page, so one wasn't adding real wayfinding value here). */
+    padding-top: 28px;
 }
 
 .time-logs-page * { box-sizing: border-box; }
@@ -27,43 +33,6 @@
 .time-logs-page select:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
-}
-
-/* ---------- Page Header ---------- */
-.time-logs-page .page-header {
-    margin-bottom: 18px;
-}
-
-.time-logs-page .header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.time-logs-page .icon-badge {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-container);
-    color: var(--primary);
-    flex-shrink: 0;
-}
-
-.time-logs-page .page-title {
-    font-family: 'Hanken Grotesk', sans-serif;
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--primary);
-    margin: 0;
-}
-
-.time-logs-page .page-subtitle {
-    font-size: 14px;
-    color: var(--on-surface-variant);
-    margin: 2px 0 0;
 }
 
 /* ---------- Toolbar: quick-filter chips + custom date range, as one
@@ -276,6 +245,11 @@
     font-weight: 700;
     color: var(--on-surface);
 }
+.time-logs-page .day-card__total[title] {
+    cursor: help;
+    text-decoration: underline dotted var(--outline-variant);
+    text-underline-offset: 3px;
+}
 
 .time-logs-page .session-row {
     display: flex;
@@ -307,6 +281,19 @@
 .time-logs-page .session-row .arrow {
     color: var(--on-surface-variant);
     font-size: 16px;
+}
+
+/* Flags a time-out that landed on a later calendar date than its time-in,
+   so "11:05 PM -> 9:48 AM" reads as a shift that crossed midnight instead
+   of a time-logic error. */
+.time-logs-page .overnight-tag {
+    margin-left: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+    vertical-align: super;
+    cursor: help;
+    text-decoration: none;
 }
 
 .time-logs-page .session-row .dur {
