@@ -27,6 +27,28 @@
     string FullTimestamp(DateTime phTime) => phTime.ToString("MMM d, yyyy 'at' h:mm:ss.fff tt");
     string PreciseDuration(TimeSpan span) => span.ToString(@"hh\:mm\:ss\.fff");
 
+    var today = TimeZoneHelper.PhilippineToday;
+    string DateLabel(DateTime d) =>
+        d == today ? "Today" :
+        d == today.AddDays(-1) ? "Yesterday" :
+        d.ToString("MMM d, yyyy");
+
+    // Quick-filter chips: Today / This Week (Sunday through today, matching
+    // the calendar elsewhere in the app) / This Month. Highlighted as active
+    // when the current from/to filter matches that range exactly, so a chip
+    // click stays visibly selected after the page reloads.
+    var weekStart = today.AddDays(-(int)today.DayOfWeek);
+    var monthStart = new DateTime(today.Year, today.Month, 1);
+    string Iso(DateTime d) => d.ToString("yyyy-MM-dd");
+    var quickRanges = new[]
+    {
+        (Label: "Today", From: Iso(today), To: Iso(today)),
+        (Label: "This Week", From: Iso(weekStart), To: Iso(today)),
+        (Label: "This Month", From: Iso(monthStart), To: Iso(today)),
+    };
+    string? fromDateStr = ViewBag.FromDate;
+    string? toDateStr = ViewBag.ToDate;
+
     // Each day's sessions, newest day first (logs already arrive newest
     // session first from the controller, so grouping preserves that order).
     var days = Model
@@ -70,14 +92,22 @@
         </div>
     </header>
 
+    <div class="quick-filters" role="group" aria-label="Quick date range">
+        @foreach (var r in quickRanges)
+        {
+            var isActive = fromDateStr == r.From && toDateStr == r.To;
+            <a class="chip@(isActive ? " is-active" : "")" href="@Url.Action("Index", new { from = r.From, to = r.To })" aria-pressed="@(isActive ? "true" : "false")">@r.Label</a>
+        }
+    </div>
+
     <form class="time-logs-filter" method="get">
         <div class="field">
             <label for="filter-from">From</label>
-            <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate" max="@DateTime.Today.ToString("yyyy-MM-dd")">
+            <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate" max="@Iso(today)">
         </div>
         <div class="field">
             <label for="filter-to">To</label>
-            <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate" max="@DateTime.Today.ToString("yyyy-MM-dd")">
+            <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate" max="@Iso(today)">
         </div>
         <div class="filter-actions">
             <button class="btn btn-primary" type="submit">
@@ -113,21 +143,29 @@
     }
     else
     {
+        const int visibleCap = 5;
         <div class="day-stack">
             @foreach (var day in days)
             {
-                <section class="day-card">
+                <section class="day-card" data-day-card data-cap="@visibleCap">
                     <div class="day-card__head">
-                        <span class="day-card__date">@day.Date.ToString("MMM d, yyyy")</span>
+                        <span class="day-card__date-group">
+                            <span class="day-card__date">@DateLabel(day.Date)</span>
+                            @if (day.HasActive)
+                            {
+                                <span class="live-pill">LIVE</span>
+                            }
+                        </span>
                         <span class="day-card__meta">
                             @day.Sessions.Count session@(day.Sessions.Count == 1 ? "" : "s")
                             &middot;
                             <span class="day-card__total">@FormatDuration(day.Total) logged@(day.HasActive ? " so far" : "")</span>
                         </span>
                     </div>
-                    @foreach (var s in day.Sessions)
+                    @for (var i = 0; i < day.Sessions.Count; i++)
                     {
-                        <div class="session-row">
+                        var s = day.Sessions[i];
+                        <div class="session-row"@(i >= visibleCap ? Html.Raw(" hidden data-extra-session") : null)>
                             <span class="time" title="@FullTimestamp(s.TimeInPh)">@s.TimeInPh.ToString("h:mm tt")</span>
                             <span class="arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                             @if (s.TimeOutPh.HasValue)
@@ -142,6 +180,13 @@
                                 </span>
                             }
                         </div>
+                    }
+                    @if (day.Sessions.Count > visibleCap)
+                    {
+                        <button type="button" class="show-more-row" data-show-more>
+                            <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                            <span data-show-more-label>Show @(day.Sessions.Count - visibleCap) more sessions</span>
+                        </button>
                     }
                 </section>
             }
@@ -193,3 +238,7 @@
     }
 
 </main>
+
+@section Scripts {
+    <script src="~/js/time-logs.js" asp-append-version="true" defer></script>
+}

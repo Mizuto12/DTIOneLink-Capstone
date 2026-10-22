@@ -31,7 +31,7 @@
 
 /* ---------- Page Header ---------- */
 .time-logs-page .page-header {
-    margin-bottom: 24px;
+    margin-bottom: 18px;
 }
 
 .time-logs-page .header-left {
@@ -64,6 +64,38 @@
     font-size: 14px;
     color: var(--on-surface-variant);
     margin: 2px 0 0;
+}
+
+/* ---------- Quick-filter chips ---------- */
+.time-logs-page .quick-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.time-logs-page .chip {
+    display: inline-flex;
+    align-items: center;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--outline-variant);
+    background: var(--surface);
+    color: var(--on-surface-variant);
+    text-decoration: none;
+    cursor: pointer;
+}
+.time-logs-page .chip:hover {
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+}
+.time-logs-page .chip.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
 }
 
 /* ---------- Date filter ---------- */
@@ -183,11 +215,29 @@
     border-bottom: 1px solid var(--surface-container-low);
 }
 
+.time-logs-page .day-card__date-group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
 .time-logs-page .day-card__date {
     font-family: 'Hanken Grotesk', sans-serif;
     font-size: 15px;
     font-weight: 700;
     color: var(--primary);
+}
+
+/* Echoes the "Still signed in" badge's green, so the one day with a live
+   session stands out next to its date without reading as an error/alert. */
+.time-logs-page .live-pill {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #16a34a;
+    background: #e7f6ec;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
 }
 
 .time-logs-page .day-card__meta {
@@ -206,6 +256,13 @@
     gap: 12px;
     padding: 8px 0;
     font-size: 13.5px;
+}
+/* The capped-list rows past the cap set the native `hidden` attribute
+   (Index.cshtml); without this, the `display: flex` above would win over
+   the browser's own `[hidden] { display: none }` default, since an
+   author rule always outranks a user-agent one at equal specificity. */
+.time-logs-page .session-row[hidden] {
+    display: none;
 }
 
 .time-logs-page .session-row .time {
@@ -234,6 +291,32 @@
     padding: 3px 11px;
     border-radius: var(--radius-full);
     cursor: help;
+}
+
+/* A day's session list caps at 5 (Index.cshtml); this reveals the rest in
+   place — same "reveal the rest of this list" affordance as a clickable
+   row, rather than a standalone dashed button. */
+.time-logs-page .show-more-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+    padding: 10px 0 2px;
+    border: none;
+    border-top: 1px solid var(--surface-container-low);
+    background: transparent;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.time-logs-page .show-more-row:hover { color: #0c2450; }
+.time-logs-page .show-more-row .material-symbols-outlined { font-size: 18px; }
+.time-logs-page .show-more-row.is-expanded .material-symbols-outlined {
+    transform: rotate(180deg);
 }
 
 /* ---------- Pagination ---------- */
