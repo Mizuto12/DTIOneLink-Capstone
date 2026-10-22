@@ -14,14 +14,29 @@
 }
 
 .ct-chart {
+  position: relative;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   height: 120px;
   padding-top: 22px; /* room for the count label above each bar */
 }
 
+/* Baseline: anchors every bar (including the zero ticks below) to a fixed
+   line instead of floating in empty space. */
+.ct-chart::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--outline-variant);
+}
+
 .ct-bar {
+  position: relative;
+  z-index: 1; /* paint above the baseline line */
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -37,8 +52,15 @@
   color: var(--on-surface);
   margin-bottom: 4px;
 }
+/* Dim zero counts so the eye lands on real completions, not structural zeros. */
+.ct-bar--zero .ct-bar__count {
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  opacity: 0.6;
+}
 
 .ct-bar__fill {
+  position: relative;
   width: 100%;
   max-width: 28px;
   min-height: 3px;
@@ -47,16 +69,38 @@
   transition: height 0.2s ease;
 }
 
+/* A zero week reads as a deliberate flat tick on the baseline, not an
+   ambiguous sliver that's easy to miss. */
 .ct-bar--zero .ct-bar__fill {
+  max-width: 10px;
+  height: 3px !important;
+  margin: 0 auto;
+  border-radius: 9999px;
   background: var(--outline-variant);
+}
+
+/* Best week in the period gets a quiet outline ring instead of a louder
+   fill color, so it reads as "the one that stands out" without competing
+   with the primary-colored bars themselves. */
+.ct-bar--peak .ct-bar__fill::before {
+  content: "";
+  position: absolute;
+  inset: -4px -6px auto -6px;
+  height: calc(100% + 8px);
+  border: 1.5px solid var(--primary);
+  border-radius: 7px 7px 0 0;
+  opacity: 0.35;
 }
 
 .ct-bar__label {
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--on-surface-variant);
   text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .ct-empty {
