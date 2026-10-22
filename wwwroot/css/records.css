@@ -290,18 +290,23 @@
 
 .records-page thead th {
   text-align: left;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--on-surface-variant);
-  padding: 0 16px 8px;
+  padding: 0 12px 6px;
+}
+.records-page thead th[title] {
+  text-decoration: underline dotted var(--outline-variant);
+  text-underline-offset: 3px;
+  cursor: help;
 }
 
 .records-page tbody td {
   background: var(--surface-container-low);
-  font-size: 14px;
-  padding: 14px 16px;
+  font-size: 13px;
+  padding: 9px 12px;
   transition: background 0.15s ease;
 }
 
@@ -310,12 +315,62 @@
   border-bottom-left-radius: var(--radius-full);
   color: var(--primary);
   font-weight: 700;
+  white-space: nowrap; /* a record code is a short identifier; never wrap it mid-code */
 }
 
 .records-page tbody td:last-child {
   border-top-right-radius: var(--radius-full);
   border-bottom-right-radius: var(--radius-full);
 }
+
+/* Title and Location can run long; this clips with an ellipsis and keeps
+   the full text on hover (title attribute) instead of forcing the column
+   wider or the row taller. Reset to full wrap on phones (below), where
+   each record becomes a two-column card with room to spare. */
+.records-page .trunc {
+  display: inline-block;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.records-page .trunc.trunc-wide { max-width: 230px; }
+
+/* Compact badges for the enum-like columns (Medium, Access Control), freeing
+   width for Title and Location, which actually need it. */
+.records-page .badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.records-page .badge-medium { background: var(--surface-container); color: var(--on-surface-variant); }
+
+/* Access Control badges are colored so Confidential visibly stands out from
+   every other value instead of reading as plain text like the rest of the
+   row — the one thing on this page worth a records officer's eye catching
+   mid-scan. */
+.records-page .access-confidential { background: #fee2e2; color: #b91c1c; }
+.records-page .access-public       { background: #dcfce7; color: #166534; }
+.records-page .access-exclusive    { background: #ede9fe; color: #6d28d9; }
+.records-page .access-dti          { background: #dbeafe; color: #1e40af; }
+.records-page .access-other        { background: var(--surface-container); color: var(--on-surface-variant); }
+
+/* Retention pairs an icon with the row's existing due-soon/ended color tint,
+   so that signal isn't carried by background color alone. */
+.records-page .retention-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.records-page .retention-cell .material-symbols-outlined { font-size: 15px; }
+.records-page .retention-ok .material-symbols-outlined { color: #16a34a; }
+.records-page .retention-soon .material-symbols-outlined { color: #b45309; }
+.records-page .retention-over .material-symbols-outlined { color: #dc2626; }
 
 .records-page tbody td.title-cell {
   font-weight: 600;
@@ -744,8 +799,19 @@
     background: transparent !important; /* the card carries the colour */
     min-width: 0;
     overflow-wrap: anywhere;
+    white-space: normal; /* the Code column's nowrap (desktop) would overflow a narrow phone card */
   }
   .records-page tbody tr.pill-row td.title-cell { grid-column: 1 / -1; font-size: 15px; }
+
+  /* Truncation is a desktop-density trick; phone cards have room to spare,
+     so Title and Location wrap in full instead of clipping. */
+  .records-page .trunc {
+    display: block;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
 
   .records-page tbody td[data-label]::before {
     content: attr(data-label);

@@ -91,6 +91,43 @@ function statusCellHtml(data) {
   return parts.join(' ');
 }
 
+function mediumBadgeHtml(medium) {
+  return `<span class="badge badge-medium">${escapeHtml(medium)}</span>`;
+}
+
+// Access Control is usually one of the four standard choices, but "Other /
+// Specify" lets staff type anything, so unrecognized values fall back to a
+// neutral badge rather than guessing a color for text we don't control.
+function accessToneClass(access) {
+  switch ((access || '').trim().toLowerCase()) {
+    case 'confidential': return 'access-confidential';
+    case 'public record': return 'access-public';
+    case 'exclusive': return 'access-exclusive';
+    case 'dti only': return 'access-dti';
+    default: return 'access-other';
+  }
+}
+
+function accessBadgeHtml(access) {
+  return `<span class="badge ${accessToneClass(access)}">${escapeHtml(access)}</span>`;
+}
+
+// Retention gets an icon alongside the row's existing due-soon/ended color
+// tint, so that signal isn't carried by background color alone.
+function retentionCellHtml(data) {
+  const state = data.retentionState;
+  const icon = state === 'ended' ? 'warning' : state === 'due-soon' ? 'schedule' : 'check_circle';
+  const tone = state === 'ended' ? 'retention-over' : state === 'due-soon' ? 'retention-soon' : 'retention-ok';
+  return `<span class="retention-cell ${tone}"><span class="material-symbols-outlined" aria-hidden="true">${icon}</span>${escapeHtml(data.retentionPeriod)}</span>`;
+}
+
+// Title and Location can run long; truncate with an ellipsis and keep the
+// full text on hover instead of forcing the column wider or the row taller.
+function truncHtml(value, wide) {
+  const esc = escapeHtml(value);
+  return `<span class="trunc${wide ? ' trunc-wide' : ''}" title="${esc}">${esc}</span>`;
+}
+
 function actionsCellHtml(data) {
   if (!data.canEdit) {
     return '<span class="actions-none" aria-hidden="true">—</span>';
@@ -137,13 +174,13 @@ function renderRows() {
     // data-label: the column name, shown on phones where rows become cards.
     row.innerHTML = `
       <td data-label="Code">${escapeHtml(data.code)}</td>
-      <td class="title-cell" data-label="Title of Record">${escapeHtml(data.title)}</td>
-      <td data-label="Medium">${escapeHtml(data.medium)}</td>
-      <td data-label="Location">${escapeHtml(data.location)}</td>
+      <td class="title-cell" data-label="Title of Record">${truncHtml(data.title, true)}</td>
+      <td data-label="Medium">${mediumBadgeHtml(data.medium)}</td>
+      <td data-label="Location">${truncHtml(data.location, false)}</td>
       <td data-label="Period Covered">${escapeHtml(data.periodCovered)}</td>
       <td data-label="Filing System">${escapeHtml(data.filingSystem)}</td>
-      <td data-label="Access Control">${escapeHtml(data.accessControl)}</td>
-      <td data-label="Retention Period">${escapeHtml(data.retentionPeriod)}</td>
+      <td data-label="Access Control">${accessBadgeHtml(data.accessControl)}</td>
+      <td data-label="Retention Period">${retentionCellHtml(data)}</td>
       ${showStatusColumn ? `<td data-label="Status">${statusCellHtml(data)}</td>` : ''}
       <td data-label="Actions">${actionsCellHtml(data)}</td>
     `;
