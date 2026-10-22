@@ -1,6 +1,8 @@
 /* Completion Trend widget — weekly count of approved submissions, scoped by
    role (own work / own division / office-wide). Shared across the
-   SuperAdmin, Admin, and Employee dashboards, filled in by completion-trend.js. */
+   SuperAdmin, Admin, and Employee dashboards, filled in by completion-trend.js.
+   Rendered as a sparkline: a connected line reads as one trajectory across
+   the 8 weeks, better suited to mostly-zero data than discrete bars. */
 
 .ct-widget {
   display: flex;
@@ -14,93 +16,99 @@
 }
 
 .ct-chart {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  height: 120px;
-  padding-top: 22px; /* room for the count label above each bar */
-}
-
-/* Baseline: anchors every bar (including the zero ticks below) to a fixed
-   line instead of floating in empty space. */
-.ct-chart::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--outline-variant);
-}
-
-.ct-bar {
-  position: relative;
-  z-index: 1; /* paint above the baseline line */
-  flex: 1 1 0;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  height: 100%;
+  gap: 6px;
 }
 
-.ct-bar__count {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--on-surface);
-  margin-bottom: 4px;
-}
-/* Dim zero counts so the eye lands on real completions, not structural zeros. */
-.ct-bar--zero .ct-bar__count {
-  font-weight: 500;
-  color: var(--on-surface-variant);
-  opacity: 0.6;
-}
-
-.ct-bar__fill {
-  position: relative;
+.ct-spark {
+  display: block;
   width: 100%;
-  max-width: 28px;
-  min-height: 3px;
-  border-radius: 4px 4px 0 0;
-  background: var(--primary);
-  transition: height 0.2s ease;
+  height: 90px;
 }
 
-/* A zero week reads as a deliberate flat tick on the baseline, not an
-   ambiguous sliver that's easy to miss. */
-.ct-bar--zero .ct-bar__fill {
-  max-width: 10px;
-  height: 3px !important;
-  margin: 0 auto;
-  border-radius: 9999px;
-  background: var(--outline-variant);
+.ct-spark__baseline {
+  stroke: var(--outline-variant);
+  stroke-width: 1;
 }
 
-/* Best week in the period gets a quiet outline ring instead of a louder
-   fill color, so it reads as "the one that stands out" without competing
-   with the primary-colored bars themselves. */
-.ct-bar--peak .ct-bar__fill::before {
-  content: "";
-  position: absolute;
-  inset: -4px -6px auto -6px;
-  height: calc(100% + 8px);
-  border: 1.5px solid var(--primary);
-  border-radius: 7px 7px 0 0;
+.ct-spark__area {
+  fill: var(--primary);
+  opacity: 0.06;
+}
+
+.ct-spark__line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ct-spark__hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.ct-spark__dot {
+  fill: var(--surface-container-lowest);
+  stroke: var(--outline-variant);
+  stroke-width: 1.5;
+}
+
+/* Best week in the period gets a filled dot, a quiet ring, and its value
+   shown above it — the one point worth always labeling, since every point's
+   exact date and count is also available on hover/focus via its <title>. */
+.ct-spark__dot--peak {
+  fill: var(--primary);
+  stroke: none;
+}
+.ct-spark__ring {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.5;
   opacity: 0.35;
 }
+.ct-spark__peak-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--on-surface);
+}
 
-.ct-bar__label {
-  margin-top: 6px;
+.ct-spark__point:hover .ct-spark__dot,
+.ct-spark__point:focus-visible .ct-spark__dot {
+  stroke-width: 2;
+}
+.ct-spark__point:hover .ct-spark__dot--peak,
+.ct-spark__point:focus-visible .ct-spark__dot--peak {
+  r: 6;
+}
+.ct-spark__point:focus-visible {
+  outline: none;
+}
+.ct-spark__point:focus-visible .ct-spark__hit {
+  stroke: var(--primary);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.ct-labels {
+  display: flex;
+}
+.ct-label {
+  flex: 1;
+  min-width: 0;
   font-size: 10.5px;
   color: var(--on-surface-variant);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+}
+.ct-label--peak {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .ct-empty {
