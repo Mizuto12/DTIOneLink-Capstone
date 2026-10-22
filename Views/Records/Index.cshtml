@@ -17,9 +17,10 @@
 
 <main class="records-page" data-division="@userDivision">
 
-  <!-- Add New Entry Card -->
+  <!-- Add New Entry Card: collapsed by default — searching/reviewing records
+       is the far more common reason to be on this page than adding one. -->
   <section class="card">
-    <div class="card-header">
+    <button type="button" class="entry-toggle" id="entry-toggle-btn" aria-expanded="false" aria-controls="entry-form-body">
       <div class="card-header-left">
         <div class="icon-badge">
           <span class="material-symbols-outlined">description</span>
@@ -29,95 +30,105 @@
           <p class="card-desc" id="entry-form-desc">Fill in the details to archive a new document</p>
         </div>
       </div>
-      <span class="badge" id="entry-form-badge">NEW RECORD</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge" id="entry-form-badge">NEW RECORD</span>
+        <span class="material-symbols-outlined entry-toggle-chevron" aria-hidden="true">expand_more</span>
+      </div>
+    </button>
+
+    <div class="entry-form-body" id="entry-form-body" hidden>
+      <form id="new-entry-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" id="entry-record-id" name="recordId" value="">
+
+        <p class="section-label">Identity</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="code">Code</label>
+            <input id="code" name="code" type="text" placeholder="# e.g. DTI-REC-01" required>
+          </div>
+          <div class="field">
+            <label for="title">Title of Record</label>
+            <input id="title" data-capitalize="title" name="title" type="text" placeholder="e.g. Business Registration Logs" required>
+          </div>
+          <div class="field">
+            <label for="medium">Medium</label>
+            <select id="medium" name="medium" required data-other-input="medium-other">
+              <option value="" disabled selected>Select Medium</option>
+              <option value="Hard Copy">Hard Copy</option>
+              <option value="Electronic">Electronic</option>
+              <option value="Hard Copy/Electronic">Hard Copy/Electronic</option>
+              <option value="__other__">Other / Specify</option>
+            </select>
+            <input id="medium-other" data-capitalize="title" name="mediumOther" type="text" class="other-input" maxlength="50"
+                   placeholder="Type the Medium" aria-label="Specify medium"
+                   pattern=".*\S.*" title="Please type a value." hidden>
+          </div>
+          <div class="field">
+            <label for="location">Physical File Location</label>
+            <input id="location" data-capitalize="title" name="location" type="text" placeholder="e.g. Archive Room A, Cabinet 3, Drawer 2" required>
+          </div>
+        </div>
+
+        <p class="section-label">Classification &amp; Retention</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="period">Period Covered</label>
+            <input id="period" name="period" type="text" placeholder="e.g. 2023-2024" required>
+          </div>
+          <div class="field">
+            <label for="filing">Filing System</label>
+            <select id="filing" name="filing" required data-other-input="filing-other">
+              <option value="" disabled selected>Select Filing System</option>
+              <option value="Alphabetical/Numerical">Alphabetical/Numerical</option>
+              <option value="Chronological">Chronological</option>
+              <option value="Per Transaction">Per Transaction</option>
+              <option value="Per Activity/Project">Per Activity/Project</option>
+              <option value="Per Batch">Per Batch</option>
+              <option value="Per Bureau/Office/FG">Per Bureau/Office/FG</option>
+              <option value="Per Location">Per Location</option>
+              <option value="__other__">Other / Specify</option>
+            </select>
+            <input id="filing-other" data-capitalize="title" name="filingOther" type="text" class="other-input" maxlength="50"
+                   placeholder="Type the Filing System" aria-label="Specify filing system"
+                   pattern=".*\S.*" title="Please type a value." hidden>
+          </div>
+          <div class="field">
+            <label for="access">
+              Access Control
+              <button type="button" class="help-hint" aria-label="What does Access Control mean?" aria-expanded="false"
+                      data-help-text="Who is allowed to see or request this record: Confidential (restricted), Public Record (anyone may request it), Exclusive (named staff only), or DTI Only (internal use).">?</button>
+            </label>
+            <select id="access" name="access" required data-other-input="access-other">
+              <option value="" disabled selected>Select Access Control</option>
+              <option value="Confidential">Confidential</option>
+              <option value="Public Record">Public Record</option>
+              <option value="Exclusive">Exclusive</option>
+              <option value="DTI Only">DTI Only</option>
+              <option value="__other__">Other / Specify</option>
+            </select>
+            <input id="access-other" data-capitalize="title" name="accessOther" type="text" class="other-input" maxlength="50"
+                   placeholder="e.g. Public upon request" aria-label="Specify access control"
+                   pattern=".*\S.*" title="Please type a value." hidden>
+          </div>
+          <div class="field">
+            <label for="retention">
+              Retention Period
+              <button type="button" class="help-hint" aria-label="What does Retention Period mean?" aria-expanded="false"
+                      data-help-text="How long this record must be kept before it's due for disposal, e.g. &quot;5 Years&quot; or &quot;Permanent&quot;. The office will be reminded when this period is ending.">?</button>
+            </label>
+            <input id="retention" name="retention" type="text" placeholder="e.g. 5 Years" required>
+          </div>
+        </div>
+
+        <div class="form-actions-row">
+          <button class="btn btn-outline" type="button" id="entry-form-cancel-btn" hidden>Cancel</button>
+          <button class="commit-btn" type="submit" id="entry-form-submit-btn">
+            <span class="material-symbols-outlined">save</span> Save Entry
+          </button>
+        </div>
+      </form>
     </div>
-
-    <form id="new-entry-form">
-      @Html.AntiForgeryToken()
-      <input type="hidden" id="entry-record-id" name="recordId" value="">
-      <div class="form-grid">
-        <div class="field">
-          <label for="code">Code</label>
-          <input id="code" name="code" type="text" placeholder="# e.g. DTI-REC-01" required>
-        </div>
-        <div class="field">
-          <label for="title">Title of Record</label>
-          <input id="title" data-capitalize="title" name="title" type="text" placeholder="e.g. Business Registration Logs" required>
-        </div>
-        <div class="field">
-          <label for="medium">Medium</label>
-          <select id="medium" name="medium" required data-other-input="medium-other">
-            <option value="" disabled selected>Select Medium</option>
-            <option value="Hard Copy">Hard Copy</option>
-            <option value="Electronic">Electronic</option>
-            <option value="Hard Copy/Electronic">Hard Copy/Electronic</option>
-            <option value="__other__">Other / Specify</option>
-          </select>
-          <input id="medium-other" data-capitalize="title" name="mediumOther" type="text" class="other-input" maxlength="50"
-                 placeholder="Type the Medium" aria-label="Specify medium"
-                 pattern=".*\S.*" title="Please type a value." hidden>
-        </div>
-        <div class="field">
-          <label for="location">Physical File Location</label>
-          <input id="location" data-capitalize="title" name="location" type="text" placeholder="e.g. Archive Room A, Cabinet 3, Drawer 2" required>
-        </div>
-      </div>
-
-      <div class="form-row-actions">
-        <div class="field">
-          <label for="period">Period Covered</label>
-          <input id="period" name="period" type="text" placeholder="e.g. 2023-2024" required>
-        </div>
-        <div class="field">
-          <label for="filing">Filing System</label>
-          <select id="filing" name="filing" required data-other-input="filing-other">
-            <option value="" disabled selected>Select Filing System</option>
-            <option value="Alphabetical/Numerical">Alphabetical/Numerical</option>
-            <option value="Chronological">Chronological</option>
-            <option value="Per Transaction">Per Transaction</option>
-            <option value="Per Activity/Project">Per Activity/Project</option>
-            <option value="Per Batch">Per Batch</option>
-            <option value="Per Bureau/Office/FG">Per Bureau/Office/FG</option>
-            <option value="Per Location">Per Location</option>
-            <option value="__other__">Other / Specify</option>
-          </select>
-          <input id="filing-other" data-capitalize="title" name="filingOther" type="text" class="other-input" maxlength="50"
-                 placeholder="Type the Filing System" aria-label="Specify filing system"
-                 pattern=".*\S.*" title="Please type a value." hidden>
-        </div>
-        <div class="field">
-          <label for="access">
-            Access Control
-            <button type="button" class="help-hint" aria-label="What does Access Control mean?" aria-expanded="false"
-                    data-help-text="Who is allowed to see or request this record: Confidential (restricted), Public Record (anyone may request it), Exclusive (named staff only), or DTI Only (internal use).">?</button>
-          </label>
-          <select id="access" name="access" required data-other-input="access-other">
-            <option value="" disabled selected>Select Access Control</option>
-            <option value="Confidential">Confidential</option>
-            <option value="Public Record">Public Record</option>
-            <option value="Exclusive">Exclusive</option>
-            <option value="DTI Only">DTI Only</option>
-            <option value="__other__">Other / Specify</option>
-          </select>
-          <input id="access-other" data-capitalize="title" name="accessOther" type="text" class="other-input" maxlength="50"
-                 placeholder="e.g. Public upon request" aria-label="Specify access control"
-                 pattern=".*\S.*" title="Please type a value." hidden>
-        </div>
-        <button class="btn btn-outline" type="button" id="entry-form-cancel-btn" hidden>Cancel</button>
-        <button class="commit-btn" type="submit" id="entry-form-submit-btn">
-          <span class="material-symbols-outlined">save</span> Save Entry
-        </button>
-      </div>
-
-      <div class="field" style="max-width: 260px; margin-top: 16px;">
-        <label for="retention">
-          Retention Period
-          <button type="button" class="help-hint" aria-label="What does Retention Period mean?" aria-expanded="false"
-                  data-help-text="How long this record must be kept before it's due for disposal, e.g. &quot;5 Years&quot; or &quot;Permanent&quot;. The office will be reminded when this period is ending.">?</button>
-        </label>
-        <input id="retention" name="retention" type="text" placeholder="e.g. 5 Years" required>
-      </div>
-    </form>
   </section>
 
   <!-- Recent Submissions Card -->
@@ -205,24 +216,25 @@
       <table>
         <thead>
           <tr>
-            <th>Code</th>
-            <th>Title</th>
-            <th>Medium</th>
-            <th title="Physical File Location">Location</th>
-            <th title="Period Covered">Period</th>
-            <th title="Filing System">Filing</th>
-            <th title="Access Control">Access</th>
-            <th title="Retention Period">Retention</th>
+            <th class="rownum-col">#</th>
+            <th class="code-col">Code</th>
+            <th class="title-col">Title</th>
+            <th class="medium-col">Medium</th>
+            <th class="location-col" title="Physical File Location">Location</th>
+            <th class="period-col" title="Period Covered">Period</th>
+            <th class="filing-col" title="Filing System">Filing</th>
+            <th class="access-col" title="Access Control">Access</th>
+            <th class="retention-col" title="Retention Period">Retention</th>
             @if (ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true)
             {
-              <th>Status</th>
+              <th class="status-col">Status</th>
             }
-            <th>Actions</th>
+            <th class="actions-col">Actions</th>
           </tr>
         </thead>
         <tbody id="submissions-body" aria-busy="true" data-can-manage="@(ViewBag.CanManageRecords == true ? "true" : "false")" data-can-approve="@(ViewBag.CanApproveRecords == true ? "true" : "false")">
           @* Placeholders until records.js loads the real rows. *@
-          @{ var skeletonCols = (ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true) ? 10 : 9; }
+          @{ var skeletonCols = ((ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true) ? 10 : 9) + 1; }
           @for (var i = 0; i < 3; i++)
           {
             <tr class="skeleton-row" aria-hidden="true">

@@ -43,17 +43,14 @@ function getCsrfToken() {
   return input ? input.value : '';
 }
 
-// Enable tonal hover effect on a row
+// Enable tonal hover effect on a row. The Retention cell carries its own
+// conditional-formatting fill (see retentionCellHtml) and keeps it on hover.
 function attachHoverEffect(row) {
-  // Rows coloured as a retention reminder keep their colour on hover.
-  if (row.classList.contains('retention-due-soon') || row.classList.contains('retention-ended')) {
-    return;
-  }
   row.addEventListener('mouseenter', () => {
-    row.querySelectorAll('td').forEach(td => { td.style.background = '#ffffff'; });
+    row.querySelectorAll('td:not(.retention-td)').forEach(td => { td.style.background = '#ffffff'; });
   });
   row.addEventListener('mouseleave', () => {
-    row.querySelectorAll('td').forEach(td => { td.style.background = ''; });
+    row.querySelectorAll('td:not(.retention-td)').forEach(td => { td.style.background = ''; });
   });
 }
 
@@ -112,13 +109,24 @@ function accessBadgeHtml(access) {
   return `<span class="badge ${accessToneClass(access)}">${escapeHtml(access)}</span>`;
 }
 
-// Retention gets an icon alongside the row's existing due-soon/ended color
-// tint, so that signal isn't carried by background color alone.
-function retentionCellHtml(data) {
+// Retention's tone (ok/due-soon/ended) drives both the icon and the cell's
+// conditional-formatting-style fill (applied to the <td> itself — see
+// retentionCellHtml and renderRows).
+function retentionTone(data) {
   const state = data.retentionState;
-  const icon = state === 'ended' ? 'warning' : state === 'due-soon' ? 'schedule' : 'check_circle';
-  const tone = state === 'ended' ? 'retention-over' : state === 'due-soon' ? 'retention-soon' : 'retention-ok';
-  return `<span class="retention-cell ${tone}"><span class="material-symbols-outlined" aria-hidden="true">${icon}</span>${escapeHtml(data.retentionPeriod)}</span>`;
+  return state === 'ended' ? 'retention-over' : state === 'due-soon' ? 'retention-soon' : 'retention-ok';
+}
+
+// Retention's free-text wording can run very long ("5 years after contract
+// of winner had been terminated/settled, others are disposed after 1
+// year") — truncate with an ellipsis and keep the full text on hover
+// (the same pattern truncHtml already uses for Title/Location) instead of
+// letting it blow out the row height.
+function retentionCellHtml(data) {
+  const tone = retentionTone(data);
+  const icon = tone === 'retention-over' ? 'warning' : tone === 'retention-soon' ? 'schedule' : 'check_circle';
+  const esc = escapeHtml(data.retentionPeriod);
+  return `<span class="retention-cell ${tone}"><span class="material-symbols-outlined" aria-hidden="true">${icon}</span><span class="trunc trunc-retention" title="${esc}">${esc}</span></span>`;
 }
 
 // Title and Location can run long; truncate with an ellipsis and keep the
@@ -153,7 +161,7 @@ function renderRows() {
   if (legend) {
     legend.hidden = true;
   }
-  const colCount = showStatusColumn ? 10 : 9;
+  const colCount = (showStatusColumn ? 10 : 9) + 1; // +1 for the row-number column
 
   if (entries.length === 0) {
     const emptyRow = document.createElement('tr');
@@ -168,30 +176,31 @@ function renderRows() {
   const start = (currentPage - 1) * PAGE_SIZE;
   const pageEntries = entries.slice(start, start + PAGE_SIZE);
 
-  pageEntries.forEach(data => {
+  pageEntries.forEach((data, idx) => {
     const row = document.createElement('tr');
     row.className = 'pill-row';
+    const rowNumber = start + idx + 1;
+    const retentionTd = retentionTone(data);
     // data-label: the column name, shown on phones where rows become cards.
     row.innerHTML = `
-      <td data-label="Code">${escapeHtml(data.code)}</td>
+      <td class="rownum-cell">${rowNumber}</td>
+      <td class="code-cell" data-label="Code">${escapeHtml(data.code)}</td>
       <td class="title-cell" data-label="Title of Record">${truncHtml(data.title, true)}</td>
       <td data-label="Medium">${mediumBadgeHtml(data.medium)}</td>
       <td data-label="Location">${truncHtml(data.location, false)}</td>
       <td data-label="Period Covered">${escapeHtml(data.periodCovered)}</td>
       <td data-label="Filing System">${escapeHtml(data.filingSystem)}</td>
       <td data-label="Access Control">${accessBadgeHtml(data.accessControl)}</td>
-      <td data-label="Retention Period">${retentionCellHtml(data)}</td>
+      <td class="retention-td ${retentionTd}" data-label="Retention Period">${retentionCellHtml(data)}</td>
       ${showStatusColumn ? `<td data-label="Status">${statusCellHtml(data)}</td>` : ''}
       <td data-label="Actions">${actionsCellHtml(data)}</td>
     `;
-    // Reminder colour (decided on the server): yellow when the retention
-    // period ends within 6 months, red once it has ended. The legend under
-    // the table explains the colours; the hover text says the same thing.
+    // Reminder (decided on the server): the Retention cell's own fill above
+    // already shows yellow when the period ends within 6 months and red
+    // once it has ended; the row keeps the same wording as a hover tooltip.
     if (data.retentionState === 'due-soon') {
-      row.classList.add('retention-due-soon');
       row.title = 'Retention ends within 6 months';
     } else if (data.retentionState === 'ended') {
-      row.classList.add('retention-ended');
       row.title = 'Retention period has ended — review for disposal';
     }
     // Records managers also receive the exact date.
@@ -277,6 +286,7 @@ function beginEdit(recordId) {
   submitBtn.innerHTML = '<span class="material-symbols-outlined">save</span> Update Entry';
   document.getElementById('entry-form-cancel-btn').hidden = false;
 
+  expandEntryForm();
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -293,6 +303,33 @@ function cancelEdit() {
 const cancelEditBtn = document.getElementById('entry-form-cancel-btn');
 if (cancelEditBtn) {
   cancelEditBtn.addEventListener('click', cancelEdit);
+}
+
+// Add New Entry: collapsed by default (searching/reviewing records is the
+// far more common reason to be on this page than adding one).
+const entryToggleBtn = document.getElementById('entry-toggle-btn');
+const entryFormBody = document.getElementById('entry-form-body');
+
+function expandEntryForm() {
+  if (!entryToggleBtn || !entryFormBody) return;
+  entryToggleBtn.setAttribute('aria-expanded', 'true');
+  entryFormBody.hidden = false;
+}
+
+function collapseEntryForm() {
+  if (!entryToggleBtn || !entryFormBody) return;
+  entryToggleBtn.setAttribute('aria-expanded', 'false');
+  entryFormBody.hidden = true;
+}
+
+if (entryToggleBtn) {
+  entryToggleBtn.addEventListener('click', () => {
+    if (entryFormBody.hidden) {
+      expandEntryForm();
+    } else {
+      collapseEntryForm();
+    }
+  });
 }
 
 async function handleDelete(btn) {
@@ -824,8 +861,11 @@ function renderMasterlists(items) {
          </button>`;
     li.innerHTML = `
       <div class="masterlist-info">
-        <div class="masterlist-name" data-name-text>${escapeHtml(item.fileName)}${item.isOpen ? '<span class="masterlist-open-tag">Adding records</span>' : ''}</div>
-        <div class="masterlist-meta">Last saved ${escapeHtml(item.savedAt)} · ${item.recordCount} ${recordWord}</div>
+        <span class="xlsx-chip"><span class="material-symbols-outlined" aria-hidden="true">description</span>XLSX</span>
+        <div>
+          <div class="masterlist-name" data-name-text>${escapeHtml(item.fileName)}${item.isOpen ? '<span class="masterlist-open-tag">Adding records</span>' : ''}</div>
+          <div class="masterlist-meta">Last saved ${escapeHtml(item.savedAt)} · ${item.recordCount} ${recordWord}</div>
+        </div>
       </div>
       <div class="masterlist-actions">
         <button class="btn btn-icon" type="button" data-rename="${item.id}" aria-label="Rename ${escapeHtml(item.fileName)}" title="Rename">
@@ -834,8 +874,9 @@ function renderMasterlists(items) {
         <button class="btn btn-icon" type="button" data-print="${item.id}" aria-label="Print ${escapeHtml(item.fileName)}" title="Print">
           <span class="material-symbols-outlined">print</span>
         </button>
+        <div class="actions-divider" aria-hidden="true"></div>
         ${addButton}
-        <a class="btn btn-outline" href="/Records/DownloadMasterlist?id=${encodeURIComponent(item.id)}" data-download="${item.id}">
+        <a class="btn btn-primary" href="/Records/DownloadMasterlist?id=${encodeURIComponent(item.id)}" data-download="${item.id}">
           <span class="material-symbols-outlined">download</span> Download
         </a>
       </div>`;

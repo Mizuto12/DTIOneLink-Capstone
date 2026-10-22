@@ -239,12 +239,51 @@
   padding-right: 36px;
 }
 
-.records-page .form-row-actions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr) auto;
-  gap: 16px;
-  align-items: end;
+/* Buttons live in their own row, never a grid track shared with a field —
+   a field whose "Other / Specify" box opens grows taller, and a shared
+   bottom-aligned row would drag the buttons down with it. */
+.records-page .form-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 4px;
 }
+
+.records-page .section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  margin: 4px 0 2px;
+}
+
+/* ---------- Add New Entry: collapsed by default ----------
+   Searching/reviewing records is the far more common reason to be on this
+   page than adding one; the form no longer has to be the first full-height
+   thing in the way of that. */
+.records-page .entry-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.records-page .entry-toggle-chevron {
+  color: var(--on-surface-variant);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.records-page .entry-form-body[hidden] { display: none; }
+.records-page .entry-toggle[aria-expanded="true"] .entry-toggle-chevron { transform: rotate(180deg); }
+.records-page .entry-form-body { margin-top: 20px; }
 
 .records-page .commit-btn {
   display: inline-flex;
@@ -277,26 +316,46 @@
   to { transform: rotate(360deg); }
 }
 
-/* ---------- Table ---------- */
+/* ---------- Table: Excel-style grid ----------
+   Real gridlines, a frozen # + Code + Title ("Freeze Panes" — the same
+   habit a daily Excel user already has, since this page's whole workflow
+   round-trips through Excel via Save/Import Masterlist), row numbers,
+   zebra striping, and conditional-formatting-style fills on Retention
+   instead of a pill-shaped row with no visible cell structure. */
 .records-page .table-wrapper {
-  overflow-x: auto;
+  overflow: auto;
+  border: 1px solid var(--outline-variant);
+  border-radius: 14px;
 }
 
 .records-page table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 8px;
+  border-collapse: collapse;
+  /* Fixed layout + explicit widths on the three frozen columns, so their
+     sticky left offsets (below) line up exactly regardless of content —
+     an auto-sized Code column could otherwise run wider than the Title
+     column's assumed offset and let the next column's text bleed through
+     under it while scrolled. */
+  table-layout: fixed;
 }
 
 .records-page thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   text-align: left;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--on-surface-variant);
-  padding: 0 12px 6px;
+  background: var(--surface-container);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--outline-variant);
+  border-right: 1px solid var(--outline-variant);
+  white-space: nowrap;
 }
+.records-page thead th:last-child { border-right: none; }
 .records-page thead th[title] {
   text-decoration: underline dotted var(--outline-variant);
   text-underline-offset: 3px;
@@ -304,24 +363,76 @@
 }
 
 .records-page tbody td {
-  background: var(--surface-container-low);
+  background: var(--surface);
   font-size: 13px;
   padding: 9px 12px;
+  border-bottom: 1px solid var(--outline-variant);
+  border-right: 1px solid var(--outline-variant);
   transition: background 0.15s ease;
 }
+.records-page tbody td:last-child { border-right: none; }
 
-.records-page tbody td:first-child {
-  border-top-left-radius: var(--radius-full);
-  border-bottom-left-radius: var(--radius-full);
+.records-page tbody tr:nth-child(even) td { background: var(--surface-container-low); }
+
+/* Row number — Excel's own row gutter. */
+.records-page td.rownum-cell, .records-page th.rownum-col {
+  width: 34px;
+  text-align: center;
+  color: var(--on-surface-variant);
+  font-weight: 600;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface-container);
+}
+.records-page thead th.rownum-col { z-index: 4; }
+.records-page tbody tr:nth-child(even) td.rownum-cell { background: var(--surface-container); }
+
+/* Frozen Code + Title: scrolling right to check Filing or Access never
+   loses track of which record the row belongs to. Widths are explicit
+   (table-layout: fixed above) so these left offsets — 34px (row number)
+   and 34+120=154px — stay accurate no matter how long a given code is. */
+.records-page td.code-cell, .records-page th.code-col {
+  width: 120px;
+  position: sticky;
+  left: 34px;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--outline-variant);
   color: var(--primary);
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap; /* a record code is a short identifier; never wrap it mid-code */
 }
+.records-page thead th.code-col { background: var(--surface-container); z-index: 4; }
+.records-page tbody tr:nth-child(even) td.code-cell { background: var(--surface-container-low); }
 
-.records-page tbody td:last-child {
-  border-top-right-radius: var(--radius-full);
-  border-bottom-right-radius: var(--radius-full);
+.records-page td.title-cell, .records-page th.title-col {
+  width: 200px;
+  position: sticky;
+  left: 154px;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: 2px 0 0 var(--outline-variant);
+  font-weight: 600;
 }
+.records-page thead th.title-col { background: var(--surface-container); z-index: 4; }
+.records-page tbody tr:nth-child(even) td.title-cell { background: var(--surface-container-low); }
+
+/* Explicit widths for every remaining column: table-layout: fixed (above)
+   only distributes space sensibly when told how — left to its own devices
+   it divides the leftover width equally and Location/Period/Filing text
+   start overlapping. Columns stay this width and the wrapper scrolls
+   rather than everything being squeezed to fit the viewport. */
+.records-page th.medium-col    { width: 118px; }
+.records-page th.location-col  { width: 190px; }
+.records-page th.period-col    { width: 96px; }
+.records-page th.filing-col    { width: 150px; }
+.records-page th.access-col    { width: 118px; }
+.records-page th.retention-col { width: 230px; }
+.records-page th.status-col    { width: 180px; }
+.records-page th.actions-col   { width: 96px; }
 
 /* Title and Location can run long; this clips with an ellipsis and keeps
    the full text on hover (title attribute) instead of forcing the column
@@ -334,8 +445,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+  cursor: help;
 }
-.records-page .trunc.trunc-wide { max-width: 230px; }
+.records-page .trunc.trunc-wide { max-width: 176px; }
+
+/* Retention's own free-text legal wording can run very long ("5 years
+   after contract of winner had been terminated/settled, others are
+   disposed after 1 year") — this used to render unclipped inline and blow
+   the row height out far past every other row. Same truncate-plus-hover
+   pattern as Title/Location now applies here too. */
+.records-page .trunc.trunc-retention { max-width: 200px; }
 
 /* Compact badges for the enum-like columns (Medium, Access Control), freeing
    width for Title and Location, which actually need it. */
@@ -360,21 +479,24 @@
 .records-page .access-dti          { background: #dbeafe; color: #1e40af; }
 .records-page .access-other        { background: var(--surface-container); color: var(--on-surface-variant); }
 
-/* Retention pairs an icon with the row's existing due-soon/ended color tint,
-   so that signal isn't carried by background color alone. */
+/* Retention: a conditional-formatting-style cell fill (the same signal the
+   row used to carry as a whole-row tint, applied where it reads clearest —
+   the cell itself) plus an icon, so the signal isn't color alone. */
 .records-page .retention-cell {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
-.records-page .retention-cell .material-symbols-outlined { font-size: 15px; }
+.records-page .retention-cell .material-symbols-outlined { font-size: 15px; flex-shrink: 0; }
 .records-page .retention-ok .material-symbols-outlined { color: #16a34a; }
 .records-page .retention-soon .material-symbols-outlined { color: #b45309; }
 .records-page .retention-over .material-symbols-outlined { color: #dc2626; }
-
-.records-page tbody td.title-cell {
-  font-weight: 600;
-}
+.records-page td.retention-td.retention-ok   { background: #e9f9ee; }
+.records-page td.retention-td.retention-soon { background: #fff6d9; }
+.records-page td.retention-td.retention-over { background: #fde8e8; }
+.records-page tbody tr:nth-child(even) td.retention-td.retention-ok   { background: #e3f6ea; }
+.records-page tbody tr:nth-child(even) td.retention-td.retention-soon { background: #fef2c7; }
+.records-page tbody tr:nth-child(even) td.retention-td.retention-over { background: #fbdcdc; }
 
 .records-page .empty-row td.empty-state {
   background: transparent;
@@ -462,18 +584,18 @@
 }
 
 @media (max-width: 800px) {
-  .records-page .form-grid,
-  .records-page .form-row-actions {
+  .records-page .form-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 480px) {
-  .records-page .form-grid,
-  .records-page .form-row-actions {
+  .records-page .form-grid {
     grid-template-columns: 1fr;
   }
-  .records-page .commit-btn { width: 100%; }
+  .records-page .form-actions-row { flex-direction: column-reverse; }
+  .records-page .form-actions-row .btn,
+  .records-page .form-actions-row .commit-btn { width: 100%; justify-content: center; }
 }
 
 /* ---------- Search / filter toolbar (Recent Submissions) ---------- */
@@ -503,16 +625,12 @@
 .records-page .field .other-input { margin-top: 8px; }
 .records-page .field .other-input[hidden] { display: none; }
 
-/* Keep the row's inputs lined up at the top when a field grows to show
-   its "specify" box; the Save button stays at the bottom. */
-.records-page .form-row-actions > .field { align-self: start; }
-
 /* ---------- Retention reminder colours (as DTI asked) ----------
    Yellow: retention ends within 6 months. Red: retention has ended.
-   Reminder only — nothing is disposed of by the system. */
-.records-page tbody tr.retention-due-soon td { background: #fef3c7; }
-.records-page tbody tr.retention-ended td { background: #fee2e2; }
-.records-page tbody tr.retention-ended td:first-child { color: #b91c1c; }
+   Reminder only — nothing is disposed of by the system. Carried by the
+   Retention cell's own conditional-formatting-style fill (see the Table
+   section above) rather than a whole-row tint, which used to fight the
+   grid's zebra striping and frozen-column backgrounds. */
 
 .records-page .retention-legend {
   display: flex;
@@ -714,25 +832,54 @@
   font-size: 14px;
 }
 
-.records-page .masterlist-list .masterlist-info { min-width: 0; }
+.records-page .masterlist-list .masterlist-info { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .records-page .masterlist-list .masterlist-name { font-weight: 600; }
 .records-page .masterlist-list .masterlist-meta { color: var(--on-surface-variant); font-size: 13px; }
 .records-page .masterlist-list .btn { text-decoration: none; }
+.records-page .masterlist-list .masterlist-actions { display: flex; align-items: center; gap: 6px; }
 
+/* An honest callback to the table's own Excel-grid identity — the saved
+   file really is an .xlsx, so this says so at a glance. */
+.records-page .masterlist-list .xlsx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e7f6ec;
+  color: #16a34a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 3px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.records-page .masterlist-list .xlsx-chip .material-symbols-outlined { font-size: 13px; }
+
+/* 44px: this project's own touch-target minimum. Rename/Print were 36px. */
 .records-page .masterlist-list .btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--outline-variant, #d9d9e3);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface, #fff);
   color: var(--on-surface-variant);
   cursor: pointer;
 }
 .records-page .masterlist-list .btn-icon:hover { background: var(--surface-container-low); color: var(--primary); }
+
+/* Separates the two quick file actions (Rename, Print) from the two that
+   matter (Add Records, Download), so the row doesn't read as four equal
+   buttons in a line. */
+.records-page .masterlist-list .actions-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--outline-variant);
+  margin: 0 4px;
+}
 
 .records-page .masterlist-list li.masterlist-empty {
   background: transparent;
@@ -789,19 +936,38 @@
     border-radius: 16px;
     background: var(--surface-container-low);
   }
-  .records-page tbody tr.pill-row.retention-due-soon { background: #fef3c7; }
-  .records-page tbody tr.pill-row.retention-ended    { background: #fee2e2; }
 
+  /* The frozen-column/row-number grid is a desktop-density trick; phone
+     cards have no horizontal scroll to freeze against, so every cell goes
+     back to being a plain block and the row-number column just disappears. */
+  .records-page tbody tr.pill-row td.rownum-cell { display: none; }
   .records-page tbody tr.pill-row td {
     display: block;
+    position: static;
     padding: 0;
+    border: none;
     border-radius: 0;
-    background: transparent !important; /* the card carries the colour */
+    background: transparent !important; /* the card itself carries no colour; the Retention cell keeps its own fill below */
     min-width: 0;
     overflow-wrap: anywhere;
     white-space: normal; /* the Code column's nowrap (desktop) would overflow a narrow phone card */
   }
   .records-page tbody tr.pill-row td.title-cell { grid-column: 1 / -1; font-size: 15px; }
+
+  /* Retention keeps its conditional-formatting fill as a small chip inside
+     the card — the one signal worth carrying over from the desktop grid. */
+  .records-page tbody tr.pill-row td.retention-td {
+    grid-column: 1 / -1;
+    background: transparent !important;
+  }
+  .records-page tbody tr.pill-row td.retention-td .retention-cell {
+    display: inline-flex;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+  }
+  .records-page tbody tr.pill-row td.retention-td.retention-ok   .retention-cell { background: #e9f9ee; }
+  .records-page tbody tr.pill-row td.retention-td.retention-soon .retention-cell { background: #fff6d9; }
+  .records-page tbody tr.pill-row td.retention-td.retention-over .retention-cell { background: #fde8e8; }
 
   /* Truncation is a desktop-density trick; phone cards have room to spare,
      so Title and Location wrap in full instead of clipping. */
