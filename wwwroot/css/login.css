@@ -786,3 +786,28 @@ html, body {
     .login-title.change-password-title { font-size: 30px; }
     .code-input { letter-spacing: 8px; }
 }
+
+/* A short form (one field + button, e.g. Forgot Password) in the same tall
+   card built for denser ones (Login, Set Password) reads as top-packed
+   with awkward leftover space below it — flex:1 still fills the card's
+   height, but margins between flex children don't collapse the way block
+   layout's do, so they also just ADD instead of merging into one sensible
+   gap. gap: replaces that margin math with one deliberate value, and
+   centering the (now tightly-grouped) content turns the extra room into
+   intentional breathing space instead of a stray gap in the middle.
+   Placed last so it reliably wins over the breakpoint rules above at
+   every viewport width, not just desktop. */
+.compact-form {
+    justify-content: center;
+    gap: 20px;
+}
+.compact-form .change-password-note {
+    margin-bottom: 0;
+}
+.compact-form .field-group,
+.compact-form .field-group:first-of-type {
+    margin: 0;
+}
+.compact-form .btn-login {
+    margin-top: 4px;
+}
