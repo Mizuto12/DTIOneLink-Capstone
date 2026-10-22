@@ -294,6 +294,17 @@
     border-color: var(--tone);
     background: var(--tone-soft);
 }
+/* Expanded state reads as "close this back up" rather than "reveal more":
+   solid border instead of dashed, no tone tint on hover. */
+.sa-show-more.is-expanded {
+    border-style: solid;
+    color: var(--on-surface-variant);
+}
+.sa-show-more.is-expanded:hover,
+.sa-show-more.is-expanded:focus-visible {
+    border-color: var(--on-surface-variant);
+    background: var(--surface-container-low);
+}
 
 .sa-col__empty {
     margin: 0;

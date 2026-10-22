@@ -109,10 +109,13 @@
 
                 var moreBtn = col.querySelector(".sa-show-more");
                 if (moreBtn) {
-                    var remaining = matching.length - limit;
-                    moreBtn.hidden = expanded || remaining <= 0;
-                    if (!moreBtn.hidden) {
-                        moreBtn.textContent = "Show " + remaining + " more";
+                    var hasOverflow = matching.length > BOARD_CARD_LIMIT;
+                    moreBtn.hidden = !hasOverflow;
+                    if (hasOverflow) {
+                        moreBtn.textContent = expanded
+                            ? "Show less"
+                            : "Show " + (matching.length - BOARD_CARD_LIMIT) + " more";
+                        moreBtn.classList.toggle("is-expanded", expanded);
                     }
                 }
             });
@@ -137,8 +140,12 @@
             var moreBtn = col.querySelector(".sa-show-more");
             if (!moreBtn) return;
             moreBtn.addEventListener("click", function () {
-                col.dataset.expanded = "true";
+                var wasExpanded = col.dataset.expanded === "true";
+                col.dataset.expanded = wasExpanded ? "false" : "true";
                 apply(currentDivision);
+                if (wasExpanded) {
+                    col.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }
             });
         });
 
