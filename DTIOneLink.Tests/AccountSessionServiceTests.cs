@@ -95,8 +95,8 @@ public class AccountSessionServiceTests
         Assert.NotNull(user.RememberTokenHash);
         Assert.NotEmpty(user.RememberTokenHash);
         Assert.NotNull(user.RememberTokenExpiresUtc);
-        Assert.True(user.RememberTokenExpiresUtc > DateTime.UtcNow.AddHours(11));
-        Assert.True(user.RememberTokenExpiresUtc <= DateTime.UtcNow.AddHours(12));
+        Assert.True(user.RememberTokenExpiresUtc > DateTime.UtcNow.AddDays(6).AddHours(23));
+        Assert.True(user.RememberTokenExpiresUtc <= DateTime.UtcNow.AddDays(7));
 
         var setCookie = httpContext.Response.Headers.SetCookie.ToString();
         Assert.Contains($"{AccountSessionService.CookieName}={user.Id}.", setCookie);

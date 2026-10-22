@@ -31,10 +31,14 @@ namespace DTIOneLink.Security
 
         // "Remember this device" cookie lifetime on the login-OTP step, and
         // how long the token it names stays valid for in the database — the
-        // two are always set together. Short and OTP-only on purpose: the
-        // password is still required every time, this only skips the
-        // emailed code on a browser the user just proved they're using.
-        public static readonly TimeSpan TrustedDeviceDuration = TimeSpan.FromHours(12);
+        // two are always set together. OTP-only on purpose: the password is
+        // still required every time, this only skips the emailed code on a
+        // browser the user just proved they're using. One work week: long
+        // enough to actually cut daily friction, short enough to bound the
+        // exposure if a device is ever lost or improperly shared, given this
+        // system holds records up to "Confidential" and the office has no
+        // IT staff to react quickly if that happens.
+        public static readonly TimeSpan TrustedDeviceDuration = TimeSpan.FromDays(7);
 
         // Common passwords refused as a new password (NIST SP 800-63B asks
         // for a check against commonly used values). Compared ignoring case.

@@ -8,7 +8,13 @@
     Layout = "_AuthLayout";
     ViewData["Title"] = isLogin ? "Verify It's You" : "Verify Email";
     var minutes = (int)DTIOneLink.Security.AccountDefaults.CodeLifetime.TotalMinutes;
-    var trustedHours = (int)DTIOneLink.Security.AccountDefaults.TrustedDeviceDuration.TotalHours;
+    var trustedDuration = DTIOneLink.Security.AccountDefaults.TrustedDeviceDuration;
+    // Reads naturally whether this is tuned in hours or days — "12 hours"
+    // and "7 days" both come out right, without a future duration change
+    // here ever needing a matching copy change.
+    var trustedDurationText = trustedDuration.TotalHours < 24
+        ? $"{(int)trustedDuration.TotalHours} hours"
+        : $"{(int)trustedDuration.TotalDays} day{((int)trustedDuration.TotalDays == 1 ? "" : "s")}";
     var resendSeconds = (int)DTIOneLink.Security.AccountDefaults.CodeResendDelay.TotalSeconds;
     var verifyAction = isLogin ? "VerifyLoginCode" : "VerifyEmail";
     var resendAction = isLogin ? "ResendLoginCode" : "ResendVerifyEmail";
@@ -59,7 +65,7 @@
                 <input type="checkbox" asp-for="RememberDevice" />
                 <span>Remember this device</span>
             </label>
-            <p class="remember-device-hint">Skip the code on this browser for the next @trustedHours hours. Don't use on shared computers.</p>
+            <p class="remember-device-hint">Skip the code on this browser for the next @trustedDurationText. Don't use on shared computers.</p>
         </div>
     }
 

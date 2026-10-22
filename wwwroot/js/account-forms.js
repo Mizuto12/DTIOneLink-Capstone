@@ -18,11 +18,20 @@
             });
         });
 
-        // Code box: digits only, so a pasted "123 456" still works.
+        // Code box: digits only, so a pasted "123 456" still works. Once all
+        // 6 digits are in (typed or pasted), submit automatically — the
+        // expected behavior for a one-time-code field, and one fewer tap for
+        // someone who just switched back from their email app.
         var codeInput = document.querySelector(".code-input");
         if (codeInput) {
             codeInput.addEventListener("input", function () {
                 codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);
+                if (codeInput.value.length === 6) {
+                    var form = codeInput.closest("form");
+                    if (form) {
+                        form.requestSubmit ? form.requestSubmit() : form.submit();
+                    }
+                }
             });
         }
 
