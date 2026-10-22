@@ -18,10 +18,18 @@ namespace DTIOneLink.Controllers
             _db = db;
         }
 
-        // Rows per page. Logs are grouped by day for display (see Index.cshtml),
-        // so a day's sessions can span a page boundary — the same tradeoff
-        // Records' table makes by paging rows rather than logical groups.
-        private const int PageSize = 15;
+        // Days per page. Index.cshtml groups logs into one card per calendar
+        // day, so pagination has to happen at the day level too — paging by
+        // row count instead let a single day's sessions straddle a page
+        // boundary, splitting it into two cards with the same date on
+        // different pages. Paging here by whole days makes that impossible.
+        private const int DaysPerPage = 7;
+
+        // Upper bound on rows pulled into memory for grouping (below), not a
+        // display limit — the oldest rows beyond it are simply never seen.
+        // Generous for how this app is actually used; revisit if a single
+        // account's history genuinely grows past it.
+        private const int MaxRowsConsidered = 1000;
 
         // from/to are calendar dates in the office's time zone (Philippine),
         // same as the date picker shows — converted to UTC bounds against
@@ -45,21 +53,33 @@ namespace DTIOneLink.Controllers
                 query = query.Where(t => t.TimeInUtc < toUtc);
             }
 
-            var totalCount = await query.CountAsync();
-            var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
-            page = Math.Clamp(page, 1, totalPages);
-
             var logs = await query
                 .OrderByDescending(t => t.TimeInUtc)
-                .Skip((page - 1) * PageSize)
-                .Take(PageSize)
+                .Take(MaxRowsConsidered)
                 .ToListAsync();
+
+            // Group by Philippine calendar date — the same key Index.cshtml
+            // groups by for display — so a "page" below means whole days,
+            // never a day cut in half.
+            var dayGroups = logs
+                .GroupBy(t => TimeZoneHelper.ToPhilippineTime(t.TimeInUtc).Date)
+                .OrderByDescending(g => g.Key)
+                .ToList();
+
+            var totalPages = Math.Max(1, (int)Math.Ceiling(dayGroups.Count / (double)DaysPerPage));
+            page = Math.Clamp(page, 1, totalPages);
+
+            var pageLogs = dayGroups
+                .Skip((page - 1) * DaysPerPage)
+                .Take(DaysPerPage)
+                .SelectMany(g => g)
+                .ToList();
 
             ViewBag.FromDate = from?.ToString("yyyy-MM-dd");
             ViewBag.ToDate = to?.ToString("yyyy-MM-dd");
             ViewBag.Page = page;
             ViewBag.TotalPages = totalPages;
-            return View(logs);
+            return View(pageLogs);
         }
     }
 }

@@ -384,6 +384,10 @@
     letter-spacing: 0.02em;
     padding: 4px 12px;
     border-radius: var(--radius-full);
+    /* Occupies the same slot a "Time Out" + duration pill would on a
+       completed session, so it lands on the same right edge instead of
+       sitting wherever it falls right after the arrow. */
+    margin-left: auto;
 }
 
 .time-logs-page .badge-active {
