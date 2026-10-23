@@ -25,6 +25,15 @@
         ? task.Assignments?.FirstOrDefault(a => a.UserId == viewerId.Value)
         : null;
 
+    // Same condition the "Assigned Employees" card below uses. Whenever it's
+    // true, anyone who can view THIS page (Admin/SuperAdmin already passed
+    // IsWithinMainTaskScope to get here) can also open Dashboard/Details for
+    // the same task — office-wide, or department-elevated with no
+    // department check needed once DashboardController.Details' assignment
+    // bypass is in play. That page has the same Activity History/Comments,
+    // so showing a second read-only copy here is pure duplication.
+    var canOpenFullDetails = !subtasks.Any() && task.Assignments != null && task.Assignments.Any();
+
     // Plain-language sentence + icon per status — this page states status as
     // a full sentence first, not just a colored pill, for readers who may
     // not reliably read color alone.
@@ -168,6 +177,16 @@
             <a asp-controller="Dashboard" asp-action="Details" asp-route-id="@task.Id" class="mtd-hero-cta">
                 <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                 This task is assigned to you — open it to update your progress or submit proof
+            </a>
+        }
+        else if (canOpenFullDetails)
+        {
+            @* Not the assignee, but still able to open the full page (OPD, or
+               another Admin/Supervisor in the same department) — same
+               destination, just without the "assigned to you" framing. *@
+            <a asp-controller="Dashboard" asp-action="Details" asp-route-id="@task.Id" class="mtd-hero-cta">
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                Open full task details, progress, and discussion
             </a>
         }
 
@@ -390,14 +409,16 @@
         }
     }
 
-    @* When the viewer holds an assignment here, the hero's CTA above already
-       sends them to Dashboard/Details — which has this exact same Activity
-       History and comment thread, plus the progress/proof controls this page
-       doesn't. Showing a second, read-only copy of it here was redundant.
-       Everyone else (an elevated viewer who ISN'T the assignee, or anyone on
-       a Department Directive with no single Main Task assignment) has no
-       other place to see or post it, so it stays here for them. *@
-    @if (myAssignment == null)
+    @* Whenever canOpenFullDetails is true, the hero's CTA above already sends
+       the viewer to Dashboard/Details — which has this exact same Activity
+       History and comment thread (plus progress/proof controls this
+       read-only page doesn't). Showing a second copy of it here is pure
+       duplication, whether the viewer is the assignee or just another
+       Admin/SuperAdmin who can already open that same page. Only a
+       Department Directive with subtasks (no single Main Task assignment to
+       open) has no other place to see or post it, so it stays here for that
+       case. *@
+    @if (!canOpenFullDetails)
     {
         <h2 class="mtd-section-title">Activity History</h2>
         <ul class="mtd-activity-list">
