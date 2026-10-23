@@ -16,6 +16,15 @@
 
     var subtasks = task.Subtasks?.OrderBy(s => s.DueDate).ToList() ?? new List<DTIOneLink.Models.TaskItem>();
 
+    // Only a Direct Admin / Whole Office task (or a Department Directive with
+    // no subtasks yet) carries a TaskAssignment directly on the Main Task —
+    // the viewer is only ever "working" this specific row, not a subtask,
+    // when they hold one of those.
+    var viewerId = Context.Session.GetInt32("UserId");
+    var myAssignment = viewerId.HasValue
+        ? task.Assignments?.FirstOrDefault(a => a.UserId == viewerId.Value)
+        : null;
+
     // Plain-language sentence + icon per status — this page states status as
     // a full sentence first, not just a colored pill, for readers who may
     // not reliably read color alone.
@@ -147,6 +156,20 @@
                 <strong>@task.Progress%</strong>
             </div>
         </div>
+
+        @if (myAssignment != null)
+        {
+            @* This page is the Admin-management overview — read-only for the
+               assignment itself. Updating progress and submitting proof only
+               exist on the full task detail page, so when the viewer IS the
+               assignee (e.g. a Responsible Admin working their own Direct
+               Admin Task), send them straight there instead of leaving them
+               stuck looking at their own progress with no way to change it. *@
+            <a asp-controller="Dashboard" asp-action="Details" asp-route-id="@task.Id" class="mtd-hero-cta">
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                This task is assigned to you — open it to update your progress or submit proof
+            </a>
+        }
 
         <!-- One bordered "meta" block instead of three separately-divided
              strips — Responsible Admin/Created by, Reassign, and Repeats

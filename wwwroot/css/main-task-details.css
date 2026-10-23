@@ -134,6 +134,25 @@
 .mtd-hero-progress-fill--done { background: #4ade80; }
 .mtd-hero-progress-row strong { font-size: 16px; font-weight: 800; min-width: 46px; text-align: right; }
 
+.mtd-hero-cta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    color: var(--mtd-primary);
+    font-size: 14.5px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+}
+.mtd-hero-cta:hover { background: #dce4ff; }
+.mtd-hero-cta .material-symbols-outlined { font-size: 20px; flex-shrink: 0; }
+
 /* ── Meta: Responsible Admin/Created by, Reassign, Repeats — one group,
    one divider, consistent internal rhythm instead of three stacked
    bordered strips. ──────────────────────────────────────────────── */
