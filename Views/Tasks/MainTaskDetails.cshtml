@@ -390,73 +390,83 @@
         }
     }
 
-    <h2 class="mtd-section-title">Activity History</h2>
-    <ul class="mtd-activity-list">
-        @foreach (var entry in activityEntries)
-        {
-            <li class="mtd-activity-item">
-                <span class="mtd-activity-dot mtd-activity-dot--@entry.Dot" aria-hidden="true"></span>
-                <div class="mtd-activity-content">
-                    <div class="mtd-activity-header">
-                        <span class="mtd-activity-user">@entry.User</span>
-                        <span class="mtd-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
-                    </div>
-                    <p class="mtd-activity-details">@entry.Details</p>
-                    @if (entry.Download != null)
-                    {
-                        <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="mtd-activity-download">
-                            @entry.Download.ProofFileName
-                        </a>
-                    }
-                </div>
-            </li>
-        }
-    </ul>
-
-    <h2 class="mtd-section-title">
-        Comments
-        <span class="mtd-comments-count">(@comments.Count)</span>
-    </h2>
-
-    @if (comments.Any())
+    @* When the viewer holds an assignment here, the hero's CTA above already
+       sends them to Dashboard/Details — which has this exact same Activity
+       History and comment thread, plus the progress/proof controls this page
+       doesn't. Showing a second, read-only copy of it here was redundant.
+       Everyone else (an elevated viewer who ISN'T the assignee, or anyone on
+       a Department Directive with no single Main Task assignment) has no
+       other place to see or post it, so it stays here for them. *@
+    @if (myAssignment == null)
     {
-        <ul class="mtd-comment-list">
-            @foreach (var comment in comments)
+        <h2 class="mtd-section-title">Activity History</h2>
+        <ul class="mtd-activity-list">
+            @foreach (var entry in activityEntries)
             {
-                var commentTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(comment.CreatedAt);
-                <li class="mtd-comment">
-                    <div class="mtd-comment-avatar" aria-hidden="true">@GetInitials(comment.Author?.FullName)</div>
-                    <div class="mtd-comment-body">
-                        <div class="mtd-comment-header">
-                            <span class="mtd-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
-                            <span class="mtd-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                <li class="mtd-activity-item">
+                    <span class="mtd-activity-dot mtd-activity-dot--@entry.Dot" aria-hidden="true"></span>
+                    <div class="mtd-activity-content">
+                        <div class="mtd-activity-header">
+                            <span class="mtd-activity-user">@entry.User</span>
+                            <span class="mtd-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
                         </div>
-                        <p class="mtd-comment-text">@comment.Text</p>
+                        <p class="mtd-activity-details">@entry.Details</p>
+                        @if (entry.Download != null)
+                        {
+                            <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="mtd-activity-download">
+                                @entry.Download.ProofFileName
+                            </a>
+                        }
                     </div>
                 </li>
             }
         </ul>
-    }
-    else
-    {
-        <div class="mtd-empty">
-            <span class="material-symbols-outlined" aria-hidden="true">chat</span>
-            <p>No comments yet</p>
-        </div>
-    }
 
-    <form asp-controller="Employee" asp-action="AddComment" method="post" class="mtd-comment-form">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="taskId" value="@task.Id" />
-        <div class="mtd-comment-avatar" aria-hidden="true">@currentUserInitials</div>
-        <div class="mtd-comment-form-body">
-            <textarea name="text" class="mtd-comment-input" placeholder="Write a comment..." rows="2" required></textarea>
-            <button type="submit" class="mtd-btn mtd-btn-primary">
-                <span class="material-symbols-outlined" aria-hidden="true">send</span>
-                Post
-            </button>
-        </div>
-    </form>
+        <h2 class="mtd-section-title">
+            Comments
+            <span class="mtd-comments-count">(@comments.Count)</span>
+        </h2>
+
+        @if (comments.Any())
+        {
+            <ul class="mtd-comment-list">
+                @foreach (var comment in comments)
+                {
+                    var commentTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(comment.CreatedAt);
+                    <li class="mtd-comment">
+                        <div class="mtd-comment-avatar" aria-hidden="true">@GetInitials(comment.Author?.FullName)</div>
+                        <div class="mtd-comment-body">
+                            <div class="mtd-comment-header">
+                                <span class="mtd-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
+                                <span class="mtd-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                            </div>
+                            <p class="mtd-comment-text">@comment.Text</p>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="mtd-empty">
+                <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+                <p>No comments yet</p>
+            </div>
+        }
+
+        <form asp-controller="Employee" asp-action="AddComment" method="post" class="mtd-comment-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="taskId" value="@task.Id" />
+            <div class="mtd-comment-avatar" aria-hidden="true">@currentUserInitials</div>
+            <div class="mtd-comment-form-body">
+                <textarea name="text" class="mtd-comment-input" placeholder="Write a comment..." rows="2" required></textarea>
+                <button type="submit" class="mtd-btn mtd-btn-primary">
+                    <span class="material-symbols-outlined" aria-hidden="true">send</span>
+                    Post
+                </button>
+            </div>
+        </form>
+    }
 </div>
 
 <partial name="_NoticeDialog" />
