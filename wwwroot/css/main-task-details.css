@@ -304,6 +304,44 @@
     margin: 0 0 32px;
 }
 
+/* ── Tabs: Subtasks/People/Discussion/History — only rendered when more
+   than one applies to this task's type and state. ─────────────────── */
+.mtd-tab-bar {
+    display: flex;
+    gap: 28px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--mtd-outline-variant);
+    overflow-x: auto;
+}
+.mtd-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    padding: 0 2px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: var(--mtd-secondary);
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mtd-tab:hover { color: var(--mtd-primary); }
+.mtd-tab.active { color: var(--mtd-primary); border-bottom-color: var(--mtd-primary); }
+.mtd-tab-badge {
+    background: var(--mtd-surface-low);
+    color: var(--mtd-primary);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 9999px;
+}
+.mtd-tab.active .mtd-tab-badge { background: #dce1ff; }
+.mtd-tab-panel[hidden] { display: none; }
+
 .mtd-section-title {
     font-size: 19px;
     font-weight: 800;

@@ -72,6 +72,17 @@
     // Combines the Main Task's own activity with every subtask's — one
     // chronological timeline for the whole directive, newest first, with
     // "Created this task" folded in by its real date rather than pinned first.
+    // Which tabs this task actually has something to show in — a Direct
+    // Admin / Whole Office task assigned to someone else has exactly one
+    // (People), so the tab bar itself is skipped and that content just
+    // renders directly; a populated Department Directive has three.
+    var showPeopleTab = !subtasks.Any() && task.Assignments != null && task.Assignments.Any();
+    var showSubtasksTab = DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType;
+    var showDiscussionHistoryTabs = !canOpenFullDetails;
+    var tabCount = (showSubtasksTab ? 1 : 0) + (showPeopleTab ? 1 : 0) + (showDiscussionHistoryTabs ? 2 : 0);
+    var showTabBar = tabCount > 1;
+    var defaultTab = showSubtasksTab ? "subtasks" : showPeopleTab ? "people" : showDiscussionHistoryTabs ? "discussion" : null;
+
     var allActivities = (task.Activities ?? new List<DTIOneLink.Models.TaskActivity>())
         .Concat(subtasks.SelectMany(s => s.Activities ?? new List<DTIOneLink.Models.TaskActivity>()));
     var activityEntries = allActivities
@@ -297,9 +308,40 @@
         individually completed.
     </p>
 
-    @if (!subtasks.Any() && task.Assignments != null && task.Assignments.Any())
+    @if (showTabBar)
     {
-        <h2 class="mtd-section-title">Assigned Employees (@task.Assignments.Count)</h2>
+        <div class="mtd-tab-bar" role="tablist">
+            @if (showSubtasksTab)
+            {
+                <button type="button" class="mtd-tab@(defaultTab == "subtasks" ? " active" : "")" role="tab"
+                        aria-selected="@(defaultTab == "subtasks" ? "true" : "false")" data-mtd-tab-btn="subtasks">
+                    Subtasks <span class="mtd-tab-badge">@subtasks.Count</span>
+                </button>
+            }
+            @if (showPeopleTab)
+            {
+                <button type="button" class="mtd-tab@(defaultTab == "people" ? " active" : "")" role="tab"
+                        aria-selected="@(defaultTab == "people" ? "true" : "false")" data-mtd-tab-btn="people">
+                    People <span class="mtd-tab-badge">@task.Assignments!.Count</span>
+                </button>
+            }
+            @if (showDiscussionHistoryTabs)
+            {
+                <button type="button" class="mtd-tab@(defaultTab == "discussion" ? " active" : "")" role="tab"
+                        aria-selected="@(defaultTab == "discussion" ? "true" : "false")" data-mtd-tab-btn="discussion">
+                    Discussion <span class="mtd-tab-badge">@comments.Count</span>
+                </button>
+                <button type="button" class="mtd-tab" role="tab" aria-selected="false" data-mtd-tab-btn="history">
+                    History
+                </button>
+            }
+        </div>
+    }
+
+    @if (showPeopleTab)
+    {
+        <div class="mtd-tab-panel" data-mtd-tab-panel="people" hidden="@(defaultTab == "people" ? null : "hidden")">
+        <h2 class="mtd-section-title">Assigned Employees (@task.Assignments!.Count)</h2>
         <div class="mtd-stack">
             @foreach (var a in task.Assignments.OrderByDescending(x => x.IsPrimaryAssignee).ThenBy(x => x.User?.FullName))
             {
@@ -336,13 +378,15 @@
                 </div>
             }
         </div>
+        </div>
     }
 
     @* Subtasks only exist on a Department Directive — suppressing this
        whole section for the other two task types (rather than showing it
        permanently empty) is the one behavior change from the original page. *@
-    @if (DTIOneLink.Services.TaskTypes.DepartmentDirective == task.TaskType)
+    @if (showSubtasksTab)
     {
+        <div class="mtd-tab-panel" data-mtd-tab-panel="subtasks" hidden="@(defaultTab == "subtasks" ? null : "hidden")">
         <h2 class="mtd-section-title">Subtasks (@subtasks.Count)@(subtasks.Any() ? " — in order of due date" : "")</h2>
 
         @if (!subtasks.Any())
@@ -407,6 +451,7 @@
                 </button>
             </form>
         }
+        </div>
     }
 
     @* Whenever canOpenFullDetails is true, the hero's CTA above already sends
@@ -418,31 +463,9 @@
        Department Directive with subtasks (no single Main Task assignment to
        open) has no other place to see or post it, so it stays here for that
        case. *@
-    @if (!canOpenFullDetails)
+    @if (showDiscussionHistoryTabs)
     {
-        <h2 class="mtd-section-title">Activity History</h2>
-        <ul class="mtd-activity-list">
-            @foreach (var entry in activityEntries)
-            {
-                <li class="mtd-activity-item">
-                    <span class="mtd-activity-dot mtd-activity-dot--@entry.Dot" aria-hidden="true"></span>
-                    <div class="mtd-activity-content">
-                        <div class="mtd-activity-header">
-                            <span class="mtd-activity-user">@entry.User</span>
-                            <span class="mtd-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
-                        </div>
-                        <p class="mtd-activity-details">@entry.Details</p>
-                        @if (entry.Download != null)
-                        {
-                            <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="mtd-activity-download">
-                                @entry.Download.ProofFileName
-                            </a>
-                        }
-                    </div>
-                </li>
-            }
-        </ul>
-
+        <div class="mtd-tab-panel" data-mtd-tab-panel="discussion" hidden="@(defaultTab == "discussion" ? null : "hidden")">
         <h2 class="mtd-section-title">
             Comments
             <span class="mtd-comments-count">(@comments.Count)</span>
@@ -487,6 +510,32 @@
                 </button>
             </div>
         </form>
+        </div>
+
+        <div class="mtd-tab-panel" data-mtd-tab-panel="history" hidden>
+        <h2 class="mtd-section-title">Activity History</h2>
+        <ul class="mtd-activity-list">
+            @foreach (var entry in activityEntries)
+            {
+                <li class="mtd-activity-item">
+                    <span class="mtd-activity-dot mtd-activity-dot--@entry.Dot" aria-hidden="true"></span>
+                    <div class="mtd-activity-content">
+                        <div class="mtd-activity-header">
+                            <span class="mtd-activity-user">@entry.User</span>
+                            <span class="mtd-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
+                        </div>
+                        <p class="mtd-activity-details">@entry.Details</p>
+                        @if (entry.Download != null)
+                        {
+                            <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="mtd-activity-download">
+                                @entry.Download.ProofFileName
+                            </a>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+        </div>
     }
 </div>
 
@@ -495,4 +544,21 @@
 @section Scripts {
     <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
     <script src="~/js/main-task-details.js" asp-append-version="true"></script>
+    <script>
+        // Same tab pattern as Tasks/Edit.cshtml — only rendered when more
+        // than one tab actually applies, so this is a no-op otherwise.
+        document.querySelectorAll('[data-mtd-tab-btn]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = btn.getAttribute('data-mtd-tab-btn');
+                document.querySelectorAll('[data-mtd-tab-btn]').forEach(function (b) {
+                    var active = b === btn;
+                    b.classList.toggle('active', active);
+                    b.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                document.querySelectorAll('[data-mtd-tab-panel]').forEach(function (panel) {
+                    panel.hidden = panel.getAttribute('data-mtd-tab-panel') !== target;
+                });
+            });
+        });
+    </script>
 }
