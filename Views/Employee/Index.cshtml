@@ -6,7 +6,7 @@
     ViewData["LiveRefresh"] = true; // auto-refresh when data changes (live-refresh.js)
 
     // Employee workspace (Canva pages 1–2): To Do and In Progress boards, a
-    // calendar preview that opens into a full calendar, and "My progress".
+    // compact task calendar that expands in place, and "My progress".
     // The task list comes from EmployeeController.Index (only tasks this
     // person is assigned to). On a shared task they see only their own
     // status and progress, never a co-assignee's.
@@ -98,8 +98,9 @@
         (Label: "Overdue",     Value: tasks.Count(IsOverdue), Tone: "overdue"),
     };
 
-    // Calendar data: real tasks only, with just what the calendar panel shows.
-    var calendarItems = tasks.Select(t =>
+    // Calendar data: this employee's active tasks only (completed work isn't
+    // listed by day), with just what the calendar shows.
+    var calendarItems = tasks.Where(t => StatusOf(t) != TaskWorkflow.Completed).Select(t =>
     {
         var status = StatusOf(t);
         var info = statusInfo[status];
@@ -232,19 +233,40 @@
                 </a>
             </section>
 
-            <!-- Calendar preview: opens the full calendar -->
-            <button type="button" class="ed-calcard" id="edCalOpen"
-                    aria-controls="edCalendar" aria-expanded="false" aria-describedby="edCalOpenHint">
-                <span class="ed-calcard__sheet">
-                    <span class="ed-calcard__month" id="edMiniLabel">@today.ToString("MMMM yyyy")</span>
-                    <span class="ed-calcard__weekdays" aria-hidden="true">
-                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-                    </span>
-                    <span class="ed-calcard__grid" id="edMiniGrid" aria-hidden="true"></span>
-                </span>
-                <span class="ed-calcard__view">View</span>
-                <span class="visually-hidden" id="edCalOpenHint">Opens the full calendar with the work due on each day.</span>
-            </button>
+            <!-- Task calendar: blue dot = a task due that day; the list under it is
+                 the selected day's To Do tasks (employee-dashboard.js). -->
+            <section class="ed-progress ed-calpanel" aria-labelledby="edCalTitle">
+                <div class="ed-progress__head">
+                    <div>
+                        <span class="ed-progress__badge" aria-hidden="true"><span class="material-symbols-outlined">calendar_today</span></span>
+                        <h2 class="ed-progress__title" id="edCalTitle">Task calendar</h2>
+                    </div>
+                    <button type="button" class="ed-link" id="edCalExpand" aria-controls="edCalendar" aria-expanded="false">
+                        Expand
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                    </button>
+                </div>
+                <div class="ed-cal" data-cal="compact">
+                    <div class="ed-cal__head">
+                        <button type="button" class="ed-cal__nav" data-step="-1" aria-label="Previous month">
+                            <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div class="ed-cal__pickers">
+                            <select class="ed-cal__month" aria-label="Month"></select>
+                            <select class="ed-cal__year" aria-label="Year"></select>
+                        </div>
+                        <button type="button" class="ed-cal__nav" data-step="1" aria-label="Next month">
+                            <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                        </button>
+                    </div>
+                    <div class="ed-cal__weekdays" aria-hidden="true"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+                    <div class="ed-cal__grid"></div>
+                    <div class="ed-cal__foot">
+                        <button type="button" class="ed-cal__today">Today</button>
+                    </div>
+                </div>
+                <div class="ed-day-panel" data-panel="compact" aria-live="polite"></div>
+            </section>
 
             <!-- Records overview: same component already on SuperAdmin's
                  rail (records-overview.js, RecordsController.Overview),
@@ -292,43 +314,38 @@
         </aside>
     </div>
 
-    <!-- ── Expanded calendar (Canva page 2), shown in place of the workspace ── -->
-    <dialog class="ed-calendar" id="edCalendar" aria-labelledby="edCalTitle">
-        <div class="ed-calendar__main">
-            <div class="ed-calendar__bar">
-                <button type="button" class="ed-btn-back" id="edCalClose">
-                    <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
-                    Back to dashboard
-                </button>
-                <div class="ed-calendar__nav">
-                    <button type="button" class="ed-btn-icon" id="edCalPrev" aria-label="Previous month">
+    <!-- Expanded view (opened with "Expand"): calendar on one half, the
+         selected day's work on the other; shown in place of the layout above. -->
+    <section class="ed-expanded" id="edCalendar" aria-label="Task calendar, expanded" hidden>
+        <div class="ed-expanded__bar">
+            <button type="button" class="ed-btn" id="edCalClose">
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                Back to dashboard
+            </button>
+        </div>
+        <div class="ed-expanded__body">
+            <div class="ed-cal ed-cal--large" data-cal="large">
+                <div class="ed-cal__head">
+                    <button type="button" class="ed-cal__nav" data-step="-1" aria-label="Previous month">
                         <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
                     </button>
-                    <button type="button" class="ed-btn-today" id="edCalToday">Today</button>
-                    <button type="button" class="ed-btn-icon" id="edCalNext" aria-label="Next month">
+                    <div class="ed-cal__pickers">
+                        <select class="ed-cal__month" aria-label="Month"></select>
+                        <select class="ed-cal__year" aria-label="Year"></select>
+                    </div>
+                    <button type="button" class="ed-cal__nav" data-step="1" aria-label="Next month">
                         <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
                     </button>
                 </div>
+                <div class="ed-cal__weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+                <div class="ed-cal__grid"></div>
+                <div class="ed-cal__foot">
+                    <button type="button" class="ed-cal__today">Today</button>
+                </div>
             </div>
-
-            <h2 class="ed-calendar__title" id="edCalTitle" tabindex="-1">
-                <span id="edCalMonth"></span>
-                <span id="edCalYear"></span>
-            </h2>
-
-            <div class="ed-calendar__weekdays" aria-hidden="true">
-                <span class="is-sunday">Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-            </div>
-            <div class="ed-calendar__grid" id="edCalGrid"></div>
+            <div class="ed-day-panel ed-day-panel--large" data-panel="large" aria-live="polite"></div>
         </div>
-
-        <div class="ed-rule" aria-hidden="true"></div>
-
-        <aside class="ed-calendar__panel" aria-labelledby="edPanelTitle">
-            <h3 class="ed-panel__title" id="edPanelTitle"></h3>
-            <div class="ed-panel__list" id="edPanelList" aria-live="polite"></div>
-        </aside>
-    </dialog>
+    </section>
 </div>
 
 @* Real task data for the calendar (this employee's tasks only). *@
