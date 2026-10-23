@@ -415,7 +415,6 @@ namespace DTIOneLink.Controllers
             if (user == null) return RedirectToAction(nameof(Login));
             if (!user.EmailConfirmed || !user.MustChangePassword) return ContinuePendingSignIn(user);
 
-            model.NewPassword = NormalizeNewPassword(model.NewPassword);
             if (ModelState.IsValid && NewPasswordProblem(user, model.NewPassword) is string problem)
             {
                 ModelState.AddModelError(nameof(model.NewPassword), problem);
@@ -525,7 +524,6 @@ namespace DTIOneLink.Controllers
             var user = await GetVerifiedResetUserAsync();
             if (user == null) return RedirectToAction(nameof(ForgotPassword));
 
-            model.NewPassword = NormalizeNewPassword(model.NewPassword);
             if (ModelState.IsValid && NewPasswordProblem(user, model.NewPassword) is string problem)
             {
                 ModelState.AddModelError(nameof(model.NewPassword), problem);
@@ -589,7 +587,6 @@ namespace DTIOneLink.Controllers
                 return View(new ChangePasswordViewModel());
             }
 
-            model.NewPassword = NormalizeNewPassword(model.NewPassword);
             if (NewPasswordProblem(user, model.NewPassword) is string problem)
             {
                 ModelState.AddModelError(nameof(model.NewPassword), problem);
@@ -743,33 +740,21 @@ namespace DTIOneLink.Controllers
             await _db.SaveChangesAsync();
         }
 
-        // Rules beyond the length check on the view model (NIST SP 800-63B:
-        // a minimum length and a check against common passwords; no forced
-        // symbols).
-        // Character rules follow NIST SP 800-63B: length is the control that
-        // matters, not forced composition — this deliberately never requires
-        // a mix of upper/lower/digit/symbol. All printable characters
-        // (including spaces anywhere in the password) are accepted; only
-        // non-printable control characters are refused, since those can't
-        // be reliably retyped and have no legitimate reason to appear here.
-        private static readonly char[] WhitespaceTrimChars = { ' ', '\t', '\r', '\n' };
-
-        private static bool HasControlCharacter(string value) => value.Any(char.IsControl);
-
-        // Trims leading/trailing whitespace the same way Username already is
-        // (AccountController.Login trims it before use) — a password that
-        // differs only by a stray leading/trailing space is an easy accident
-        // (autofill, copy-paste) to make and a confusing one to debug, so
-        // that whitespace is stripped before the password is validated or
-        // saved. Whitespace in the middle of a password is preserved and
-        // stays fully significant — a passphrase like "correct horse battery
-        // staple" is explicitly a NIST-encouraged pattern, not a bug.
-        private static string NormalizeNewPassword(string newPassword) => newPassword.Trim(WhitespaceTrimChars);
+        // Explicit project rule (overrides the earlier NIST SP 800-63B-only
+        // framing, which allowed spaces for passphrases): no whitespace of
+        // any kind, anywhere in the password, and no emoji/non-ASCII. Only
+        // the printable ASCII range 0x21–0x7E ('!' through '~') is accepted
+        // — that excludes every space/tab/newline, every control character,
+        // and every emoji/non-Latin character in one check, since all of
+        // those fall outside it. A bad password is refused outright, not
+        // silently stripped of the offending characters.
+        private static bool IsAsciiPrintableNoWhitespace(string value) =>
+            value.Length > 0 && value.All(c => c is >= '!' and <= '~');
 
         private string? NewPasswordProblem(User user, string newPassword)
         {
-            if (HasControlCharacter(newPassword))
-                return "Password contains a character that isn't allowed.";
+            if (!IsAsciiPrintableNoWhitespace(newPassword))
+                return "Password cannot contain spaces or emoji — letters, digits, and standard symbols only.";
             if (newPassword.Length < AccountDefaults.MinPasswordLength)
                 return $"New password must be at least {AccountDefaults.MinPasswordLength} characters.";
             if (string.Equals(newPassword, AccountDefaults.DefaultPassword, StringComparison.OrdinalIgnoreCase))

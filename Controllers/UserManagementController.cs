@@ -23,6 +23,15 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
 
     public static readonly string[] Roles = { "SuperAdmin", "Admin", "Employee" };
 
+    // Explicit project rule, same as the password rule in AccountController:
+    // no whitespace anywhere and no emoji/non-ASCII. [EmailAddress] alone
+    // doesn't guarantee this — .NET's implementation is lenient enough that
+    // some whitespace/Unicode can still pass it. '@' and '.' both fall
+    // inside this printable-ASCII range already, so real addresses are
+    // unaffected.
+    private static bool IsAsciiPrintableNoWhitespace(string value) =>
+        value.Length > 0 && value.All(c => c is >= '!' and <= '~');
+
     public async Task<IActionResult> Index()
     {
         var users = new List<UserItem>();
@@ -97,6 +106,11 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
         if (!ModelState.IsValid || role == null || department == null || fullName.Length == 0)
         {
             TempData["ErrorMessage"] = "Please complete all account fields correctly.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (!IsAsciiPrintableNoWhitespace(email))
+        {
+            TempData["ErrorMessage"] = "Email cannot contain spaces or emoji.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -468,9 +482,10 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
                 : "You can only change the email of employees of your own division.";
             return RedirectToAction(nameof(Index));
         }
-        if (newEmail.Length == 0 || newEmail.Length > 256 || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(newEmail))
+        if (newEmail.Length == 0 || newEmail.Length > 256 || !IsAsciiPrintableNoWhitespace(newEmail)
+            || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(newEmail))
         {
-            TempData["DirectoryError"] = "Please enter a valid email address.";
+            TempData["DirectoryError"] = "Please enter a valid email address — no spaces or emoji.";
             return RedirectToAction(nameof(Index));
         }
         if (string.Equals(newEmail, target.Email, StringComparison.OrdinalIgnoreCase))
