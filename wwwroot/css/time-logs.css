@@ -94,6 +94,149 @@
     border-color: var(--primary);
 }
 
+/* ---------- Calendar filtering (from the UI redesign) ----------
+   From/To stay typeable; the calendar button in each opens a compact
+   calendar in the Employee Dashboard's style (time-logs-range.js). */
+.time-logs-page {
+    --frame-border: #e2e6f0;
+    --range-tint: #dce1ff;
+}
+
+/* A typeable date box with the calendar button inside its right edge. */
+.time-logs-page .tl-date { position: relative; }
+
+.time-logs-page .tl-date input[type="date"] {
+    width: 190px;
+    font-family: inherit;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    padding: 10px 44px 10px 12px;
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+}
+.time-logs-page .tl-date input[type="date"]:focus { outline: none; border-color: var(--primary); }
+.time-logs-page .tl-date input[type="date"]:invalid { border-color: #ba1a1a; }
+/* One calendar style: hide the browser's own picker icon. */
+.time-logs-page .tl-date input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+
+.time-logs-page .tl-date__btn {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+}
+.time-logs-page .tl-date__btn .material-symbols-outlined { font-size: 20px; }
+.time-logs-page .tl-date__btn:hover,
+.time-logs-page .tl-date__btn[aria-expanded="true"] { background: var(--surface-container); }
+
+/* ---------- Calendar dropdown (Dashboard calendar style) ---------- */
+.time-logs-page .tl-cal {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 40;
+    width: 280px;
+    max-width: calc(100vw - 24px);
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--frame-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px -8px rgba(0, 30, 101, 0.25);
+}
+.time-logs-page .tl-cal[hidden] { display: none; }
+
+.time-logs-page .tl-cal__head { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 8px; }
+.time-logs-page .tl-cal__pickers { display: flex; gap: 4px; min-width: 0; }
+.time-logs-page .tl-cal__pickers select {
+    height: 30px;
+    min-width: 0;
+    padding: 0 4px;
+    border: 1px solid var(--frame-border);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--primary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.time-logs-page .tl-cal__nav {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+}
+.time-logs-page .tl-cal__nav .material-symbols-outlined { font-size: 20px; }
+.time-logs-page .tl-cal__nav:hover:not(:disabled) { background: var(--surface-container-low); }
+.time-logs-page .tl-cal__nav:disabled { opacity: 0.35; cursor: default; }
+
+.time-logs-page .tl-cal__weekdays,
+.time-logs-page .tl-cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.time-logs-page .tl-cal__weekdays span {
+    padding: 2px 0 4px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--on-surface-variant);
+}
+.time-logs-page .tl-cal__grid { gap: 2px; }
+
+.time-logs-page .tl-day {
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--on-surface);
+    font: inherit;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+.time-logs-page .tl-day.is-blank { cursor: default; }
+.time-logs-page .tl-day:hover:not(.is-blank):not(.is-selected):not(:disabled) { background: var(--surface-container-low); }
+.time-logs-page .tl-day.is-in-range { background: var(--surface-container-low); color: var(--primary); }
+.time-logs-page .tl-day.is-other-end { background: var(--range-tint); color: var(--primary); font-weight: 700; }
+.time-logs-page .tl-day.is-today { font-weight: 700; color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.time-logs-page .tl-day.is-selected { background: var(--primary); color: #ffffff; font-weight: 700; }
+.time-logs-page .tl-day:disabled { color: var(--outline-variant); background: transparent; box-shadow: none; cursor: not-allowed; }
+
+.time-logs-page .tl-cal__foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--frame-border);
+}
+.time-logs-page .tl-cal__link {
+    padding: 2px 4px;
+    border: 0;
+    background: none;
+    color: var(--primary);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.time-logs-page .tl-cal__link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
 .time-logs-page .filter-actions {
     display: flex;
     gap: 10px;
@@ -132,6 +275,7 @@
     .time-logs-page .time-logs-toolbar { padding: 16px; }
     .time-logs-page .time-logs-filter { flex-direction: column; align-items: stretch; width: 100%; }
     .time-logs-page .time-logs-filter .field { width: 100%; }
+    .time-logs-page .tl-date input[type="date"] { width: 100%; }
     .time-logs-page .filter-actions { width: 100%; }
     .time-logs-page .filter-actions .btn { flex: 1 1 0; justify-content: center; }
 }

@@ -1,8 +1,13 @@
 // ==========================================================
-// DTI Laguna OneLink — Employee Dashboard
-// Compact calendar preview → full calendar with selectable dates.
-// Task data comes from #edTaskData (rendered by Views/Employee/Index.cshtml
-// from the employee's real tasks). No data is invented here.
+// DTI Laguna OneLink — Employee Dashboard calendar
+// A compact month calendar beside My Tasks. A blue dot marks each day that
+// has a task due. The list under the calendar shows the selected day's To Do
+// tasks due that day (today when the page opens). The To Do / In Progress
+// frames always list every task — the calendar doesn't change them.
+// "Expand" shows a larger calendar with the same day list beside it, in place
+// of the dashboard; both views share the month and the selected date.
+// Task data comes from #edTaskData (Views/Employee/Index.cshtml: the
+// employee's own active tasks). Nothing is invented or changed here.
 // ==========================================================
 (function () {
     "use strict";
@@ -15,21 +20,12 @@
         var root = document.getElementById("employeeDashboard");
         if (!root) return;
 
-        var workspace = document.getElementById("edWorkspace");
-        var openBtn = document.getElementById("edCalOpen");
-        var dialog = document.getElementById("edCalendar");
+        var layout = document.getElementById("edWorkspace");
+        var expanded = document.getElementById("edCalendar");
+        var expandBtn = document.getElementById("edCalExpand");
         var closeBtn = document.getElementById("edCalClose");
-        var prevBtn = document.getElementById("edCalPrev");
-        var nextBtn = document.getElementById("edCalNext");
-        var todayBtn = document.getElementById("edCalToday");
-        var titleEl = document.getElementById("edCalTitle");
-        var monthEl = document.getElementById("edCalMonth");
-        var yearEl = document.getElementById("edCalYear");
-        var gridEl = document.getElementById("edCalGrid");
-        var miniGrid = document.getElementById("edMiniGrid");
-        var miniLabel = document.getElementById("edMiniLabel");
-        var panelTitle = document.getElementById("edPanelTitle");
-        var panelList = document.getElementById("edPanelList");
+        var calendars = Array.prototype.slice.call(root.querySelectorAll(".ed-cal"));
+        var panels = Array.prototype.slice.call(root.querySelectorAll(".ed-day-panel"));
 
         var tasks = [];
         try {
@@ -38,143 +34,101 @@
             tasks = [];
         }
 
-        // Dates are "yyyy-MM-dd" strings (Philippine time, from the server).
+        // Dates are "yyyy-MM-dd" strings in Philippine time, from the server.
         var todayKey = root.dataset.today || keyOf(new Date());
         var today = parseKey(todayKey);
-
         var byDue = groupBy(tasks, "due");
-        var byAssigned = groupBy(tasks, "assigned");
 
         var viewYear = today.getFullYear();
         var viewMonth = today.getMonth();
         var selectedKey = todayKey;
 
-        renderMini();
+        // Year choices: a year before the earliest due date to two years past the latest.
+        var years = tasks.reduce(function (acc, t) {
+            if (t.due) acc.push(+t.due.slice(0, 4));
+            return acc;
+        }, [today.getFullYear()]);
+        var firstYear = Math.min.apply(null, years) - 1;
+        var lastYear = Math.max.apply(null, years) + 2;
 
-        // ── Open / close ───────────────────────────────────────
-        openBtn.addEventListener("click", function () { openCalendar(); });
+        calendars.forEach(setUpCalendar);
+        render();
 
-        closeBtn.addEventListener("click", closeCalendar);
-        dialog.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") {
-                e.preventDefault();
-                closeCalendar();
-            }
+        expandBtn.addEventListener("click", function () { openExpanded(false); });
+        closeBtn.addEventListener("click", closeExpanded);
+        expanded.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") { e.preventDefault(); closeExpanded(); }
         });
 
-        prevBtn.addEventListener("click", function () { shiftMonth(-1); });
-        nextBtn.addEventListener("click", function () { shiftMonth(1); });
-        todayBtn.addEventListener("click", function () {
-            viewYear = today.getFullYear();
-            viewMonth = today.getMonth();
-            select(todayKey, true);
-        });
-
-        // Reopen after a live-refresh reload or a link back (#calendar=yyyy-MM-dd).
+        // Reopen the expanded view after a live-refresh reload (#calendar=yyyy-MM-dd).
         var hashMatch = /^#calendar(?:=(\d{4}-\d{2}-\d{2}))?$/.exec(location.hash);
         if (hashMatch) {
-            if (hashMatch[1]) {
-                var d = parseKey(hashMatch[1]);
-                if (!isNaN(d)) {
-                    selectedKey = hashMatch[1];
-                    viewYear = d.getFullYear();
-                    viewMonth = d.getMonth();
-                }
-            }
-            openCalendar(true);
+            if (hashMatch[1] && !isNaN(parseKey(hashMatch[1]))) selectedKey = hashMatch[1];
+            openExpanded(true);
         }
 
-        function openCalendar(instant) {
-            renderFull();
-            renderPanel();
-            workspace.hidden = true;
-            dialog.show(); // in place, not modal: the page layout stays around it
-            root.classList.toggle("is-instant", !!instant);
-            root.classList.add("is-calendar");
-            openBtn.setAttribute("aria-expanded", "true");
-            setHash();
-            // Keyboard users land on the selected day, ready for the arrow keys.
-            var day = gridEl.querySelector('[data-date="' + selectedKey + '"]');
-            (day || titleEl).focus({ preventScroll: true });
-        }
+        function setUpCalendar(cal) {
+            var monthSel = cal.querySelector(".ed-cal__month");
+            var yearSel = cal.querySelector(".ed-cal__year");
+            MONTHS.forEach(function (name, i) { monthSel.appendChild(new Option(name, String(i))); });
+            for (var y = firstYear; y <= lastYear; y++) yearSel.appendChild(new Option(String(y), String(y)));
 
-        function closeCalendar() {
-            dialog.close();
-            root.classList.remove("is-calendar");
-            workspace.hidden = false;
-            openBtn.setAttribute("aria-expanded", "false");
-            history.replaceState(null, "", location.pathname + location.search);
-            openBtn.focus({ preventScroll: true });
+            cal.querySelectorAll(".ed-cal__nav").forEach(function (btn) {
+                btn.addEventListener("click", function () { shiftMonth(+btn.dataset.step); });
+            });
+            monthSel.addEventListener("change", function () { viewMonth = +monthSel.value; render(); });
+            yearSel.addEventListener("change", function () { viewYear = +yearSel.value; render(); });
+            cal.querySelector(".ed-cal__today").addEventListener("click", function () {
+                viewYear = today.getFullYear();
+                viewMonth = today.getMonth();
+                select(todayKey, cal);
+            });
         }
 
         function shiftMonth(delta) {
-            viewMonth += delta;
-            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-            renderFull();
+            var d = new Date(viewYear, viewMonth + delta, 1);
+            if (d.getFullYear() < firstYear || d.getFullYear() > lastYear) return;
+            viewYear = d.getFullYear();
+            viewMonth = d.getMonth();
+            render();
         }
 
-        function select(key, focusDay) {
+        function select(key, focusIn) {
             selectedKey = key;
-            renderFull();
-            renderPanel();
-            setHash();
-            if (focusDay) {
-                var btn = gridEl.querySelector('[data-date="' + key + '"]');
+            render();
+            if (!expanded.hidden) setHash();
+            if (focusIn) {
+                var btn = focusIn.querySelector('[data-date="' + key + '"]');
                 if (btn) btn.focus();
             }
         }
 
-        function setHash() {
-            history.replaceState(null, "", location.pathname + location.search + "#calendar=" + selectedKey);
+        function render() {
+            calendars.forEach(renderCalendar);
+            panels.forEach(renderPanel);
         }
 
-        // ── Compact preview (dashboard) ────────────────────────
-        function renderMini() {
-            miniLabel.textContent = MONTHS[today.getMonth()] + " " + today.getFullYear();
-            openBtn.setAttribute("aria-label", "Open calendar, " + MONTHS[today.getMonth()] + " " + today.getFullYear());
-            miniGrid.textContent = "";
-            eachCell(today.getFullYear(), today.getMonth(), function (key, day) {
-                var cell = document.createElement("span");
-                cell.className = "ed-mini-day";
-                if (key) {
-                    cell.textContent = day;
-                    if (key === todayKey) cell.classList.add("is-today");
-                    var due = byDue[key];
-                    if (due && due.length) {
-                        cell.classList.add("has-work");
-                        if (due.some(function (t) { return t.overdue; })) cell.classList.add("has-overdue");
-                    }
-                } else {
-                    cell.classList.add("is-blank");
-                }
-                miniGrid.appendChild(cell);
-            });
-        }
-
-        // ── Full calendar ──────────────────────────────────────
-        function renderFull() {
-            monthEl.textContent = MONTHS[viewMonth];
-            yearEl.textContent = viewYear;
-            gridEl.textContent = "";
+        // ── Month grid: a blue dot on each day with something due ──
+        function renderCalendar(cal) {
+            cal.querySelector(".ed-cal__month").value = String(viewMonth);
+            cal.querySelector(".ed-cal__year").value = String(viewYear);
+            var grid = cal.querySelector(".ed-cal__grid");
+            grid.textContent = "";
 
             eachCell(viewYear, viewMonth, function (key, day, weekday) {
                 if (!key) {
                     var blank = document.createElement("span");
                     blank.className = "ed-day is-blank";
                     blank.setAttribute("aria-hidden", "true");
-                    gridEl.appendChild(blank);
+                    grid.appendChild(blank);
                     return;
                 }
-
                 var due = byDue[key] || [];
-                var assigned = byAssigned[key] || [];
 
                 var btn = document.createElement("button");
                 btn.type = "button";
                 btn.className = "ed-day";
                 btn.dataset.date = key;
-                if (weekday === 0) btn.classList.add("is-sunday");
                 if (key === todayKey) btn.classList.add("is-today");
                 if (key === selectedKey) btn.classList.add("is-selected");
                 btn.setAttribute("aria-pressed", key === selectedKey ? "true" : "false");
@@ -184,132 +138,140 @@
                 num.textContent = day;
                 btn.appendChild(num);
 
-                if (due.length) {
-                    var mark = document.createElement("span");
-                    mark.className = "ed-day__mark" + (due.some(function (t) { return t.overdue; }) ? " is-overdue" : "");
-                    mark.setAttribute("aria-hidden", "true");
-                    btn.appendChild(mark);
-                }
+                var dot = document.createElement("span");
+                dot.className = "ed-day__dot" + (due.length ? " is-due" : "");
+                dot.setAttribute("aria-hidden", "true");
+                btn.appendChild(dot);
 
                 var label = WEEKDAYS[weekday] + ", " + MONTHS[viewMonth] + " " + day + ", " + viewYear;
                 if (key === todayKey) label += ", today";
-                if (due.length) label += ", " + due.length + " due";
-                if (assigned.length) label += ", " + assigned.length + " assigned";
+                if (due.length) label += ", " + due.length + (due.length === 1 ? " task" : " tasks") + " due";
                 btn.setAttribute("aria-label", label);
+                btn.title = label;
 
-                btn.addEventListener("click", function () { select(key, false); });
-                btn.addEventListener("keydown", onDayKey);
-                gridEl.appendChild(btn);
+                btn.addEventListener("click", function () { select(key, null); });
+                btn.addEventListener("keydown", function (e) { onDayKey(e, cal); });
+                grid.appendChild(btn);
             });
         }
 
-        // Arrow keys move between days (crossing into the next/previous month).
-        function onDayKey(e) {
+        // Arrow keys move between days, crossing into the next or previous month.
+        function onDayKey(e, cal) {
             var steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
             if (!steps) return;
             e.preventDefault();
             var d = parseKey(e.currentTarget.dataset.date);
             d.setDate(d.getDate() + steps);
+            if (d.getFullYear() < firstYear || d.getFullYear() > lastYear) return;
             viewYear = d.getFullYear();
             viewMonth = d.getMonth();
-            select(keyOf(d), true);
+            select(keyOf(d), cal);
         }
 
-        // ── Side panel: work for the selected date ─────────────
-        function renderPanel() {
+        // ── The selected day's To Do tasks (due that day) ───────
+        function renderPanel(panel) {
             var d = parseKey(selectedKey);
-            panelTitle.textContent = WEEKDAYS[d.getDay()] + ", " + MONTHS[d.getMonth()] + " " + d.getDate() +
-                (selectedKey === todayKey ? " (today)" : "");
-            panelList.textContent = "";
+            panel.textContent = "";
 
-            var due = (byDue[selectedKey] || []).slice().sort(byStatus);
-            var dueIds = {};
-            due.forEach(function (t) { dueIds[t.id] = true; });
-            var assigned = (byAssigned[selectedKey] || []).filter(function (t) { return !dueIds[t.id]; });
+            var title = document.createElement("p");
+            title.className = "ed-day-panel__date";
+            title.textContent = WEEKDAYS[d.getDay()] + ", " + MONTHS[d.getMonth()] + " " + pad(d.getDate()) + ", " + d.getFullYear() +
+                (selectedKey === todayKey ? " (Today)" : "");
+            panel.appendChild(title);
 
-            if (!due.length && !assigned.length) {
-                var empty = document.createElement("div");
-                empty.className = "ed-panel__empty";
-                var icon = document.createElement("span");
-                icon.className = "material-symbols-outlined";
-                icon.setAttribute("aria-hidden", "true");
-                icon.textContent = "calendar_today";
-                var text = document.createElement("p");
-                text.textContent = "Nothing due or assigned on this day.";
-                empty.appendChild(icon);
-                empty.appendChild(text);
-                panelList.appendChild(empty);
+            var todo = (byDue[selectedKey] || []).filter(function (t) { return t.status === "To Do"; });
+            if (!todo.length) {
+                var empty = document.createElement("p");
+                empty.className = "ed-day-panel__empty";
+                empty.textContent = "No to-do tasks due on this date.";
+                panel.appendChild(empty);
                 return;
             }
 
-            if (due.length) panelList.appendChild(group("Due on this day", due, false));
-            if (assigned.length) panelList.appendChild(group("Assigned on this day", assigned, true));
+            var list = document.createElement("ul");
+            list.className = "ed-day-list";
+            todo.forEach(function (t) { list.appendChild(dayItem(t)); });
+            panel.appendChild(list);
         }
 
-        function group(heading, items, showDue) {
-            var wrap = document.createElement("section");
-            wrap.className = "ed-panel__group";
-            var h = document.createElement("h4");
-            h.className = "ed-panel__heading";
-            h.textContent = heading + " (" + items.length + ")";
-            wrap.appendChild(h);
-            items.forEach(function (t) { wrap.appendChild(taskLink(t, showDue)); });
-            return wrap;
-        }
-
-        function taskLink(t, showDue) {
+        function dayItem(t) {
+            var li = document.createElement("li");
             var a = document.createElement("a");
-            a.className = "ed-dtask ed-tone-" + t.tone;
+            a.className = "ed-day-item";
             a.href = t.url;
 
-            var top = document.createElement("span");
-            top.className = "ed-dtask__top";
-            if (t.priority) {
-                var prio = document.createElement("span");
-                prio.className = "ed-prio ed-prio--" + (t.priorityKey || "medium");
-                prio.textContent = t.priority;
-                top.appendChild(prio);
+            var name = document.createElement("span");
+            name.className = "ed-day-item__name";
+            if (t.overdue) {
+                var dot = document.createElement("span");
+                dot.className = "ed-overdue-dot";
+                dot.setAttribute("role", "img");
+                dot.setAttribute("aria-label", "Overdue task");
+                dot.title = "Overdue task";
+                name.appendChild(dot);
             }
-            var status = document.createElement("span");
-            status.className = "ed-dtask__status";
-            status.textContent = t.overdue ? "Overdue · " + t.status : t.status;
-            top.appendChild(status);
-            a.appendChild(top);
-
-            var title = document.createElement("span");
-            title.className = "ed-dtask__title";
-            title.textContent = t.title;
-            a.appendChild(title);
+            name.appendChild(document.createTextNode(t.title));
+            a.appendChild(name);
 
             if (t.subtask) {
                 var sub = document.createElement("span");
-                sub.className = "ed-dtask__sub";
+                sub.className = "ed-day-item__sub";
                 sub.textContent = "Subtask: " + t.subtask;
                 a.appendChild(sub);
             }
 
-            var meta = document.createElement("span");
-            meta.className = "ed-dtask__meta";
-            meta.textContent = (showDue ? "Due " + shortDate(t.due) + " · " : "") + t.progress + "% done";
-            a.appendChild(meta);
-            return a;
+            if (t.priority) {
+                var meta = document.createElement("span");
+                meta.className = "ed-day-item__meta";
+                meta.textContent = t.priority + " priority";
+                a.appendChild(meta);
+            }
+
+            li.appendChild(a);
+            return li;
+        }
+
+        // ── Expanded view ──────────────────────────────────────
+        function openExpanded(instant) {
+            var d = parseKey(selectedKey);
+            viewYear = d.getFullYear();
+            viewMonth = d.getMonth();
+            render();
+            layout.hidden = true;
+            expanded.hidden = false;
+            root.classList.add("is-expanded");
+            root.classList.toggle("is-instant", !!instant);
+            expandBtn.setAttribute("aria-expanded", "true");
+            setHash();
+            var day = expanded.querySelector('[data-date="' + selectedKey + '"]');
+            if (day) day.focus({ preventScroll: true });
+        }
+
+        function closeExpanded() {
+            expanded.hidden = true;
+            layout.hidden = false;
+            root.classList.remove("is-expanded");
+            expandBtn.setAttribute("aria-expanded", "false");
+            history.replaceState(null, "", location.pathname + location.search);
+            expandBtn.focus({ preventScroll: true });
+        }
+
+        function setHash() {
+            history.replaceState(null, "", location.pathname + location.search + "#calendar=" + selectedKey);
         }
     });
 
     // ── Helpers ─────────────────────────────────────────────────
-    // Calls fn(key, day, weekday) for every cell of the month grid,
-    // with key = null for the blank cells before the 1st and after the end.
+    // Calls fn(key, day, weekday) for every cell of the month grid, with
+    // key = null for the blank cells before the 1st and after the last day.
     function eachCell(year, month, fn) {
         var first = new Date(year, month, 1).getDay();
-        var days = new Date(year, month + 1, 0).getDate();
+        var days = new Date(year, month + 1, 0).getDate(); // handles leap years
         var cells = Math.ceil((first + days) / 7) * 7;
         for (var i = 0; i < cells; i++) {
             var day = i - first + 1;
-            if (day < 1 || day > days) {
-                fn(null, null, i % 7);
-            } else {
-                fn(keyOf(new Date(year, month, day)), day, i % 7);
-            }
+            if (day < 1 || day > days) fn(null, null, i % 7);
+            else fn(keyOf(new Date(year, month, day)), day, i % 7);
         }
     }
 
@@ -322,25 +284,11 @@
         return map;
     }
 
-    var STATUS_ORDER = { "To Do": 0, "In Progress": 1, "Returned": 2, "For Review": 3, "Completed": 4 };
-    function byStatus(a, b) {
-        if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
-        return (STATUS_ORDER[a.status] || 0) - (STATUS_ORDER[b.status] || 0);
-    }
-
-    function keyOf(d) {
-        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-    }
+    function keyOf(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
 
     function parseKey(key) {
         var p = String(key).split("-");
         return new Date(+p[0], +p[1] - 1, +p[2]);
-    }
-
-    // "October 05" — same compact form as the board cards (DisplayHelpers.FormalMonthDay).
-    function shortDate(key) {
-        var d = parseKey(key);
-        return MONTHS[d.getMonth()] + " " + pad(d.getDate());
     }
 
     function pad(n) { return n < 10 ? "0" + n : String(n); }
