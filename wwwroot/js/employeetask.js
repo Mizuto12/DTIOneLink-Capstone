@@ -132,42 +132,33 @@ function initFilterButton() {
 }
 
 /**
- * Clicking (or pressing Enter/Space on) a task card opens that
- * task's detail view. Clicks on the pencil "edit" button or the
- * delete button inside a card are excluded so they don't also
- * trigger navigation — the edit button has its own destination,
- * wired separately below.
+ * Clicking (or pressing Enter/Space on) a due-date row opens that
+ * task's detail view. A click on the delete button inside a row is
+ * excluded so it doesn't also trigger navigation.
  */
 function initTaskCardNavigation() {
-    var cards = document.querySelectorAll('.task-card[data-href]');
+    var rows = document.querySelectorAll('.due-row[data-href]');
 
-    document.querySelectorAll('.task-edit-btn[data-href]').forEach(function (btn) {
-        btn.addEventListener('click', function (event) {
-            event.stopPropagation();
-            window.location.href = btn.getAttribute('data-href');
-        });
-    });
-
-    cards.forEach(function (card) {
-        card.addEventListener('click', function (event) {
-            if (event.target.closest('.task-edit-btn, .task-delete-form')) {
+    rows.forEach(function (row) {
+        row.addEventListener('click', function (event) {
+            if (event.target.closest('.task-delete-form')) {
                 return;
             }
-            var href = card.getAttribute('data-href');
+            var href = row.getAttribute('data-href');
             if (href) {
                 window.location.href = href;
             }
         });
 
-        card.addEventListener('keydown', function (event) {
+        row.addEventListener('keydown', function (event) {
             if (event.key !== 'Enter' && event.key !== ' ') {
                 return;
             }
-            if (event.target.closest('.task-edit-btn, .task-delete-form')) {
+            if (event.target.closest('.task-delete-form')) {
                 return;
             }
             event.preventDefault();
-            var href = card.getAttribute('data-href');
+            var href = row.getAttribute('data-href');
             if (href) {
                 window.location.href = href;
             }

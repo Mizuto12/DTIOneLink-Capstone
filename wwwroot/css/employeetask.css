@@ -87,254 +87,231 @@ body{
 .task-management img { display: block; }
 
 /* --------------------------------------------------------------------
-   Workspace header (Filter / New Task actions)
+   Needs Your Action — Returned tasks (always need a resubmit) plus the
+   single most-overdue task whose progress can still be edited. Pulled out
+   of the due-date groups below so the one or two things that actually
+   need a decision don't just become two more rows to scan for.
    -------------------------------------------------------------------- */
-.task-management .workspace-header {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: flex-end;
-    margin-bottom: 24px;
-    gap: 16px;
+.task-management .action-strip {
+    background: linear-gradient(135deg, #001e65 0%, #122a72 55%, #1d357e 100%);
+    border-radius: 20px;
+    padding: 22px 26px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0, 30, 101, 0.22);
 }
 
-@media (min-width: 640px) {
-    .task-management .workspace-header { flex-direction: row; }
-}
-
-.task-management .header-actions {
+.task-management .action-strip__head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    width: 100%;
+    gap: 10px;
+    margin-bottom: 16px;
+    color: #ffffff;
 }
-
-@media (min-width: 640px) {
-    .task-management .header-actions { width: auto; }
-}
-
-.task-management .btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 24px;
-    border-radius: var(--radius-full);
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    font-weight: 700;
-    flex: 1;
-    transition: background-color 0.15s ease, opacity 0.15s ease;
-    white-space: nowrap;
-}
-
-@media (min-width: 640px) {
-    .task-management .btn { flex: none; }
-}
-
-.task-management .btn-secondary {
-    background-color: var(--color-surface-container-highest);
-    color: var(--color-primary);
-    border: 1px solid rgba(197, 197, 210, 0.5);
-    padding-left: 16px;
-    padding-right: 16px;
-}
-.task-management .btn-secondary:hover { background-color: var(--color-surface-variant); }
-
-.task-management .btn-primary {
-    background-color: var(--color-primary);
-    color: var(--color-on-primary);
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-.task-management .btn-primary:hover { background-color: rgba(0, 30, 101, 0.9); }
-
-/* --------------------------------------------------------------------
-   Kanban board
-   -------------------------------------------------------------------- */
-/* One white workspace (Canva page 3). The five boards fill the full width:
-   desktop  → To Do · In Progress · For Review on top, Returned · Completed
-              sharing the second row (6 tracks: 2+2+2 / 3+3);
-   tablet   → two per row, Completed spanning the last row;
-   phone    → one per row.
-   Boards in a row share the same height, so headers and cards line up. */
-.task-management .kanban-board {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-    align-items: stretch;
-    width: 100%;
-    max-width: 100%;
-    margin-bottom: 24px;
-    padding: 20px;
-    background-color: var(--color-surface-container-lowest);
-    border: 1px solid rgba(29, 53, 126, 0.32);
-    border-radius: 24px;
-    box-shadow: 0 1px 2px rgba(0, 30, 101, 0.05), 0 12px 32px -16px rgba(0, 30, 101, 0.22);
-}
-
-/* Each column is capped to this height and scrolls its own cards — not
-   the whole page. Before this, a column with many cards stretched the
-   entire board (every column shares row height via grid "stretch"),
-   forcing the adviser's "scroll too much" complaint: to see the bottom
-   of a short column you had to scroll past every card in the tallest
-   one. The header (title/count/menu) stays put; only .column-cards
-   scrolls, same pattern already proven on the Admin/SuperAdmin
-   dashboard's own Kanban view (admindashboard.css .kanban-column__cards). */
-.task-management .kanban-column {
-    min-width: 0;
-    min-height: 240px;
-    max-height: 70vh;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px 14px 16px;
-    background-color: var(--color-surface-container-low);
-    border: 1px solid rgba(29, 53, 126, 0.32);
-    border-radius: 22px;
-    overflow: hidden;
-}
-
-.task-management .column-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 2px 4px 4px 2px;
-    margin: 0 -4px 0 -2px;
-}
-
-/* Thin, unobtrusive scrollbar — same spirit as the dashboard's own
-   custom-scrollbar treatment, scoped locally so it only applies here. */
-.task-management .column-cards::-webkit-scrollbar       { width: 6px; }
-.task-management .column-cards::-webkit-scrollbar-track { background: transparent; }
-.task-management .column-cards::-webkit-scrollbar-thumb { background: rgba(29, 53, 126, 0.25); border-radius: 999px; }
-
-@media (min-width: 640px) {
-    .task-management .kanban-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .task-management .kanban-board > .kanban-column:last-child { grid-column: span 2; }
-}
-
-@media (min-width: 1100px) {
-    .task-management .kanban-board { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-    .task-management .kanban-board > .kanban-column:nth-child(-n + 3) { grid-column: span 2; min-height: 320px; }
-    .task-management .kanban-board > .kanban-column:nth-child(n + 4) { grid-column: span 3; }
-}
-
-@media (max-width: 639px) {
-    .task-management .kanban-board { padding: 12px; gap: 14px; border-radius: 18px; }
-}
-
-.task-management .column-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 8px;
-}
-
-.task-management .column-header-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.task-management .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-full);
-    display: inline-block;
-}
-
-/* Board colours (Canva page 3): dot + tinted count per status. */
-.task-management .status-dot.todo        { background-color: #64748b; }
-.task-management .status-dot.in-progress { background-color: #2563eb; }
-.task-management .status-dot.for-review  { background-color: #7c3aed; }
-.task-management .status-dot.rejected    { background-color: #d97706; }
-.task-management .status-dot.completed   { background-color: #16a34a; }
-
-.task-management .kanban-column:has(.status-dot.todo) .column-count        { background-color: #eef1f5; color: #475569; }
-.task-management .kanban-column:has(.status-dot.in-progress) .column-count { background-color: #e0ebff; color: #1d4ed8; }
-.task-management .kanban-column:has(.status-dot.for-review) .column-count  { background-color: #f1e9ff; color: #6d28d9; }
-.task-management .kanban-column:has(.status-dot.rejected) .column-count    { background-color: #fff3dc; color: #b45309; }
-.task-management .kanban-column:has(.status-dot.completed) .column-count   { background-color: #e3f8ea; color: #15803d; }
-
-.task-management .task-card.for-review { border-left: 4px solid var(--color-primary-container); }
-.task-management .task-card.rejected { border-left: 4px solid #ba1a1a; }
-
-.task-management .task-rejected-icon {
-    color: #ba1a1a;
-    font-size: 20px;
-}
-
-.task-management .column-title {
+.task-management .action-strip__head h3 {
     font-size: 15px;
-    line-height: 28px;
     font-weight: 700;
-    color: var(--color-on-surface);
     margin: 0;
 }
 
-.task-management .column-count {
-    background-color: var(--color-surface-container-highest);
-    color: var(--color-on-surface-variant);
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
-    font-size: 11px;
-    line-height: 14px;
-    font-weight: 700;
+.task-management .action-strip__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
 }
 
-.task-management .column-menu-btn {
-    color: var(--color-on-surface-variant);
-    transition: color 0.15s ease;
-}
-.task-management .column-menu-btn:hover { color: var(--color-primary); }
-
-/* --------------------------------------------------------------------
-   Task cards
-   -------------------------------------------------------------------- */
-.task-management .task-card {
-    background-color: var(--color-surface-container-lowest);
-    border-radius: var(--radius-xl);
+.task-management .action-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
     padding: 16px;
-    box-shadow: 0 4px 20px 0 rgba(68, 90, 164, 0.05);
-    border: 1px solid rgba(197, 197, 210, 0.2);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    cursor: pointer;
-    transition: box-shadow 0.15s ease;
-}
-.task-management .task-card:hover { box-shadow: 0 8px 24px 0 rgba(68, 90, 164, 0.1); }
-.task-management .task-card:focus-visible {
-    outline: 2px solid var(--color-primary-container);
-    outline-offset: 2px;
+    gap: 10px;
 }
 
-.task-management .task-card.in-progress {
-    border-left: 4px solid var(--color-primary-container);
-}
-
-.task-management .task-card.completed {
-    opacity: 0.75;
-}
-
-.task-management .task-card-top {
+.task-management .action-card__tag {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffb199;
+}
+.task-management .action-card__tag--overdue { color: #ff9b9b; }
+.task-management .action-card__tag .material-symbols-outlined { font-size: 17px; }
+
+.task-management .action-card__title {
+    color: #ffffff;
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
+.task-management .action-card__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.task-management .action-card__meta {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.task-management .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 700;
+    background: #ffffff;
+    color: var(--color-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.task-management .action-btn:hover { background: var(--color-surface-container-low); }
+.task-management .action-btn .material-symbols-outlined { font-size: 16px; }
+
+/* --------------------------------------------------------------------
+   Due-date groups — Overdue / Due This Week / Later / Completed. A group
+   with nothing in it is left out of the page entirely rather than shown
+   with a reassuring empty message, so the page only ever says as much as
+   is true right now.
+   -------------------------------------------------------------------- */
+.task-management .due-panel {
+    background-color: var(--color-surface-container-lowest);
+    border-radius: 18px;
+    box-shadow: 0 1px 3px rgba(0, 30, 101, 0.06), 0 4px 12px rgba(0, 30, 101, 0.04);
+    padding: 22px 24px;
+    margin-bottom: 20px;
+}
+
+.task-management .due-panel--overdue {
+    border: 1.5px solid #f3c6c6;
+}
+
+.task-management .due-panel--completed {
+    opacity: 0.85;
+}
+
+.task-management .due-panel__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.task-management .due-panel__head h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+}
+.task-management .due-panel__head .material-symbols-outlined {
+    color: var(--color-on-surface-variant);
+    font-size: 20px;
+}
+.task-management .due-panel--overdue .due-panel__head h3,
+.task-management .due-panel--overdue .due-panel__head .material-symbols-outlined {
+    color: #ba1a1a;
+}
+.task-management .due-panel--completed .due-panel__head .material-symbols-outlined {
+    color: #16a34a;
+}
+
+.task-management .due-panel__count {
+    margin-left: auto;
+    background-color: var(--color-surface-container-highest);
+    color: var(--color-on-surface-variant);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+}
+.task-management .due-panel__count--overdue { background-color: var(--color-error-container); color: #ba1a1a; }
+.task-management .due-panel__count--completed { background-color: #dcf5e4; color: #166534; }
+
+.task-management .due-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 10px;
+    column-gap: 14px;
+    padding: 13px 4px;
+    border-bottom: 1px solid var(--color-outline-variant);
+    cursor: pointer;
+}
+.task-management .due-row:last-child { border-bottom: none; }
+.task-management .due-row:hover { background-color: var(--color-surface-container-low); }
+.task-management .due-row:focus-visible {
+    outline: 2px solid var(--color-primary-container);
+    outline-offset: -2px;
+}
+
+.task-management .due-row__main { flex: 1 1 320px; min-width: 0; }
+.task-management .due-row__title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-on-surface);
+}
+.task-management .due-row__meta {
+    font-size: 12px;
+    color: var(--color-on-surface-variant);
+    margin-top: 2px;
+}
+
+.task-management .due-row.is-completed .due-row__title {
+    text-decoration: line-through;
+    color: var(--color-outline);
+}
+.task-management .due-row.is-completed .due-row__meta { color: var(--color-outline); }
+
+.task-management .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.task-management .status-pill.todo        { background-color: #eef1f5; color: #475569; }
+.task-management .status-pill.in-progress { background-color: #dbe7ff; color: #1d4ed8; }
+.task-management .status-pill.for-review  { background-color: #ece3ff; color: #6d28d9; }
+.task-management .status-pill.returned    { background-color: #ffefd2; color: #8a5000; }
+.task-management .status-pill.completed   { background-color: #dcf5e4; color: #166534; }
+
+.task-management .tm-empty-page {
+    padding: 64px 16px;
+    text-align: center;
+    color: var(--color-outline);
+}
+.task-management .tm-empty-page .material-symbols-outlined {
+    font-size: 40px;
+    display: block;
+    margin: 0 auto 12px;
+    color: var(--color-outline-variant);
+}
+.task-management .tm-empty-page p { margin: 0; font-size: 14px; }
+
+/* --------------------------------------------------------------------
+   Shared pieces: priority badge, avatar initials, panel header's
+   Completed "..." menu, and the delete button on a Completed row.
+   -------------------------------------------------------------------- */
 .task-management .priority-badge {
     padding: 4px 10px;
     border-radius: var(--radius-full);
     font-family: 'Inter', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     font-weight: 700;
+    white-space: nowrap;
 }
 
 .task-management .priority-badge.high {
@@ -352,122 +329,28 @@ body{
     color: var(--color-on-surface-variant);
 }
 
-.task-management .task-edit-btn { color: var(--color-outline); }
-.task-management .task-edit-btn:hover { color: var(--color-primary); }
-.task-management .task-edit-btn .material-symbols-outlined { font-size: 18px; }
-
-.task-management .task-complete-icon {
-    color: var(--color-tertiary-fixed-dim);
-    font-size: 20px;
-}
-
-.task-management .task-title {
-    font-size: 16px;
-    line-height: 24px;
-    font-weight: 600;
-    color: var(--color-on-surface);
-    margin: 0;
-}
-
-.task-management .task-card.completed .task-title {
-    text-decoration: line-through;
-    color: var(--color-outline);
-}
-
-.task-management .task-progress-track {
-    width: 100%;
-    background-color: var(--color-surface-variant);
-    border-radius: var(--radius-full);
-    height: 6px;
-    margin-top: 4px;
-}
-
-.task-management .task-progress-fill {
-    background-color: var(--color-primary-container);
-    height: 6px;
-    border-radius: var(--radius-full);
-}
-
-.task-management .task-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 4px;
-    padding-top: 12px;
-    border-top: 1px solid var(--color-surface-variant);
-}
-
-.task-management .task-assignee {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.task-management .avatar-photo {
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius-full);
-    object-fit: cover;
-    border: 1px solid #ffffff;
-}
-
 .task-management .avatar-initials {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border-radius: var(--radius-full);
     background-color: var(--color-secondary-container);
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    letter-spacing: 0.05em;
+    font-size: 11px;
+    letter-spacing: 0.03em;
     font-weight: 700;
     color: var(--color-on-surface-variant);
-    border: 1px solid #ffffff;
     flex-shrink: 0;
 }
 
-.task-management .task-card.completed .avatar-initials {
-    background-color: var(--color-surface-dim);
-    color: var(--color-on-surface);
-}
-
-.task-management .assignee-name {
-    font-size: 11px;
-    line-height: 14px;
-    font-weight: 500;
+.task-management .column-menu-btn {
     color: var(--color-on-surface-variant);
+    transition: color 0.15s ease;
 }
+.task-management .column-menu-btn:hover { color: var(--color-primary); }
 
-.task-management .task-card.completed .assignee-name { color: var(--color-outline); }
-
-.task-management .task-due {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--color-on-surface-variant);
-    white-space: nowrap;
-}
-
-.task-management .task-due .material-symbols-outlined { font-size: 14px; }
-
-.task-management .task-due span.due-label {
-    font-size: 11px;
-    line-height: 14px;
-    font-weight: 500;
-}
-
-.task-management .task-card.completed .task-due { color: var(--color-outline); }
-
-.task-management .column-empty {
-    padding: 24px 16px;
-    text-align: center;
-    color: var(--color-outline);
-    font-size: 13px;
-    border: 1px dashed var(--color-outline-variant);
-    border-radius: var(--radius-xl);
-}
 /* --------------------------------------------------------------------
    Result messages (e.g. after deleting a completed task)
    -------------------------------------------------------------------- */
@@ -491,15 +374,10 @@ body{
 }
 
 /* --------------------------------------------------------------------
-   Delete button on Completed cards — always visible (not hover-only) so
+   Delete button on a Completed row — always visible (not hover-only) so
    it's easy to find; red on hover/focus to signal a destructive action.
+   44px: this project's own touch-target minimum (was 32px).
    -------------------------------------------------------------------- */
-.task-management .task-card-top-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
 .task-management .task-delete-form {
     margin: 0;
     display: flex;
@@ -509,8 +387,8 @@ body{
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: none;
     border-radius: 9999px;

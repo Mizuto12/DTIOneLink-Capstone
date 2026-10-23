@@ -7,8 +7,9 @@
     var role = Context.Session.GetString("UserRole");
     var isElevated = role == "Admin" || role == "Supervisor";
     var currentUserId = Context.Session.GetInt32("UserId");
+    var today = DTIOneLink.Services.TimeZoneHelper.PhilippineToday;
 
-    var tasks = Model ?? Enumerable.Empty<DTIOneLink.Models.TaskItem>();
+    var tasks = (Model ?? Enumerable.Empty<DTIOneLink.Models.TaskItem>()).ToList();
 
     // Elevated viewers (Admin/Supervisor) see the task's overall/aggregate
     // status here, since they aren't themselves doing the work. A regular
@@ -26,12 +27,6 @@
     string AssigneeDisplay(DTIOneLink.Models.TaskItem t) => t.Assignments.Count > 1
         ? $"{t.Assignments.Count} assignees"
         : (t.Assignee?.FullName ?? "Unassigned");
-
-    var todoTasks = tasks.Where(t => EffectiveStatus(t) == "pending").ToList();
-    var inProgressTasks = tasks.Where(t => EffectiveStatus(t) == "in-progress").ToList();
-    var forReviewTasks = tasks.Where(t => EffectiveStatus(t) == "for-review").ToList();
-    var rejectedTasks = tasks.Where(t => EffectiveStatus(t) == "returned-for-correction").ToList();
-    var completedTasks = tasks.Where(t => EffectiveStatus(t) == "completed").ToList();
 
     string PriorityClass(string? priority) => (priority ?? "medium").Trim().ToLowerInvariant() switch
     {
@@ -72,13 +67,52 @@
         && string.Equals(t.Status, "completed", StringComparison.OrdinalIgnoreCase)
         && t.TaskLevel != DTIOneLink.Services.TaskLevels.Main;
 
-    string FormatDueDate(DateTime dueDate)
+    (string Label, string Css) StatusPill(string status) => status switch
     {
-        var today = DTIOneLink.Services.TimeZoneHelper.PhilippineToday;
-        if (dueDate.Date == today) return "Today";
-        if (dueDate.Date == today.AddDays(1)) return "Tomorrow";
-        return DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(dueDate);
-    }
+        "pending" => ("To Do", "todo"),
+        "in-progress" => ("In Progress", "in-progress"),
+        "for-review" => ("For Review", "for-review"),
+        "returned-for-correction" => ("Returned", "returned"),
+        "completed" => ("Completed", "completed"),
+        _ => ("To Do", "todo")
+    };
+
+    string FormatDueDate(DateTime dueDate) => DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(dueDate);
+
+    // ---- Group by what actually needs attention, not by workflow column ----
+    // "Needs Your Action": every Returned task (always needs a resubmit),
+    // plus — separately — the single most-overdue task whose progress the
+    // viewer can still edit (pending/in-progress). That one task is then
+    // left out of the Overdue group below so it isn't shown twice; a
+    // Returned task is never duplicated below either, since resubmitting
+    // is the only thing to do with it regardless of its due date.
+    var returnedTasks = tasks.Where(t => EffectiveStatus(t) == "returned-for-correction")
+        .OrderBy(t => t.DueDate)
+        .ToList();
+
+    var editableOverdue = tasks
+        .Where(t => (EffectiveStatus(t) == "pending" || EffectiveStatus(t) == "in-progress") && t.DueDate.Date < today)
+        .OrderBy(t => t.DueDate)
+        .ToList();
+    var spotlightOverdue = editableOverdue.FirstOrDefault();
+
+    var completedTasks = tasks.Where(t => EffectiveStatus(t) == "completed").ToList();
+
+    var groupableTasks = tasks
+        .Where(t => EffectiveStatus(t) != "completed" && EffectiveStatus(t) != "returned-for-correction")
+        .Where(t => spotlightOverdue == null || t.Id != spotlightOverdue.Id)
+        .OrderBy(t => t.DueDate)
+        .ToList();
+
+    var overdueGroup = groupableTasks.Where(t => t.DueDate.Date < today).ToList();
+    var thisWeekGroup = groupableTasks.Where(t => t.DueDate.Date >= today && t.DueDate.Date <= today.AddDays(7)).ToList();
+    var laterGroup = groupableTasks.Where(t => t.DueDate.Date > today.AddDays(7)).ToList();
+
+    var hasAnyAction = returnedTasks.Any() || spotlightOverdue != null;
+    var hasAnything = hasAnyAction || overdueGroup.Any() || thisWeekGroup.Any() || laterGroup.Any() || completedTasks.Any();
+
+    var deletableCompletedCount = completedTasks.Count(CanDelete);
+    var keptCompletedCount = completedTasks.Count - deletableCompletedCount;
 }
 
 @* This view renders ONLY the page content — employeelayout.cshtml already
@@ -104,287 +138,199 @@
             <span>@tmError</span>
         </div>
     }
-    <div class="workspace-header">
-        <div class="header-actions">
-            <button type="button" class="btn btn-secondary" data-action="filter">
-                <span class="material-symbols-outlined">filter_list</span>
-                Filter
-            </button>
+
+    @if (!hasAnything)
+    {
+        <div class="tm-empty-page">
+            <span class="material-symbols-outlined">task_alt</span>
+            <p>No tasks yet.</p>
         </div>
-    </div>
-
-    <!-- Kanban Board -->
-    <div class="kanban-board">
-
-        <!-- Column: To Do -->
-        <div class="kanban-column">
-            <div class="column-header">
-                <div class="column-header-left">
-                    <span class="status-dot todo"></span>
-                    <h3 class="column-title">To Do</h3>
-                    <span class="column-count">@todoTasks.Count</span>
+    }
+    else
+    {
+        @if (hasAnyAction)
+        {
+            <section class="action-strip" aria-label="Needs your action">
+                <div class="action-strip__head">
+                    <span class="material-symbols-outlined">priority_high</span>
+                    <h3>Needs Your Action (@(returnedTasks.Count + (spotlightOverdue != null ? 1 : 0)))</h3>
                 </div>
-            </div>
-
-            <div class="column-cards">
-                @if (!todoTasks.Any())
-                {
-                    <div class="column-empty">No tasks yet.</div>
-                }
-                else
-                {
-                    @foreach (var task in todoTasks)
+                <div class="action-strip__grid">
+                    @foreach (var task in returnedTasks)
                     {
-                        <div class="task-card" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                             role="link" tabindex="0" aria-label="Open @task.TaskName">
-                            <div class="task-card-top">
-                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                                <button type="button" class="task-edit-btn" title="Update progress"
-                                        aria-label="Update progress for @task.TaskName"
-                                        data-href="@Url.Action("Update", "Employee", new { id = task.Id })">
-                                    <span class="material-symbols-outlined">edit</span>
-                                </button>
+                        <div class="action-card">
+                            <div class="action-card__tag">
+                                <span class="material-symbols-outlined">refresh</span>
+                                <span>Returned for correction</span>
                             </div>
-                            <h4 class="task-title">@task.TaskName</h4>
-                            <div class="task-footer">
-                                <div class="task-assignee">
-                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
-                                </div>
-                                <div class="task-due">
-                                    <span class="material-symbols-outlined">calendar_today</span>
-                                    <span class="due-label">@FormatDueDate(task.DueDate)</span>
-                                </div>
+                            <div class="action-card__title">@task.TaskName</div>
+                            <div class="action-card__foot">
+                                <span class="action-card__meta">@(AssigneeDisplay(task)) · @PriorityLabel(task.Priority)</span>
+                                <a class="action-btn" asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id">
+                                    <span class="material-symbols-outlined">upload</span>Resubmit
+                                </a>
                             </div>
                         </div>
                     }
-                }
-            </div>
-        </div>
-
-        <!-- Column: In Progress -->
-        <div class="kanban-column">
-            <div class="column-header">
-                <div class="column-header-left">
-                    <span class="status-dot in-progress"></span>
-                    <h3 class="column-title">In Progress</h3>
-                    <span class="column-count">@inProgressTasks.Count</span>
-                </div>
-            </div>
-
-            <div class="column-cards">
-                @if (!inProgressTasks.Any())
-                {
-                    <div class="column-empty">No tasks yet.</div>
-                }
-                else
-                {
-                    @foreach (var task in inProgressTasks)
+                    @if (spotlightOverdue != null)
                     {
-                        <div class="task-card in-progress" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                             role="link" tabindex="0" aria-label="Open @task.TaskName">
-                            <div class="task-card-top">
-                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                                <button type="button" class="task-edit-btn" title="Update progress"
-                                        aria-label="Update progress for @task.TaskName"
-                                        data-href="@Url.Action("Update", "Employee", new { id = task.Id })">
-                                    <span class="material-symbols-outlined">edit</span>
-                                </button>
+                        var daysLate = (today - spotlightOverdue.DueDate.Date).Days;
+                        <div class="action-card">
+                            <div class="action-card__tag action-card__tag--overdue">
+                                <span class="material-symbols-outlined">event_busy</span>
+                                <span>Most overdue · @daysLate day@(daysLate == 1 ? "" : "s")</span>
                             </div>
-                            <h4 class="task-title">@task.TaskName</h4>
-                            <div class="task-progress-track">
-                                <div class="task-progress-fill" style="width: @(EffectiveProgress(task))%"></div>
-                            </div>
-                            <div class="task-footer">
-                                <div class="task-assignee">
-                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
-                                </div>
-                                <div class="task-due">
-                                    <span class="material-symbols-outlined">calendar_today</span>
-                                    <span class="due-label">@FormatDueDate(task.DueDate)</span>
-                                </div>
+                            <div class="action-card__title">@spotlightOverdue.TaskName</div>
+                            <div class="action-card__foot">
+                                <span class="action-card__meta">@(EffectiveProgress(spotlightOverdue))% done · @PriorityLabel(spotlightOverdue.Priority)</span>
+                                <a class="action-btn" asp-controller="Employee" asp-action="Details" asp-route-id="@spotlightOverdue.Id">
+                                    <span class="material-symbols-outlined">edit</span>Update Progress
+                                </a>
                             </div>
                         </div>
                     }
-                }
-            </div>
-        </div>
-
-        <!-- Column: For Review -->
-        <div class="kanban-column">
-            <div class="column-header">
-                <div class="column-header-left">
-                    <span class="status-dot for-review"></span>
-                    <h3 class="column-title">For Review</h3>
-                    <span class="column-count">@forReviewTasks.Count</span>
                 </div>
-            </div>
+            </section>
+        }
 
-            <div class="column-cards">
-                @if (!forReviewTasks.Any())
+        @if (overdueGroup.Any())
+        {
+            <section class="due-panel due-panel--overdue">
+                <div class="due-panel__head">
+                    <span class="material-symbols-outlined">event_busy</span>
+                    <h3>Overdue</h3>
+                    <span class="due-panel__count due-panel__count--overdue">@overdueGroup.Count</span>
+                </div>
+                @foreach (var task in overdueGroup)
                 {
-                    <div class="column-empty">No tasks yet.</div>
-                }
-                else
-                {
-                    @foreach (var task in forReviewTasks)
-                    {
-                        <div class="task-card for-review" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                             role="link" tabindex="0" aria-label="Open @task.TaskName">
-                            <div class="task-card-top">
-                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                            </div>
-                            <h4 class="task-title">@task.TaskName</h4>
-                            <div class="task-footer">
-                                <div class="task-assignee">
-                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
-                                </div>
-                                <div class="task-due">
-                                    <span class="due-label">Awaiting review</span>
-                                </div>
-                            </div>
+                    var (label, css) = StatusPill(EffectiveStatus(task));
+                    var daysLate = (today - task.DueDate.Date).Days;
+                    <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                        <div class="due-row__main">
+                            <div class="due-row__title">@task.TaskName</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate) (@daysLate day@(daysLate == 1 ? "" : "s") ago)</div>
                         </div>
-                    }
+                        <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                        <span class="status-pill @css">@label@(css == "in-progress" ? $" · {EffectiveProgress(task)}%" : "")</span>
+                    </div>
                 }
-            </div>
-        </div>
+            </section>
+        }
 
-        <!-- Column: Returned (same status SuperAdmin/Admin dashboards and the Tasks list call "Returned" / "Returned for Correction" — kept consistent here) -->
-        <div class="kanban-column">
-            <div class="column-header">
-                <div class="column-header-left">
-                    <span class="status-dot rejected"></span>
-                    <h3 class="column-title">Returned</h3>
-                    <span class="column-count">@rejectedTasks.Count</span>
+        @if (thisWeekGroup.Any())
+        {
+            <section class="due-panel">
+                <div class="due-panel__head">
+                    <span class="material-symbols-outlined">date_range</span>
+                    <h3>Due This Week</h3>
+                    <span class="due-panel__count">@thisWeekGroup.Count</span>
                 </div>
-            </div>
-
-            <div class="column-cards">
-                @if (!rejectedTasks.Any())
+                @foreach (var task in thisWeekGroup)
                 {
-                    <div class="column-empty">No tasks yet.</div>
-                }
-                else
-                {
-                    @foreach (var task in rejectedTasks)
-                    {
-                        <div class="task-card rejected" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                             role="link" tabindex="0" aria-label="Open @task.TaskName">
-                            <div class="task-card-top">
-                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                                <span class="material-symbols-outlined task-rejected-icon">refresh</span>
-                            </div>
-                            <h4 class="task-title">@task.TaskName</h4>
-                            <div class="task-footer">
-                                <div class="task-assignee">
-                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
-                                </div>
-                                <div class="task-due">
-                                    <span class="due-label">Needs resubmission</span>
-                                </div>
-                            </div>
+                    var (label, css) = StatusPill(EffectiveStatus(task));
+                    <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                        <div class="due-row__main">
+                            <div class="due-row__title">@task.TaskName</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate)</div>
                         </div>
-                    }
+                        <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                        <span class="status-pill @css">@label@(css == "in-progress" ? $" · {EffectiveProgress(task)}%" : "")</span>
+                    </div>
                 }
-            </div>
-        </div>
+            </section>
+        }
 
-        <!-- Column: Completed -->
-        <div class="kanban-column">
-            <div class="column-header">
-                <div class="column-header-left">
-                    <span class="status-dot completed"></span>
-                    <h3 class="column-title">Completed</h3>
-                    <span class="column-count">@completedTasks.Count</span>
+        @if (laterGroup.Any())
+        {
+            <section class="due-panel">
+                <div class="due-panel__head">
+                    <span class="material-symbols-outlined">calendar_month</span>
+                    <h3>Later</h3>
+                    <span class="due-panel__count">@laterGroup.Count</span>
                 </div>
-                @{
-                    // Only tasks the server will actually delete (see CanDelete);
-                    // shared tasks still waiting on other assignees are excluded.
-                    var deletableCompletedCount = completedTasks.Count(CanDelete);
-                    var keptCompletedCount = completedTasks.Count - deletableCompletedCount;
+                @foreach (var task in laterGroup)
+                {
+                    var (label, css) = StatusPill(EffectiveStatus(task));
+                    <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                        <div class="due-row__main">
+                            <div class="due-row__title">@task.TaskName</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate)</div>
+                        </div>
+                        <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                        <span class="status-pill @css">@label@(css == "in-progress" ? $" · {EffectiveProgress(task)}%" : "")</span>
+                    </div>
                 }
-                <div class="column-menu">
-                    <button type="button" class="column-menu-btn" id="completedMenuBtn"
-                            aria-haspopup="true" aria-expanded="false" aria-controls="completedMenu"
-                            title="More options" aria-label="Completed column options">
-                        <span class="material-symbols-outlined">more_horiz</span>
-                    </button>
-                    <div class="column-menu-panel" id="completedMenu" role="menu" hidden>
-                        @if (deletableCompletedCount > 0)
+            </section>
+        }
+
+        @if (completedTasks.Any())
+        {
+            <section class="due-panel due-panel--completed">
+                <div class="due-panel__head">
+                    <span class="material-symbols-outlined" data-weight="fill">check_circle</span>
+                    <h3>Completed</h3>
+                    <span class="due-panel__count due-panel__count--completed">@completedTasks.Count</span>
+                    <div class="column-menu">
+                        <button type="button" class="column-menu-btn" id="completedMenuBtn"
+                                aria-haspopup="true" aria-expanded="false" aria-controls="completedMenu"
+                                title="More options" aria-label="Completed options">
+                            <span class="material-symbols-outlined">more_horiz</span>
+                        </button>
+                        <div class="column-menu-panel" id="completedMenu" role="menu" hidden>
+                            @if (deletableCompletedCount > 0)
+                            {
+                                <form asp-controller="Employee" asp-action="DeleteAllCompleted" method="post"
+                                      class="delete-all-form" data-count="@deletableCompletedCount">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="column-menu-item danger" role="menuitem">
+                                        <span class="material-symbols-outlined">delete_sweep</span>
+                                        Delete all completed tasks (@deletableCompletedCount)
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <p class="column-menu-note">No completed tasks can be deleted right now.</p>
+                            }
+                            @if (keptCompletedCount > 0)
+                            {
+                                <p class="column-menu-note">
+                                    @keptCompletedCount @(keptCompletedCount == 1 ? "task" : "tasks") will be kept —
+                                    for example, shared tasks still waiting on other assignees.
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </div>
+                @foreach (var task in completedTasks)
+                {
+                    <div class="due-row is-completed" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                        <div class="due-row__main">
+                            <div class="due-row__title">@task.TaskName</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Was due @FormatDueDate(task.DueDate)</div>
+                        </div>
+                        <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                        @if (CanDelete(task))
                         {
-                            <form asp-controller="Employee" asp-action="DeleteAllCompleted" method="post"
-                                  class="delete-all-form" data-count="@deletableCompletedCount">
+                            <form asp-controller="Employee" asp-action="Delete" method="post"
+                                  class="task-delete-form" data-task-name="@task.TaskName">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="column-menu-item danger" role="menuitem">
-                                    <span class="material-symbols-outlined">delete_sweep</span>
-                                    Delete all completed tasks (@deletableCompletedCount)
+                                <input type="hidden" name="id" value="@task.Id" />
+                                <button type="submit" class="task-delete-btn"
+                                        title="Delete task" aria-label="Delete @task.TaskName">
+                                    <span class="material-symbols-outlined">delete</span>
                                 </button>
                             </form>
                         }
-                        else
-                        {
-                            <p class="column-menu-note">No completed tasks can be deleted right now.</p>
-                        }
-                        @if (keptCompletedCount > 0)
-                        {
-                            <p class="column-menu-note">
-                                @keptCompletedCount @(keptCompletedCount == 1 ? "task" : "tasks") will be kept —
-                                for example, shared tasks still waiting on other assignees.
-                            </p>
-                        }
                     </div>
-                </div>
-            </div>
-
-            <div class="column-cards">
-                @if (!completedTasks.Any())
-                {
-                    <div class="column-empty">No tasks yet.</div>
                 }
-                else
-                {
-                    @foreach (var task in completedTasks)
-                    {
-                        <div class="task-card completed" data-href="@Url.Action("Details", "Employee", new { id = task.Id })"
-                             role="link" tabindex="0" aria-label="Open @task.TaskName">
-                            <div class="task-card-top">
-                                <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                                <div class="task-card-top-actions">
-                                    @if (CanDelete(task))
-                                    {
-                                        <form asp-controller="Employee" asp-action="Delete" method="post"
-                                              class="task-delete-form" data-task-name="@task.TaskName">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="id" value="@task.Id" />
-                                            <button type="submit" class="task-delete-btn"
-                                                    title="Delete task" aria-label="Delete @task.TaskName">
-                                                <span class="material-symbols-outlined">delete</span>
-                                            </button>
-                                        </form>
-                                    }
-                                    <span class="material-symbols-outlined task-complete-icon" data-weight="fill">check_circle</span>
-                                </div>
-                            </div>
-                            <h4 class="task-title">@task.TaskName</h4>
-                            <div class="task-footer">
-                                <div class="task-assignee">
-                                    <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
-                                    <span class="assignee-name">@AssigneeDisplay(task)</span>
-                                </div>
-                                <div class="task-due">
-                                    <span class="due-label">Due @FormatDueDate(task.DueDate)</span>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-
-    </div>
+            </section>
+        }
+    }
 </div>
 
 <partial name="_NoticeDialog" />
