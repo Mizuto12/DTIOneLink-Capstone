@@ -81,7 +81,11 @@ function statusCellHtml(data) {
 
   if (data.canDispose) {
     if (data.recordStatus === 'Retention') {
+      // Disposal and Archive are the two real outcomes once a record's
+      // retention period is due — temporary records eventually get
+      // disposed of, permanent ones get archived instead (RA 9470/NAP).
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkForDisposal">Mark for Disposal</button>`);
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
     } else if (data.recordStatus === 'Disposal') {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkDisposed">Mark Disposed</button>`);
     }

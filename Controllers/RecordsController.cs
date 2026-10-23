@@ -1102,13 +1102,23 @@ WHERE RecordId = @RecordId", conn);
         // POST: /Records/MarkDisposed/{id} — the records officer's (Admin's)
         // confirmation that a record has actually been physically disposed of.
         // This step stays manual: the system has no way to know disposal truly
-        // happened, only that it is due. Named Disposed, not Archive — under
-        // RA 9470/NAP's own vocabulary, archival means a record of permanent
-        // value is preserved at the National Archives instead of disposed of,
-        // the opposite of this status, not a synonym for it.
+        // happened, only that it is due.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public Task<IActionResult> MarkDisposed(int id) => SetDisposalStatus(id, "Disposed");
+
+        // POST: /Records/MarkArchived/{id} — the other real outcome once a
+        // record's retention period is due, alongside Disposal: under RA
+        // 9470/NAP's own vocabulary, a record of permanent value is
+        // preserved at the National Archives instead of disposed of. The
+        // office's own retention schedule already states, per record
+        // series, whether it is temporary (eventually disposed) or
+        // permanent (archived) — this is that second outcome, not a
+        // synonym for Disposed. No disposal notification fires for it:
+        // archiving isn't a disposal action, it's the opposite of one.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> MarkArchived(int id) => SetDisposalStatus(id, "Archived");
 
         private async Task<IActionResult> SetDisposalStatus(int id, string newStatus)
         {
