@@ -592,20 +592,27 @@ namespace DTIOneLink.Controllers
              return NotFound();
          }
 
-         // SuperAdmin keeps the existing MainTaskDetails-only path. For
-         // Admin/Supervisor, direct assignment to the Main Task itself is
-         // only allowed while it has zero subtasks — the two assignment
-         // models (direct vs. via subtasks) are mutually exclusive, so once
-         // any subtask exists, assignment happens there instead and this
-         // Main Task stays read-only here.
-         // A task the OPD gave straight to people (Direct Admin or Whole
-         // Office) is theirs to work — the Admin can't add or reassign anyone.
-         if (IsOfficeWideTaskManager() || task.Subtasks.Any() || TaskTypes.IsAssignedByOpd(task.TaskType))
+         // SuperAdmin created every Main Task, so SuperAdmin can always edit
+         // its own fields (TaskName/DueDate/Priority/Description) here,
+         // regardless of type or subtask count — that used to redirect
+         // SuperAdmin away to the read-only MainTaskDetails with no way to
+         // ever change them. Admin/Supervisor keeps the existing, narrower
+         // rules: direct assignment to the Main Task itself is only allowed
+         // while it has zero subtasks (the two assignment models — direct
+         // vs. via subtasks — are mutually exclusive, so once any subtask
+         // exists, assignment happens there instead), and a task the OPD
+         // gave straight to people (Direct Admin or Whole Office) is theirs
+         // to work, not the Admin's to touch at all.
+         if (!IsOfficeWideTaskManager() && (task.Subtasks.Any() || TaskTypes.IsAssignedByOpd(task.TaskType)))
          {
              return RedirectToAction(nameof(MainTaskDetails), new { id = task.Id });
          }
 
-         isDirectMainTaskAssignment = true;
+         // The Assignees section (current-assignee list + Add/Reassign) only
+         // makes sense when this Main Task actually carries its own
+         // TaskAssignments — never while it has subtasks, which is where
+         // assignment happens instead, for every role including SuperAdmin.
+         isDirectMainTaskAssignment = !task.Subtasks.Any();
      }
      else if (!IsWithinTaskScope(task))
      {
@@ -633,11 +640,20 @@ namespace DTIOneLink.Controllers
     // AssigneeIds is locked in the view when this is true, and
     // re-enforced server-side in the POST action below.
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
-    // Narrower than IsAssignmentOnly: only true when this Edit page IS the
-    // Main Task itself (a zero-subtask Department Directive), never when
-    // editing one of its subtasks — AddSubtask takes a Main Task id, so the
-    // "Add Subtask" button must only ever show up here.
-    ViewBag.IsDirectMainTaskAssignment = isDirectMainTaskAssignment;
+    // Narrower still than the local isDirectMainTaskAssignment above: this
+    // specifically drives the "no subtasks yet" note, which only makes
+    // sense on a zero-subtask Department Directive — not a Direct Admin /
+    // Whole Office task (those never have subtasks at all, so the broader
+    // flag is true there too, but the note's wording wouldn't fit), and
+    // never when editing one of its subtasks — AddSubtask takes a Main Task
+    // id, so the "Add Subtask" button must only ever show up here.
+    ViewBag.IsDirectMainTaskAssignment = isDirectMainTaskAssignment
+        && task.TaskLevel == TaskLevels.Main
+        && TaskTypes.DepartmentDirective == task.TaskType;
+    // The People tab itself: always shown for an ordinary subtask, and for
+    // a Main Task only while it has no subtasks of its own — a Main Task
+    // with subtasks has no direct-assignment model at all, for any role.
+    ViewBag.ShowAssigneeSection = task.TaskLevel != TaskLevels.Main || isDirectMainTaskAssignment;
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
     // Due soon or overdue: the OPD deadline is shown but no longer a limit.
     ViewBag.CanPassOpdDueDate = TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate);
@@ -700,59 +716,74 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
             return NotFound();
         }
 
-        // Same reasoning as the GET action. SuperAdmin never posts through
-        // this form for a Main Task. Admin/Supervisor may only post an
+        // Same reasoning as the GET action. SuperAdmin may always post a
+        // field change for any Main Task. Admin/Supervisor may only post an
         // assignee change here while the Main Task still has zero
         // subtasks — re-checked here, not trusted from the client, so a
         // tampered POST can't sneak assignments onto a Main Task that
         // gained subtasks after the page was loaded.
-        if (IsOfficeWideTaskManager() || task.Subtasks.Any() || TaskTypes.IsAssignedByOpd(task.TaskType))
+        if (!IsOfficeWideTaskManager() && (task.Subtasks.Any() || TaskTypes.IsAssignedByOpd(task.TaskType)))
         {
             return Forbid();
         }
 
-        isDirectMainTaskAssignment = true;
+        isDirectMainTaskAssignment = !task.Subtasks.Any();
     }
     else if (!IsWithinTaskScope(task))
     {
         return NotFound();
     }
 
+    // A Main Task with subtasks has no assignment model of its own — work
+    // (and so assignment) happens at the subtask level instead, for every
+    // role including SuperAdmin. Only this check, never trusted from the
+    // client, decides whether AddAssigneeIds/ReassignTo apply at all; a
+    // tampered POST can't sneak direct assignments onto a task that has
+    // subtasks just because the client still sent that data.
+    var hasAssignmentModel = task.TaskLevel != TaskLevels.Main || isDirectMainTaskAssignment;
+
     // Nobody is removed outright. Current assignees stay as they are unless
     // reassigned, in which case their assignment (progress included) moves
     // to the person taking over. Only incoming people are validated.
     var currentAssigneeIds = task.Assignments.Select(a => a.UserId).ToList();
-    var addIds = (model.AddAssigneeIds ?? new()).Where(id => !currentAssigneeIds.Contains(id)).Distinct().ToList();
-    var reassignments = (model.ReassignTo ?? new())
-        .Where(r => r.Value.HasValue && r.Value.Value != r.Key && currentAssigneeIds.Contains(r.Key))
-        .ToDictionary(r => r.Key, r => r.Value!.Value);
+    var addIds = hasAssignmentModel
+        ? (model.AddAssigneeIds ?? new()).Where(id => !currentAssigneeIds.Contains(id)).Distinct().ToList()
+        : new List<int>();
+    var reassignments = hasAssignmentModel
+        ? (model.ReassignTo ?? new())
+            .Where(r => r.Value.HasValue && r.Value.Value != r.Key && currentAssigneeIds.Contains(r.Key))
+            .ToDictionary(r => r.Key, r => r.Value!.Value)
+        : new Dictionary<int, int>();
     var desiredAssigneeIds = currentAssigneeIds.Concat(addIds).ToList();
 
-    var incomingIds = addIds.Concat(reassignments.Values).ToList();
-    if (incomingIds.Count != incomingIds.Distinct().Count()
-        || reassignments.Values.Any(currentAssigneeIds.Contains))
+    if (hasAssignmentModel)
     {
-        ModelState.AddModelError(nameof(model.AssigneeIds),
-            "Each person can only be picked once, and only someone not already on this task can take over.");
-    }
-    else if (incomingIds.Count > 0)
-    {
-        await ValidateAssigneeIdsAsync(incomingIds, nameof(model.AssigneeIds));
-    }
-
-    foreach (var fromUserId in reassignments.Keys)
-    {
-        var assignment = task.Assignments.First(a => a.UserId == fromUserId);
-        if (!TaskAssignmentService.CanReassign(assignment))
+        var incomingIds = addIds.Concat(reassignments.Values).ToList();
+        if (incomingIds.Count != incomingIds.Distinct().Count()
+            || reassignments.Values.Any(currentAssigneeIds.Contains))
         {
             ModelState.AddModelError(nameof(model.AssigneeIds),
-                $"{assignment.User?.FullName ?? "This person"}'s work is awaiting review or already approved, so it can't be reassigned.");
+                "Each person can only be picked once, and only someone not already on this task can take over.");
         }
-    }
+        else if (incomingIds.Count > 0)
+        {
+            await ValidateAssigneeIdsAsync(incomingIds, nameof(model.AssigneeIds));
+        }
 
-    if (desiredAssigneeIds.Count == 0)
-    {
-        ModelState.AddModelError(nameof(model.AssigneeIds), "Select at least one person for this task.");
+        foreach (var fromUserId in reassignments.Keys)
+        {
+            var assignment = task.Assignments.First(a => a.UserId == fromUserId);
+            if (!TaskAssignmentService.CanReassign(assignment))
+            {
+                ModelState.AddModelError(nameof(model.AssigneeIds),
+                    $"{assignment.User?.FullName ?? "This person"}'s work is awaiting review or already approved, so it can't be reassigned.");
+            }
+        }
+
+        if (desiredAssigneeIds.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.AssigneeIds), "Select at least one person for this task.");
+        }
     }
 
     // Same rule as the GET action. Re-checked here rather than trusted from
@@ -1214,6 +1245,14 @@ private async Task<List<TaskAssignmentSummaryViewModel>> BuildAssignmentSummarie
 // the Edit form after a POST validation failure.
 private async Task RepopulateEditContextAsync(TaskItem task)
 {
+    // A Main Task with subtasks has no assignment model of its own, same
+    // rule the Edit POST action enforces — mirrored here so a validation
+    // failure redisplay doesn't wrongly show (or hide) the Assignees
+    // section/note. Reachable at all for a Main Task only means it's
+    // already past the GET/POST actions' redirect-away check.
+    var isMainLevelDirectAssignment = task.TaskLevel == TaskLevels.Main && !task.Subtasks.Any();
+    ViewBag.ShowAssigneeSection = task.TaskLevel != TaskLevels.Main || isMainLevelDirectAssignment;
+    ViewBag.IsDirectMainTaskAssignment = isMainLevelDirectAssignment && TaskTypes.DepartmentDirective == task.TaskType;
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || task.TaskLevel == TaskLevels.Main) && !IsOfficeWideTaskManager();
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
     // Due soon or overdue: the OPD deadline is shown but no longer a limit.

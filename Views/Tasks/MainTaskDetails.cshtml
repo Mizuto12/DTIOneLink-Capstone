@@ -268,10 +268,13 @@
 
     <!-- Primary actions -->
     <div class="mtd-actions">
-        @* Edit only opens for an Admin assigning people to a department task
-           with no subtasks; in every other case TasksController.Edit sends
-           them straight back here, so the button isn't shown. *@
-        @if (!isOpd && !isAssignedByOpd && !subtasks.Any())
+        @* SuperAdmin can always edit a Main Task's own fields (TaskName/
+           DueDate/Priority/Description) regardless of type or subtask
+           count — they created it. An Admin/Supervisor only gets this
+           button when assigning people to a department task with no
+           subtasks; in every other case for them, TasksController.Edit
+           sends them straight back here, so the button isn't shown. *@
+        @if (isOpd || (!isAssignedByOpd && !subtasks.Any()))
         {
             <a asp-controller="Tasks" asp-action="Edit" asp-route-id="@task.Id" class="mtd-btn mtd-btn-outline">
                 <span class="material-symbols-outlined" aria-hidden="true">edit</span>

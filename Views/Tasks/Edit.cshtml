@@ -15,6 +15,9 @@
     var opdDueDate = ViewBag.OpdDueDate as DateTime?;
     var canPassOpdDueDate = ViewBag.CanPassOpdDueDate as bool? ?? false;
     var isDirectMainTaskAssignment = ViewBag.IsDirectMainTaskAssignment as bool? ?? false;
+    // False only for a Main Task that has subtasks — assignment happens at
+    // the subtask level there instead, for any role including SuperAdmin.
+    var showAssigneeSection = ViewBag.ShowAssigneeSection as bool? ?? true;
     var creatorLabel = ViewBag.CreatorLabel as string ?? "Unknown";
     var comments = ViewBag.Comments as List<DTIOneLink.Models.TaskComment> ?? new();
     var activities = ViewBag.Activities as List<DTIOneLink.Models.TaskActivity> ?? new();
@@ -22,7 +25,7 @@
     // A validation error always lives on either the Details fields or the
     // People (AssigneeIds) field — land on whichever tab actually has the
     // error so a rejected submit never looks like it silently did nothing.
-    var defaultTab = hasAssigneeError ? "people" : "details";
+    var defaultTab = hasAssigneeError && showAssigneeSection ? "people" : "details";
 
     string GetInitials(string? fullName)
     {
@@ -111,10 +114,13 @@
                     aria-selected="@(defaultTab == "details" ? "true" : "false")" data-tab-btn="details">
                 Details
             </button>
-            <button type="button" class="et-tab@(defaultTab == "people" ? " active" : "")" role="tab"
-                    aria-selected="@(defaultTab == "people" ? "true" : "false")" data-tab-btn="people">
-                People <span class="et-tab-badge">@assignmentSummaries.Count</span>
-            </button>
+            @if (showAssigneeSection)
+            {
+                <button type="button" class="et-tab@(defaultTab == "people" ? " active" : "")" role="tab"
+                        aria-selected="@(defaultTab == "people" ? "true" : "false")" data-tab-btn="people">
+                    People <span class="et-tab-badge">@assignmentSummaries.Count</span>
+                </button>
+            }
             <button type="button" class="et-tab" role="tab" aria-selected="false" data-tab-btn="discussion">
                 Discussion <span class="et-tab-badge">@comments.Count</span>
             </button>
@@ -206,13 +212,27 @@
                     <div><span>Created</span><strong>@createdAt.ToString("MMM d, yyyy")</strong></div>
                 </div>
                 <p class="et-overview-note" style="border-top:none; padding-top:0;">
-                    Overall status/progress is a rollup: the task only moves to For Review once every
-                    assignee on the People tab has submitted their own proof, and only becomes
-                    Completed once every assignee's submission is approved.
+                    @if (showAssigneeSection)
+                    {
+                        <text>Overall status/progress is a rollup: the task only moves to For Review once every
+                        assignee on the People tab has submitted their own proof, and only becomes
+                        Completed once every assignee's submission is approved.</text>
+                    }
+                    else
+                    {
+                        <text>Overall status/progress is a rollup from this directive's subtasks — it only moves
+                        to For Review once every subtask has been submitted for review or completed, and only
+                        becomes Completed once every subtask is individually completed. See the subtasks
+                        themselves on the <a asp-controller="Tasks" asp-action="MainTaskDetails" asp-route-id="@Model.Id">Main Task page</a>.</text>
+                    }
                 </p>
             </div>
 
-            <!-- People tab -->
+            <!-- People tab — never rendered for a Main Task with subtasks,
+                 for any role including SuperAdmin; assignment happens at
+                 the subtask level there instead. -->
+            @if (showAssigneeSection)
+            {
             <div class="et-tab-panel" data-tab-panel="people" hidden="@(defaultTab == "people" ? null : "hidden")">
                 <label class="et-label" id="assigneeLabel">Assignees</label>
                 @if (assignmentSummaries.Any())
@@ -327,6 +347,7 @@
                     </p>
                 }
             </div>
+            }
         </form>
 
         <!-- Discussion tab -->
