@@ -88,23 +88,65 @@
 <main class="time-logs-page">
 
     <div class="time-logs-toolbar">
-        <form class="time-logs-filter" method="get">
+        @* The From/To boxes stay typeable (mm/dd/yyyy); the calendar buttons
+           (time-logs-range.js) open a compact calendar that fills the box
+           beside them. Same GET from/to parameters as before. *@
+        <form class="time-logs-filter" method="get" id="tlFilter">
             <div class="field">
                 <label for="filter-from">From</label>
-                <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate" max="@Iso(today)">
+                <div class="tl-date" data-role="from">
+                    <input id="filter-from" name="from" type="date" value="@ViewBag.FromDate"
+                           max="@(ViewBag.ToDate ?? Iso(today))" data-today="@Iso(today)">
+                    <button type="button" class="tl-date__btn" aria-label="Choose From date"
+                            aria-haspopup="dialog" aria-expanded="false" aria-controls="tlCalendar">
+                        <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+                    </button>
+                </div>
             </div>
             <div class="field">
                 <label for="filter-to">To</label>
-                <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate" max="@Iso(today)">
+                <div class="tl-date" data-role="to">
+                    <input id="filter-to" name="to" type="date" value="@ViewBag.ToDate"
+                           min="@ViewBag.FromDate" max="@Iso(today)">
+                    <button type="button" class="tl-date__btn" aria-label="Choose To date"
+                            aria-haspopup="dialog" aria-expanded="false" aria-controls="tlCalendar">
+                        <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+                    </button>
+                </div>
             </div>
             <div class="filter-actions">
                 <button class="btn btn-primary" type="submit">
-                    <span class="material-symbols-outlined">filter_list</span> Filter
+                    <span class="material-symbols-outlined">done</span> Apply
                 </button>
                 @if (ViewBag.FromDate != null || ViewBag.ToDate != null)
                 {
                     <a class="btn btn-outline" href="@Url.Action("Index")">Clear</a>
                 }
+            </div>
+
+            @* The calendar dropdown; time-logs-range.js moves it under whichever
+               date box opened it. *@
+            <div class="tl-cal" id="tlCalendar" role="dialog" aria-label="Choose a date" hidden>
+                <div class="tl-cal__head">
+                    <button type="button" class="tl-cal__nav" data-step="-1" aria-label="Previous month">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <div class="tl-cal__pickers">
+                        <select class="tl-cal__month" aria-label="Month"></select>
+                        <select class="tl-cal__year" aria-label="Year"></select>
+                    </div>
+                    <button type="button" class="tl-cal__nav" data-step="1" aria-label="Next month">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+                <div class="tl-cal__weekdays" aria-hidden="true">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="tl-cal__grid"></div>
+                <div class="tl-cal__foot">
+                    <button type="button" class="tl-cal__link" data-action="today">Today</button>
+                    <button type="button" class="tl-cal__link" data-action="close">Close</button>
+                </div>
             </div>
         </form>
         @if (dailySummaries.Any())
@@ -292,4 +334,5 @@
 
 @section Scripts {
     <script src="~/js/time-logs.js" asp-append-version="true" defer></script>
+    <script src="~/js/time-logs-range.js" asp-append-version="true" defer></script>
 }
