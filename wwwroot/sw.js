@@ -4,10 +4,13 @@
 // its own "no internet" error page. It does NOT do background sync itself —
 // offline-sync.js handles queuing and replay once the page is open and the
 // browser fires the 'online' event.
-var CACHE_NAME = 'dti-onelink-shell-v4';
+var CACHE_NAME = 'dti-onelink-shell-v5';
 var OFFLINE_FALLBACK = '/offline.html';
 var CACHE_URLS = [
     '/Employee/TaskManagement',
+    '/Tasks', // Admin/SuperAdmin's own Task Management page — was missing
+              // entirely, so it fell straight through to the offline
+              // fallback even on a device that had just loaded it.
     '/Dashboard/AdminDashboard',
     '/Dashboard/SuperAdminDashboard',
     '/Records',

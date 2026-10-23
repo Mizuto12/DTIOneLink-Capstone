@@ -130,6 +130,19 @@
   white-space: nowrap;
 }
 
+/* Access Control's "Other / Specify" values can run much longer than the
+   four standard choices (e.g. "DTI use only; Public upon request") — left
+   unconstrained, white-space:nowrap let that text overflow the narrow
+   access-col width and visually bleed into the Retention column next to
+   it. Truncated with an ellipsis, full text on hover via its title attr. */
+.records-page td[data-label="Access Control"] .badge {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
 /* ---------- Status column (approval / disposal) ---------- */
 .records-page .status-pill {
   display: inline-block;

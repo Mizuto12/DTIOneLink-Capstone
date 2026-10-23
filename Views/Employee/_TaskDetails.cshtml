@@ -235,8 +235,15 @@
                     }
                 </section>
                 @{
-                    var currentUserId = Context.Session.GetInt32("UserId");
-                    var isAssignee = currentUserId.HasValue && currentUserId.Value == task.AssigneeId;
+                    // Was task.AssigneeId (the legacy single-assignee column),
+                    // which only ever reflects the "primary" assignee — on a
+                    // multi-assignee task (e.g. Whole Office) a genuinely
+                    // assigned co-assignee, including an Admin assigned this
+                    // way, isn't necessarily that primary one, so Submit
+                    // Proof stayed hidden for them. myAssignment (above) is
+                    // the real, per-user TaskAssignments lookup already used
+                    // for the progress slider; reusing it here instead.
+                    var isAssignee = myAssignment != null;
                 }
                 <div class="td-actions">
                     <button type="button" class="btn btn-secondary" id="tdBackButton">

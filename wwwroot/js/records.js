@@ -112,7 +112,11 @@ function accessToneClass(access) {
 }
 
 function accessBadgeHtml(access) {
-  return `<span class="badge ${accessToneClass(access)}">${escapeHtml(access)}</span>`;
+  const esc = escapeHtml(access);
+  // A typed "Other / Specify" value (e.g. "DTI use only; Public upon
+  // request") can run much longer than the four standard choices — title
+  // carries the full text on hover, same pattern as the truncated columns.
+  return `<span class="badge ${accessToneClass(access)}" title="${esc}">${esc}</span>`;
 }
 
 // Retention's tone (ok/due-soon/ended) drives both the icon and the cell's
