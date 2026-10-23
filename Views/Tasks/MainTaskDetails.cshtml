@@ -47,6 +47,40 @@
     }
     var currentUserInitials = GetInitials(Context.Session.GetString("FullName"));
     var comments = task.Comments?.OrderByDescending(c => c.CreatedAt).ToList() ?? new();
+
+    var creatorName = task.CreatedBy?.FullName;
+    var creatorLabel = string.IsNullOrWhiteSpace(creatorName) ? "Unknown" : creatorName;
+
+    // Combines the Main Task's own activity with every subtask's — one
+    // chronological timeline for the whole directive, newest first, with
+    // "Created this task" folded in by its real date rather than pinned first.
+    var allActivities = (task.Activities ?? new List<DTIOneLink.Models.TaskActivity>())
+        .Concat(subtasks.SelectMany(s => s.Activities ?? new List<DTIOneLink.Models.TaskActivity>()));
+    var activityEntries = allActivities
+        .Select(a => new
+        {
+            When = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(a.OccurredAt),
+            User = a.PerformedBy?.FullName ?? "Unknown",
+            Details = (string?)a.Details,
+            Dot = a.ActivityType switch
+            {
+                "validated" => (a.Details ?? "").StartsWith("Submission approved") ? "approved" : "returned",
+                "proof-submitted" => "submitted",
+                "status-changed" => "status",
+                _ => "default"
+            },
+            Download = a.RelatedSubmission
+        })
+        .Append(new
+        {
+            When = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(task.CreatedAt),
+            User = creatorLabel,
+            Details = (string?)"Created this task.",
+            Dot = "default",
+            Download = (DTIOneLink.Models.TaskSubmission?)null
+        })
+        .OrderByDescending(e => e.When)
+        .ToList();
 }
 
 @section Styles {
@@ -332,6 +366,29 @@
             </form>
         }
     }
+
+    <h2 class="mtd-section-title">Activity History</h2>
+    <ul class="mtd-activity-list">
+        @foreach (var entry in activityEntries)
+        {
+            <li class="mtd-activity-item">
+                <span class="mtd-activity-dot mtd-activity-dot--@entry.Dot" aria-hidden="true"></span>
+                <div class="mtd-activity-content">
+                    <div class="mtd-activity-header">
+                        <span class="mtd-activity-user">@entry.User</span>
+                        <span class="mtd-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
+                    </div>
+                    <p class="mtd-activity-details">@entry.Details</p>
+                    @if (entry.Download != null)
+                    {
+                        <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="mtd-activity-download">
+                            @entry.Download.ProofFileName
+                        </a>
+                    }
+                </div>
+            </li>
+        }
+    </ul>
 
     <h2 class="mtd-section-title">
         Comments

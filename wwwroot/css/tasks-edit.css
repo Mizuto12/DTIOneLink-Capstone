@@ -430,6 +430,93 @@
 .edit-task .et-add-subtask { display: flex; flex-wrap: wrap; gap: 8px; }
 .edit-task .et-add-subtask .et-input { flex: 1 1 220px; }
 
+/* --------------------------------------------------------------------
+   Comments & Activity History (subtask view, Admin/SuperAdmin)
+-------------------------------------------------------------------- */
+.edit-task .et-comments-count { margin-left: 6px; font-size: 14px; font-weight: 600; color: var(--et-on-surface-variant); }
+
+.edit-task .et-comment-list {
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.edit-task .et-comment { display: flex; gap: 12px; align-items: flex-start; }
+.edit-task .et-comment-avatar {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--et-surface-container-low);
+    color: var(--et-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+.edit-task .et-comment-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: var(--et-surface-container-low);
+    border: 1px solid var(--et-outline-variant);
+    border-radius: 12px;
+    padding: 12px 16px;
+}
+.edit-task .et-comment-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.edit-task .et-comment-author { font-size: 14.5px; font-weight: 700; color: var(--et-on-surface); }
+.edit-task .et-comment-date { font-size: 12.5px; color: var(--et-on-surface-variant); }
+.edit-task .et-comment-text { margin: 0; font-size: 15px; color: var(--et-on-surface); white-space: pre-wrap; word-break: break-word; }
+
+.edit-task .et-comment-form { display: flex; gap: 12px; align-items: flex-start; }
+.edit-task .et-comment-form-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; }
+.edit-task .et-comment-input {
+    width: 100%;
+    min-height: 60px;
+    padding: 12px 16px;
+    border: 1px solid var(--et-outline-variant);
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--et-on-surface);
+    background: var(--et-surface-container-lowest);
+    resize: vertical;
+}
+.edit-task .et-comment-input:focus { outline: 2px solid var(--et-primary); outline-offset: 1px; }
+.edit-task .et-comment-form .et-btn { align-self: flex-end; }
+
+.edit-task .et-activity-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+.edit-task .et-activity-item { display: flex; gap: 10px; align-items: flex-start; }
+.edit-task .et-activity-dot {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--et-outline-variant);
+}
+.edit-task .et-activity-dot--approved { background: #166534; }
+.edit-task .et-activity-dot--returned { background: var(--et-error); }
+.edit-task .et-activity-dot--submitted { background: #1e40af; }
+.edit-task .et-activity-dot--status { background: #b45309; }
+.edit-task .et-activity-content { flex: 1 1 auto; min-width: 0; }
+.edit-task .et-activity-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.edit-task .et-activity-user { font-size: 13.5px; font-weight: 700; color: var(--et-on-surface); }
+.edit-task .et-activity-date { font-size: 12px; color: var(--et-on-surface-variant); }
+.edit-task .et-activity-details { margin: 2px 0 0; font-size: 13.5px; color: var(--et-on-surface-variant); }
+.edit-task .et-activity-download { font-size: 13px; color: var(--et-primary); text-decoration: underline; }
+
 /* Phones */
 @media (max-width: 640px) {
     .edit-task .et-panel { padding: 20px; }

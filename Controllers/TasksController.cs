@@ -568,6 +568,10 @@ namespace DTIOneLink.Controllers
          .Include(t => t.Assignments).ThenInclude(a => a.User)
          .Include(t => t.ParentTask)
          .Include(t => t.Subtasks)
+         .Include(t => t.CreatedBy)
+         .Include(t => t.Comments).ThenInclude(c => c.Author)
+         .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
+         .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
          .AsSplitQuery() // Assignments + Subtasks are independent collections
          .FirstOrDefaultAsync(t => t.Id == id);
      if (task == null)
@@ -647,6 +651,15 @@ namespace DTIOneLink.Controllers
     ViewBag.CurrentProgress = task.Progress;  // aggregate across all assignees
     ViewBag.CreatedAt = task.CreatedAt;
     ViewBag.AssignmentSummaries = await BuildAssignmentSummariesAsync(task);
+
+    // This page previously had no way to show or post comments, nor any
+    // activity history, even though the backend (AddComment/GetAccessibleTaskAsync)
+    // already allowed an elevated Admin/SuperAdmin to do both on a subtask
+    // reached from Task Management — only the view was missing it.
+    ViewBag.Comments = task.Comments?.OrderByDescending(c => c.CreatedAt).ToList()
+        ?? new List<TaskComment>();
+    ViewBag.Activities = task.Activities ?? new List<TaskActivity>();
+    ViewBag.CreatorLabel = task.CreatedBy?.FullName ?? "Unknown";
 
     // Initial suggestion for page load, before any JS runs. Recalculated
     // live via SuggestPriority whenever the due-date field changes.
@@ -1530,6 +1543,14 @@ public async Task<IActionResult> MainTaskDetails(int id)
         // (unlike Employee/Details.cshtml) had no way to show or post them —
         // Admin/SuperAdmin genuinely could not comment on a Main Task.
         .Include(t => t.Comments).ThenInclude(c => c.Author)
+        // Same gap as Comments above — Activity History wasn't shown here
+        // either. Subtask activities are pulled in too so the one timeline
+        // covers everything that happened under this directive, not just
+        // the Main Task row itself.
+        .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
+        .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Activities).ThenInclude(a => a.PerformedBy)
+        .Include(t => t.Subtasks).ThenInclude(s => s.Activities).ThenInclude(a => a.RelatedSubmission)
         // This page loads the main task's assignments and its subtasks (each
         // with assignments). A single SQL query multiplies those rows.
         .AsSplitQuery()

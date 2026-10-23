@@ -15,6 +15,47 @@
     var opdDueDate = ViewBag.OpdDueDate as DateTime?;
     var canPassOpdDueDate = ViewBag.CanPassOpdDueDate as bool? ?? false;
     var isDirectMainTaskAssignment = ViewBag.IsDirectMainTaskAssignment as bool? ?? false;
+    var creatorLabel = ViewBag.CreatorLabel as string ?? "Unknown";
+    var comments = ViewBag.Comments as List<DTIOneLink.Models.TaskComment> ?? new();
+    var activities = ViewBag.Activities as List<DTIOneLink.Models.TaskActivity> ?? new();
+
+    string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "NA";
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+        return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
+    }
+    var currentUserInitials = GetInitials(Context.Session.GetString("FullName"));
+
+    // Same shape as _TaskDetails.cshtml's activity timeline: chronological,
+    // newest first, with "Created this task" folded in by its real date
+    // rather than always pinned first.
+    var activityEntries = activities
+        .Select(a => new
+        {
+            When = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(a.OccurredAt),
+            User = a.PerformedBy?.FullName ?? "Unknown",
+            Details = (string?)a.Details,
+            Dot = a.ActivityType switch
+            {
+                "validated" => (a.Details ?? "").StartsWith("Submission approved") ? "approved" : "returned",
+                "proof-submitted" => "submitted",
+                "status-changed" => "status",
+                _ => "default"
+            },
+            Download = a.RelatedSubmission
+        })
+        .Append(new
+        {
+            When = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(createdAt),
+            User = creatorLabel,
+            Details = (string?)"Created this task.",
+            Dot = "default",
+            Download = (DTIOneLink.Models.TaskSubmission?)null
+        })
+        .OrderByDescending(e => e.When)
+        .ToList();
 }
 
 @section Styles {
@@ -295,6 +336,74 @@
             @Html.AntiForgeryToken()
         </form>
     }
+
+    <div class="et-grid" style="margin-top: 24px;">
+        <div class="et-panel">
+            <h3 class="et-overview-title">Comments<span class="et-comments-count">(@comments.Count)</span></h3>
+            @if (comments.Any())
+            {
+                <ul class="et-comment-list">
+                    @foreach (var comment in comments)
+                    {
+                        var commentTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(comment.CreatedAt);
+                        <li class="et-comment">
+                            <div class="et-comment-avatar" aria-hidden="true">@GetInitials(comment.Author?.FullName)</div>
+                            <div class="et-comment-body">
+                                <div class="et-comment-header">
+                                    <span class="et-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
+                                    <span class="et-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                                </div>
+                                <p class="et-comment-text">@comment.Text</p>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="et-overview-note">No comments yet.</p>
+            }
+            <form asp-controller="Employee" asp-action="AddComment" method="post" class="et-comment-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="taskId" value="@Model.Id" />
+                <div class="et-comment-avatar" aria-hidden="true">@currentUserInitials</div>
+                <div class="et-comment-form-body">
+                    <textarea name="text" class="et-comment-input" placeholder="Write a comment..." rows="2" required></textarea>
+                    <button type="submit" class="et-btn et-btn-primary">
+                        <span class="material-symbols-outlined">send</span>
+                        Post
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="et-sidebar">
+            <div class="et-overview-card">
+                <h3 class="et-overview-title">Activity History</h3>
+                <ul class="et-activity-list">
+                    @foreach (var entry in activityEntries)
+                    {
+                        <li class="et-activity-item">
+                            <span class="et-activity-dot et-activity-dot--@entry.Dot" aria-hidden="true"></span>
+                            <div class="et-activity-content">
+                                <div class="et-activity-header">
+                                    <span class="et-activity-user">@entry.User</span>
+                                    <span class="et-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
+                                </div>
+                                <p class="et-activity-details">@entry.Details</p>
+                                @if (entry.Download != null)
+                                {
+                                    <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="et-activity-download">
+                                        @entry.Download.ProofFileName
+                                    </a>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {

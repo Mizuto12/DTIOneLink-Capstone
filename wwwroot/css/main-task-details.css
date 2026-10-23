@@ -446,6 +446,36 @@
 .mtd-add-subtask input[type="text"]:focus { outline: 2px solid var(--mtd-primary); outline-offset: 1px; }
 .mtd-add-subtask .mtd-btn { margin-top: 2px; }
 
+.mtd-activity-list {
+    list-style: none;
+    margin: 0 0 28px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+.mtd-activity-item { display: flex; gap: 10px; align-items: flex-start; }
+.mtd-activity-dot {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--mtd-outline-variant);
+}
+.mtd-activity-dot--approved { background: #166534; }
+.mtd-activity-dot--returned { background: var(--mtd-status-overdue-fg); }
+.mtd-activity-dot--submitted { background: #1e40af; }
+.mtd-activity-dot--status { background: #b45309; }
+.mtd-activity-content { flex: 1 1 auto; min-width: 0; }
+.mtd-activity-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.mtd-activity-user { font-size: 13.5px; font-weight: 700; color: var(--mtd-on-surface); }
+.mtd-activity-date { font-size: 12px; color: var(--mtd-secondary); }
+.mtd-activity-details { margin: 2px 0 0; font-size: 13.5px; color: var(--mtd-secondary); }
+.mtd-activity-download { font-size: 13px; color: var(--mtd-primary); text-decoration: underline; }
+
 .mtd-comments-count { font-size: 15px; font-weight: 600; color: var(--mtd-secondary); }
 
 .mtd-comment-list {
