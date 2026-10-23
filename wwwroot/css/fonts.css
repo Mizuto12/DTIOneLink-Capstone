@@ -103,7 +103,15 @@
      this automatically for <link>/<script> tags, but this file is a plain
      url() inside a static .css, which it can't reach) — without one, a
      content change here can sit in every visitor's browser cache for up
-     to a day before they see it, even after a fresh deploy. */
+     to a day before they see it, even after a fresh deploy.
+
+     IMPORTANT: EmployeeLayout.cshtml, AdminLayout.cshtml, and
+     SuperAdminLayout.cshtml each also <link rel="preload"> this exact
+     file directly (to start the fetch before fonts.css is even parsed).
+     That preload href must carry the SAME ?v= value as this line, or the
+     browser preloads/caches the OLD file under its own unversioned URL
+     and silently keeps using it instead of this one — which is exactly
+     what happened the first time this version was bumped. */
   src: url('/fonts/material-symbols/MaterialSymbolsOutlined.woff2?v=2') format('woff2');
   font-weight: 100 700;
   font-style: normal;
