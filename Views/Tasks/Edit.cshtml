@@ -206,21 +206,14 @@
 
                     @if (isDirectMainTaskAssignment)
                     {
-                        <!-- Subtasks — this directive has none yet (otherwise Edit
-                             would have redirected to Main Task Details, where
-                             subtasks are added instead). -->
+                        <!-- Adding a subtask is OPD-only (same rule as Create —
+                             see AddSubtask in TasksController), so this directive
+                             with no subtasks yet is only ever assigned directly,
+                             right here. There used to be an "Add Subtask" box in
+                             this spot, but it posted to an OPD-only action, so an
+                             Admin/Supervisor who clicked it got nothing but a 403. -->
                         <div class="et-field et-field-full">
-                            <label class="et-label">Subtasks</label>
-                            <p class="et-ca-note">No subtasks yet — add one to break this directive down, or just assign people to it directly above.</p>
-                            @* Belongs to #addSubtaskForm (after the save form below): a form
-                               can't sit inside another, so the box and button point to it. *@
-                            <div class="et-add-subtask">
-                                <input type="text" name="subtaskName" form="addSubtaskForm" data-capitalize="title" class="et-input" placeholder="New Subtask Name" maxlength="200" required aria-label="New subtask name">
-                                <button type="submit" form="addSubtaskForm" class="et-btn et-btn-primary">
-                                    <span class="material-symbols-outlined">edit_note</span>
-                                    ADD SUBTASK
-                                </button>
-                            </div>
+                            <p class="et-ca-note">This directive has no subtasks — assign people to it directly above.</p>
                         </div>
                     }
 
@@ -330,12 +323,6 @@
             </div>
         </div>
     </form>
-    @if (isDirectMainTaskAssignment)
-    {
-        <form id="addSubtaskForm" asp-controller="Tasks" asp-action="AddSubtask" asp-route-id="@Model.Id" method="post">
-            @Html.AntiForgeryToken()
-        </form>
-    }
 
     <div class="et-grid" style="margin-top: 24px;">
         <div class="et-panel">
