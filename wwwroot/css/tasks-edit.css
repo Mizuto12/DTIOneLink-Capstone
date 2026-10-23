@@ -150,6 +150,11 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
+    /* Without this, grid's default align-items: stretch forces the
+       sidebar column to match the (taller) form panel's height, and
+       since it's a top-aligned flex column, the leftover space shows up
+       as a dead gap below its last card instead of just ending there. */
+    align-items: start;
 }
 
 @media (min-width: 1280px) {
