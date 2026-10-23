@@ -134,10 +134,20 @@
    four standard choices (e.g. "DTI use only; Public upon request") — left
    unconstrained, white-space:nowrap let that text overflow the narrow
    access-col width and visually bleed into the Retention column next to
-   it. Truncated with an ellipsis, full text on hover via its title attr. */
+   it. Truncated with an ellipsis, full text on hover via its title attr.
+   The badge's max-width must stay relative (100%, i.e. the cell's own
+   content box) rather than a guessed fixed px: access-col is 118px with
+   9px/12px cell padding, leaving ~94px of content room — a fixed 150px
+   cap is bigger than that, so the badge overflowed its cell and bled
+   into Retention regardless of this rule. overflow:hidden on the cell
+   itself is a hard backstop against that happening again if either
+   value ever drifts out of sync. */
+.records-page td[data-label="Access Control"] {
+  overflow: hidden;
+}
 .records-page td[data-label="Access Control"] .badge {
   display: inline-block;
-  max-width: 150px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
