@@ -390,6 +390,11 @@
 .ro-tone-overdue  { --ro-tone: #dc2626;        --ro-tone-soft: #fee4e2; }
 .ro-tone-saved    { --ro-tone: #16a34a;        --ro-tone-soft: #e3f8ea; }
 
+/* All-clear tile (records-overview.js): same reassurance pattern as
+   Admin/Employee's dashboards, sized for this rail's smaller tiles. */
+.ro-card--allclear { grid-column: span 2; }
+.ro-card__value--text { font-size: 12px; }
+
 .records-overview__cards .ro-card--skeleton .ro-card__icon { background: none; }
 .records-overview__cards .ro-skel-value { width: 30px; height: 16px; margin-bottom: 6px; }
 .records-overview__cards .ro-skel-label { width: 50px; height: 10px; }

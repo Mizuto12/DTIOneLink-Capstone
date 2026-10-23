@@ -195,6 +195,12 @@
 .ro-tone-overdue  { --ro-tone: #dc2626;              --ro-tone-soft: #fee4e2; }
 .ro-tone-saved    { --ro-tone: #16a34a;              --ro-tone-soft: #e3f8ea; }
 
+/* All-clear tile (records-overview.js): a short reassurance line reads
+   better at the same weight as a label than blown up to the 22px a real
+   count gets. */
+.ro-card--allclear { grid-column: span 2; }
+.ro-card__value--text { font-size: 15px; }
+
 .records-overview__cards .ro-card--skeleton .ro-card__icon { background: none; }
 .records-overview__cards .ro-skel-value { width: 36px; height: 18px; margin-bottom: 6px; }
 .records-overview__cards .ro-skel-label { width: 64px; height: 11px; }

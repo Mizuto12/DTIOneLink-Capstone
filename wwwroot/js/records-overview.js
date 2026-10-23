@@ -22,16 +22,34 @@
       </div>`;
   }
 
+  // A tile reporting zero isn't information, it's reassurance — and two of
+  // them side by side read as noise rather than two separate facts worth
+  // scanning. When neither Due Soon nor Needs Disposal Review has anything
+  // in it, both tiles collapse into one calm "all clear" tile instead.
+  function allClearCard() {
+    return `
+      <div class="ro-card ro-tone-saved ro-card--allclear">
+        <span class="ro-card__icon material-symbols-outlined" aria-hidden="true">check_circle</span>
+        <div>
+          <p class="ro-card__value ro-card__value--text">All clear</p>
+          <p class="ro-card__label">Nothing due soon or needing review</p>
+        </div>
+      </div>`;
+  }
+
   fetch('/Records/Overview')
     .then(res => {
       if (!res.ok) throw new Error('Failed to load records overview');
       return res.json();
     })
     .then(data => {
+      const riskCards = (data.dueSoon > 0 || data.overdue > 0)
+        ? card('due-soon', 'event_busy', data.dueSoon, 'Due Soon') +
+          card('overdue', 'warning', data.overdue, 'Needs Disposal Review')
+        : allClearCard();
       container.innerHTML =
         card('total', 'description', data.total, 'Total Records') +
-        card('due-soon', 'event_busy', data.dueSoon, 'Due Soon') +
-        card('overdue', 'warning', data.overdue, 'Needs Disposal Review') +
+        riskCards +
         card('saved', 'folder_open', data.savedMasterlists, 'Saved Masterlists');
     })
     .catch(() => {

@@ -378,10 +378,9 @@
     flex-direction: column;
     gap: 12px;
     padding: 18px;
-    border-radius: 18px;
+    border-radius: 16px;
     background: #fff;
-    border: 1px solid var(--outline-variant, #c5c5d2);
-    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 30, 101, 0.06), 0 4px 12px rgba(0, 30, 101, 0.04);
     color: var(--on-surface, #0b1c30);
 }
 
@@ -521,6 +520,11 @@
 .ed .ro-tone-due-soon { --ro-tone: #d97706; --ro-tone-soft: #fff3dc; }
 .ed .ro-tone-overdue  { --ro-tone: #dc2626; --ro-tone-soft: #fee4e2; }
 .ed .ro-tone-saved    { --ro-tone: #16a34a; --ro-tone-soft: #e3f8ea; }
+/* All-clear tile (records-overview.js): same reassurance pattern as
+   Admin/SuperAdmin's dashboards, sized for this sidebar's smaller tiles. */
+.ed .ro-card--allclear { grid-column: span 2; }
+.ed .ro-card__value--text { font-size: 12px; }
+
 .ed .records-overview__cards .ro-card--skeleton .ro-card__icon { background: none; }
 .ed .records-overview__cards .ro-skel-value { width: 30px; height: 16px; margin-bottom: 6px; }
 .ed .records-overview__cards .ro-skel-label { width: 50px; height: 10px; }
