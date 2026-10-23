@@ -12,6 +12,10 @@ function initPrioritySuggestion() {
     var dueDateInput = document.getElementById('DueDate') || document.querySelector('[name="DueDate"]');
     var suggestionText = document.getElementById('prioritySuggestionText');
     var applyBtn = document.getElementById('applyPrioritySuggestion');
+    // Only present on Create (the OPD picks a type there); Edit's task type
+    // never changes after creation, so this is null there and the request
+    // just omits taskType, which the controller treats as "ordinary task."
+    var taskTypeInput = document.getElementById('taskType');
 
     if (!dueDateInput || !suggestionText || !applyBtn) {
         return;
@@ -24,7 +28,12 @@ function initPrioritySuggestion() {
     function refreshSuggestion() {
         if (!dueDateInput.value) return;
 
-        fetch('/Tasks/SuggestPriority?dueDate=' + encodeURIComponent(dueDateInput.value))
+        var url = '/Tasks/SuggestPriority?dueDate=' + encodeURIComponent(dueDateInput.value);
+        if (taskTypeInput && taskTypeInput.value) {
+            url += '&taskType=' + encodeURIComponent(taskTypeInput.value);
+        }
+
+        fetch(url)
             .then(function (res) {
                 if (!res.ok) throw new Error('Suggestion request failed');
                 return res.json();
@@ -39,6 +48,9 @@ function initPrioritySuggestion() {
     }
 
     dueDateInput.addEventListener('change', refreshSuggestion);
+    if (taskTypeInput) {
+        taskTypeInput.addEventListener('change', refreshSuggestion);
+    }
 
     applyBtn.addEventListener('click', function () {
         var priority = applyBtn.getAttribute('data-priority');

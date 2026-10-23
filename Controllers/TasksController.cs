@@ -650,7 +650,7 @@ namespace DTIOneLink.Controllers
 
     // Initial suggestion for page load, before any JS runs. Recalculated
     // live via SuggestPriority whenever the due-date field changes.
-    var suggestion = PrioritySuggestionService.Suggest(task.DueDate);
+    var suggestion = PrioritySuggestionService.Suggest(task.DueDate, task.TaskType);
     ViewBag.SuggestedPriority = suggestion.Priority;
     ViewBag.SuggestedReason = suggestion.Reason;
 
@@ -1211,7 +1211,7 @@ private async Task RepopulateEditContextAsync(TaskItem task)
     ViewBag.CreatedAt = task.CreatedAt;
     ViewBag.AssignmentSummaries = await BuildAssignmentSummariesAsync(task);
 
-    var suggestion = PrioritySuggestionService.Suggest(task.DueDate);
+    var suggestion = PrioritySuggestionService.Suggest(task.DueDate, task.TaskType);
     ViewBag.SuggestedPriority = suggestion.Priority;
     ViewBag.SuggestedReason = suggestion.Reason;
 
@@ -1387,19 +1387,21 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
 
     return RedirectToAction(nameof(Index));
 }
-// GET: /Tasks/SuggestPriority?dueDate=2026-09-10
-// Called by JS whenever the due-date field changes on Create/Edit, so the
-// suggestion always reflects the currently-typed date, not just the value
-// that existed when the page first loaded.
+// GET: /Tasks/SuggestPriority?dueDate=2026-09-10&taskType=whole-office
+// Called by JS whenever the due-date field (or, on Create, the task-type
+// field) changes, so the suggestion always reflects what's currently typed,
+// not just the values that existed when the page first loaded. taskType is
+// optional — Edit's own task type never changes after creation, so only
+// Create's JS ever sends it.
 [HttpGet]
-public IActionResult SuggestPriority(DateTime dueDate)
+public IActionResult SuggestPriority(DateTime dueDate, string? taskType = null)
 {
     if (!CanAccessTaskManagement())
     {
         return StatusCode(403);
     }
 
-    var suggestion = PrioritySuggestionService.Suggest(dueDate);
+    var suggestion = PrioritySuggestionService.Suggest(dueDate, taskType);
     return Json(new { priority = suggestion.Priority, reason = suggestion.Reason });
 }
 
