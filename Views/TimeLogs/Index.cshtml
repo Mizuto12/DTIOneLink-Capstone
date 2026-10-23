@@ -12,13 +12,18 @@
     int page = ViewBag.Page ?? 1;
     int totalPages = ViewBag.TotalPages ?? 1;
 
-    // This page is an audit trail of account access — when did this account
-    // sign in and out — not attendance/hours tracking, which this project's
-    // stated scope excludes. No duration is computed anywhere below: no
-    // per-session length, no daily/weekly/monthly totals. FullTimestamp
-    // carries the exact millisecond value, shown only on hover, for the
-    // same reason an audit trail cares about exact timestamps — forensic
-    // precision, not "hours worked."
+    // This page is primarily an audit trail of account access — when did
+    // this account sign in and out — not a certified attendance record.
+    // The session list below still computes no duration (per-session length,
+    // daily/weekly/monthly totals): forensic precision, not "hours worked."
+    // The separate, explicitly-labeled Daily Summary section further down
+    // IS a deliberate exception — an informal, opt-in first-in/last-out
+    // reference (Say, OPD, chat on 2026-10-23) — kept visually and
+    // structurally distinct from the office's real DTR: no AM/PM split, no
+    // computed Late/Undertime, no leave handling, since it can't tell an
+    // absence from an approved leave day. FullTimestamp carries the exact
+    // millisecond value, shown only on hover, for the same reason an audit
+    // trail cares about exact timestamps — forensic precision, not "hours worked."
     string FullTimestamp(DateTime phTime) => phTime.ToString("MMM d, yyyy 'at' h:mm:ss.fff tt");
 
     // A session stays grouped under the day it started, but an overnight
@@ -54,6 +59,26 @@
         .ToList();
 
     string PageUrl(int p) => Url.Action("Index", new { from = ViewBag.FromDate, to = ViewBag.ToDate, page = p }) ?? "";
+
+    // Daily Summary rows — earliest sign-in and latest sign-out per day,
+    // built from the same `days` grouping above. A day with an open
+    // (still-active) session has no "latest time out" yet, shown as such
+    // rather than guessed at. Hours Logged sums each session's own elapsed
+    // time (an in-progress session counts up to now), matching the running
+    // total already shown elsewhere on this page for an active day.
+    var nowPh = TimeZoneHelper.ToPhilippineTime(DateTime.UtcNow);
+    string FormatHours(TimeSpan span)
+    {
+        var totalMinutes = Math.Max(0, (int)span.TotalMinutes);
+        return $"{totalMinutes / 60}h {totalMinutes % 60}m";
+    }
+    var dailySummaries = days.Select(day =>
+    {
+        var earliestIn = day.Sessions.Min(x => x.TimeInPh);
+        var latestOut = day.HasActive ? (DateTime?)null : day.Sessions.Max(x => x.TimeOutPh!.Value);
+        var totalSpan = day.Sessions.Aggregate(TimeSpan.Zero, (sum, x) => sum + ((x.TimeOutPh ?? nowPh) - x.TimeInPh));
+        return new { day.Date, EarliestIn = earliestIn, LatestOut = latestOut, StillActive = day.HasActive, Total = totalSpan };
+    }).ToList();
 }
 
 @section Styles {
@@ -82,7 +107,67 @@
                 }
             </div>
         </form>
+        @if (dailySummaries.Any())
+        {
+            <button type="button" class="btn btn-outline" id="toggle-daily-summary" aria-expanded="false">
+                <span class="material-symbols-outlined">assessment</span> Daily Summary
+            </button>
+        }
     </div>
+
+    @if (dailySummaries.Any())
+    {
+        <section class="daily-summary-card card" id="daily-summary" hidden>
+            <div class="daily-summary-head">
+                <div>
+                    <h2>Daily Summary</h2>
+                    <p class="daily-summary-note">
+                        Informal reference only — earliest sign-in and latest sign-out per day, not a certified
+                        attendance record. A day with no entry here may mean absence, approved leave, or offline
+                        work; this page has no way to tell those apart.
+                    </p>
+                </div>
+                <button type="button" class="btn btn-outline" id="export-daily-summary">
+                    <span class="material-symbols-outlined">download</span> Export CSV
+                </button>
+            </div>
+            <div class="daily-summary-table-wrap">
+                <table class="daily-summary-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Earliest Time In</th>
+                            <th>Latest Time Out</th>
+                            <th>Total Hours Logged</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in dailySummaries)
+                        {
+                            <tr data-date="@Iso(s.Date)"
+                                data-earliest-in="@s.EarliestIn.ToString("yyyy-MM-dd HH:mm")"
+                                data-latest-out="@(s.LatestOut.HasValue ? s.LatestOut.Value.ToString("yyyy-MM-dd HH:mm") : "")"
+                                data-hours="@s.Total.TotalHours.ToString("0.00")">
+                                <td>@DateLabel(s.Date)</td>
+                                <td>@s.EarliestIn.ToString("h:mm tt")</td>
+                                <td>
+                                    @if (s.LatestOut.HasValue)
+                                    {
+                                        @s.LatestOut.Value.ToString("h:mm tt")
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-active"><span class="badge-dot"></span> Still signed in</span>
+                                    }
+                                </td>
+                                <td>@FormatHours(s.Total)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
 
     @{
         var filterActive = ViewBag.FromDate != null || ViewBag.ToDate != null;

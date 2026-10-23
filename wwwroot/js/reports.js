@@ -7,7 +7,7 @@
   // urgency — so they stay a single plain row. Shown in this order when
   // "All Categories" is selected.
   const GROUPS = [
-    { category: 'Active Tasks',     icon: 'bolt',         density: 'grid' },
+    { category: 'Active Tasks',     icon: 'pending',      density: 'grid' },
     { category: 'Retained',         icon: 'folder',        density: 'grid' },
     { category: 'Completed Tasks',  icon: 'task_alt',      density: 'stack' },
     { category: 'Task History',     icon: 'history',       density: 'stack' },

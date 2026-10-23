@@ -58,12 +58,14 @@ function totalPages() {
   return Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
 }
 
-// Status column: the PD's approval (ApproveRecords) and the records
-// officer's disposal validation (ManageRecords) — only rendered for
-// whichever of those two the signed-in user actually holds.
-const canManageRecords = tableBody.dataset.canManage === 'true';
+// Status column: always shown now — disposal is the record owner's call,
+// not just a records manager's (see RecordsController.SetDisposalStatus),
+// so an Employee needs to see and act on their own record's status too.
+// Approve stays PD-only (ApproveRecords); the disposal buttons are gated
+// per-row by data.canDispose, which the server already computed as
+// "records manager OR this record's own creator."
 const canApproveRecords = tableBody.dataset.canApprove === 'true';
-const showStatusColumn = canManageRecords || canApproveRecords;
+const showStatusColumn = true;
 
 function statusCellHtml(data) {
   const parts = [];
@@ -77,7 +79,7 @@ function statusCellHtml(data) {
     parts.push(`<span class="approved-note">Approved by ${escapeHtml(data.approvedByName)}</span>`);
   }
 
-  if (canManageRecords) {
+  if (data.canDispose) {
     if (data.recordStatus === 'Retention') {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkForDisposal">Mark for Disposal</button>`);
     } else if (data.recordStatus === 'Disposal') {
@@ -607,7 +609,7 @@ form.addEventListener('submit', async (e) => {
     // (ownership, masterlist status) that can't be safely assumed stale.
     if (!isEditing && err instanceof TypeError && window.DTIOffline) {
       window.DTIOffline.queueRecord(payload);
-      btn.innerHTML = `<span class="material-symbols-outlined">cloud_off</span> Saved offline`;
+      btn.innerHTML = `<span class="material-symbols-outlined">pending</span> Saved offline`;
       setTimeout(() => {
         btn.innerHTML = originalContent;
         btn.disabled = false;

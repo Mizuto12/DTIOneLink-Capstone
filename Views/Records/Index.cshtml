@@ -225,16 +225,13 @@
             <th class="filing-col" title="Filing System">Filing</th>
             <th class="access-col" title="Access Control">Access</th>
             <th class="retention-col" title="Retention Period">Retention</th>
-            @if (ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true)
-            {
-              <th class="status-col">Status</th>
-            }
+            <th class="status-col">Status</th>
             <th class="actions-col">Actions</th>
           </tr>
         </thead>
         <tbody id="submissions-body" aria-busy="true" data-can-manage="@(ViewBag.CanManageRecords == true ? "true" : "false")" data-can-approve="@(ViewBag.CanApproveRecords == true ? "true" : "false")">
           @* Placeholders until records.js loads the real rows. *@
-          @{ var skeletonCols = ((ViewBag.CanManageRecords == true || ViewBag.CanApproveRecords == true) ? 10 : 9) + 1; }
+          @{ var skeletonCols = 10 + 1; }
           @for (var i = 0; i < 3; i++)
           {
             <tr class="skeleton-row" aria-hidden="true">

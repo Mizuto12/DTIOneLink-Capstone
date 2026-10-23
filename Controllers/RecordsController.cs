@@ -341,24 +341,17 @@ namespace DTIOneLink.Controllers
         private static bool CanEditRow(RecordRow row, RecordsUser user) =>
             user.CanManage || row.CreatedByUserId == user.UserId;
 
-        // Employees only ever receive the eight columns shown on the page plus
-        // the reminder colour; system-managed fields (including approval) are
-        // added for records managers (Admin) and approvers (SuperAdmin) only.
+        // Disposal is the record owner's call too (not just a records
+        // manager's — see SetDisposalStatus), so an Employee needs to see
+        // their own record's status and disposal actions the same as a
+        // manager/approver would for it. Confidentiality isn't a concern
+        // here: VisibilityClause already limits a non-manager/approver to
+        // only the records they logged themselves.
+        private static bool CanDisposeRow(RecordRow row, RecordsUser user) =>
+            user.CanManage || row.CreatedByUserId == user.UserId;
+
         private static object ToClientRow(RecordRow row, RecordsUser user)
         {
-            var canEdit = CanEditRow(row, user);
-
-            if (!user.CanManage && !user.CanApprove)
-            {
-                return new
-                {
-                    row.RecordId, row.Code, row.Title, row.Medium, row.Location,
-                    row.PeriodCovered, row.FilingSystem, row.AccessControl, row.RetentionPeriod,
-                    RetentionState = RetentionState(row),
-                    CanEdit = canEdit
-                };
-            }
-
             return new
             {
                 row.RecordId, row.Code, row.Title, row.Medium, row.Location,
@@ -370,7 +363,8 @@ namespace DTIOneLink.Controllers
                 RetentionState = RetentionState(row),
                 ApprovedByName = row.ApprovedByName,
                 ApprovedAt = row.ApprovedAt?.ToString("yyyy-MM-dd"),
-                CanEdit = canEdit
+                CanEdit = CanEditRow(row, user),
+                CanDispose = CanDisposeRow(row, user)
             };
         }
 
@@ -1123,10 +1117,6 @@ WHERE RecordId = @RecordId", conn);
             {
                 return AccessDeniedJson(access);
             }
-            if (!user.CanManage)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only records managers can update disposal status." });
-            }
 
             try
             {
@@ -1136,6 +1126,23 @@ WHERE RecordId = @RecordId", conn);
                 {
                     _logger.LogError("Refused to set record {RecordId} status to {Status}: Records system columns are missing.", id, newStatus);
                     return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+                }
+
+                // Disposal is the "product owner's" call (Say, OPD, chat on
+                // 2026-10-23: the account person who logged the record keeps
+                // it and decides when it's due for disposal — not Imran, not
+                // the PD, and not records managers generically). Allowed for
+                // the record's own creator or a records manager (Admin), same
+                // ownership rule as CanEditRow.
+                var state = LoadRecordState(conn, id);
+                if (state == null)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+                var (ownerOfRecord, _) = state.Value;
+                if (!user.CanManage && ownerOfRecord != user.UserId)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can update disposal status." });
                 }
 
                 int? ownerUserId = null;

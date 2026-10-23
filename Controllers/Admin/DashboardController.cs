@@ -59,7 +59,13 @@ namespace DTIOneLink.Controllers
                     (t.OwningDepartment != null && t.OwningDepartment == department) ||
                     (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
                     (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
-                        t.Assignments.Any(a => a.User != null && a.User.Department == department)));
+                        t.Assignments.Any(a => a.User != null && a.User.Department == department)) ||
+                    // Own work, regardless of department: a Whole Office task
+                    // (OwningDepartment = the OPD's own department, not this
+                    // Admin's) assigned to this Admin personally as a worker
+                    // must still appear here, the same as it already does on
+                    // their Employee-style task views.
+                    t.Assignments.Any(a => a.UserId == userId));
             }
             else if (!isOfficeWide)
             {
@@ -121,7 +127,10 @@ namespace DTIOneLink.Controllers
                     (s.Task!.OwningDepartment != null && s.Task.OwningDepartment == department) ||
                     (s.Task.OwningDepartment == null && s.Task.ParentTask != null && s.Task.ParentTask.OwningDepartment == department) ||
                     (s.Task.OwningDepartment == null && (s.Task.ParentTask == null || s.Task.ParentTask.OwningDepartment == null) &&
-                        s.TaskAssignment != null && s.TaskAssignment.User != null && s.TaskAssignment.User.Department == department));
+                        s.TaskAssignment != null && s.TaskAssignment.User != null && s.TaskAssignment.User.Department == department) ||
+                    // Own work, regardless of department — same reasoning as
+                    // AdminDashboard's query above.
+                    (s.TaskAssignment != null && s.TaskAssignment.UserId == userId));
                 scopeLabel = department ?? "Your division";
             }
             else

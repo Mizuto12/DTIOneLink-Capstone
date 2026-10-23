@@ -374,9 +374,63 @@
 }
 .time-logs-page .empty-state-clear:hover { text-decoration: underline; }
 
+/* ---------- Daily Summary ----------
+   Deliberately plain and table-shaped, not styled to resemble the office's
+   own DTR (no AM/PM columns, no Late/Undertime emphasis) — an informal
+   first-in/last-out reference, kept visually distinct on purpose. */
+.time-logs-page .daily-summary-card {
+    margin-bottom: 20px;
+}
+
+.time-logs-page .daily-summary-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.time-logs-page .daily-summary-head h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.time-logs-page .daily-summary-note {
+    margin: 0;
+    max-width: 56ch;
+    font-size: 12.5px;
+    color: var(--on-surface-variant);
+    line-height: 1.5;
+}
+
+.time-logs-page .daily-summary-table-wrap {
+    overflow-x: auto;
+}
+
+.time-logs-page .daily-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.time-logs-page .daily-summary-table th,
+.time-logs-page .daily-summary-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--outline-variant);
+    white-space: nowrap;
+}
+
+.time-logs-page .daily-summary-table th {
+    font-weight: 600;
+    color: var(--on-surface-variant);
+}
+
 /* ---------- Phones ---------- */
 @media (max-width: 640px) {
     .time-logs-page .day-card { padding: 14px 16px; }
     .time-logs-page .session-row .time { min-width: 68px; }
     .time-logs-page .card { padding: 16px; }
+    .time-logs-page .daily-summary-head { flex-direction: column; }
 }
