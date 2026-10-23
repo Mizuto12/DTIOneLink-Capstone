@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-review.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notice-dialog.css" asp-append-version="true" />
 }
 
 <!-- ── The real Task Management list, behind the form ───── -->
@@ -61,7 +62,7 @@
                             Admin remarks <span class="tr-required">*</span>
                             <span class="tr-hint">required if returning — shown to employee</span>
                         </label>
-                        <textarea name="AdminRemarks" class="tr-textarea"></textarea>
+                        <textarea asp-for="AdminRemarks" class="tr-textarea"></textarea>
                         <span asp-validation-for="AdminRemarks" class="tr-error-text"></span>
                     </div>
                 </form>
@@ -80,6 +81,9 @@
     </div>
 </dialog>
 
+<partial name="_NoticeDialog" />
+
 @section Scripts {
+    <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
     <script src="~/js/tasks-review.js" asp-append-version="true"></script>
 }

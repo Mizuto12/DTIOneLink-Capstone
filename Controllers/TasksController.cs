@@ -1325,6 +1325,7 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
             if (string.IsNullOrWhiteSpace(model.AdminRemarks))
             {
                 ModelState.AddModelError(nameof(model.AdminRemarks), "Remarks are required when returning a submission for correction.");
+                ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
                 return View(submission);
             }
             nextAssignmentStatus = TaskWorkflow.ReturnedForCorrection;
@@ -1332,6 +1333,7 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
             break;
         default:
             ModelState.AddModelError(nameof(model.Decision), "Choose Approve or Return.");
+            ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
             return View(submission);
     }
 

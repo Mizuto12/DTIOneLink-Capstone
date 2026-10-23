@@ -1,10 +1,12 @@
 // ==========================================================================
 // Review Submission — overlay modal (same pattern as tasks-create.js) plus
-// a confirm before Approve or Return, the same way Delete Task and Stop
-// Repeating already do. Approve marks the task Completed (no way back from
+// a styled confirm (notice-dialog.js) before Approve or Return, the same
+// one Delete Task and Stop Repeating already use instead of the browser's
+// own confirm() popup. Approve marks the task Completed (no way back from
 // here); Return sends it back to the person who submitted it, and only
-// proceeds once Admin remarks are filled in (the message makes that
-// requirement visible before the server rejects it).
+// shows the confirm once Admin remarks are filled in — confirming first
+// would be misleading if the server is just going to reject it anyway for
+// a missing required field.
 // ==========================================================================
 (function () {
     var modal = document.getElementById('reviewModal');
@@ -53,29 +55,78 @@
         });
     }
 
+    // Which decision last got a real, confirmed submit — a hidden field
+    // named "Decision" re-sends it on the real resubmit, since the trigger
+    // button that originally sent it is no longer the submitter once the
+    // form is resubmitted programmatically via requestSubmit().
+    var confirmedDecision = null;
+
     form.addEventListener('submit', function (event) {
+        if (confirmedDecision) {
+            return; // the real resubmit after confirming — let it go through
+        }
+
         var decision = event.submitter ? event.submitter.value : null;
         if (decision !== 'approve' && decision !== 'return') {
             return; // unknown trigger (e.g. Enter key with no submitter) — let the server validate as before
         }
 
-        var message;
+        event.preventDefault();
+
+        var options;
         if (decision === 'approve') {
-            message = 'Approve "' + taskName + '" submitted by ' + submittedBy + '?\n\n' +
-                'This marks the task Completed. This cannot be undone.';
+            options = {
+                tone: 'warning',
+                icon: 'check_circle',
+                title: 'Approve "' + taskName + '" submitted by ' + submittedBy + '?',
+                message: 'This marks the task Completed. This cannot be undone.',
+                okText: 'Approve',
+                cancelText: 'Cancel'
+            };
         } else {
             var remarks = remarksField ? remarksField.value.trim() : '';
             if (!remarks) {
-                // Confirming first would be misleading if the server is just
-                // going to reject it anyway for a missing required field.
+                // Letting the real submit through here (instead of showing
+                // the confirm) sends the user straight to the server-side
+                // "Remarks are required" error — confirming first would be
+                // misleading if the server is just going to reject it anyway.
+                // form.submit() doesn't carry the trigger button's
+                // name/value, so the decision is added as a hidden field,
+                // same as the real resubmit path below.
+                confirmedDecision = decision;
+                var decisionField = document.createElement('input');
+                decisionField.type = 'hidden';
+                decisionField.name = 'Decision';
+                decisionField.value = decision;
+                form.appendChild(decisionField);
+                form.submit();
                 return;
             }
-            message = 'Return "' + taskName + '" to ' + submittedBy + ' for correction?\n\n' +
-                submittedBy + ' will see your remarks and need to resubmit.';
+            options = {
+                tone: 'warning',
+                icon: 'undo',
+                title: 'Return "' + taskName + '" to ' + submittedBy + ' for correction?',
+                message: submittedBy + ' will see your remarks and need to resubmit.',
+                okText: 'Return',
+                cancelText: 'Cancel'
+            };
         }
 
-        if (!window.confirm(message)) {
-            event.preventDefault();
-        }
+        window.showNotice(options).then(function (ok) {
+            if (!ok) {
+                return;
+            }
+            confirmedDecision = decision;
+            // The trigger button is what the server reads as the chosen
+            // decision (name="Decision" value="approve"/"return") — a plain
+            // form.submit() wouldn't include it, so add it as a hidden field
+            // on the real resubmit instead.
+            var hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'Decision';
+            hidden.value = decision;
+            form.appendChild(hidden);
+            form.requestSubmit ? form.requestSubmit() : form.submit();
+        });
     });
 })();
