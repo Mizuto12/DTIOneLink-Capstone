@@ -11,6 +11,7 @@
 
     var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
     var isOverdue = DTIOneLink.Services.TaskWorkflow.IsOverdue(status, task.DueDate);
+    var today = DTIOneLink.Services.TimeZoneHelper.PhilippineToday;
 
    (string CssClass, string Label) StatusInfo()
 {
@@ -47,8 +48,8 @@
         : creatorName;
 
     // The signed-in user's own assignment on this task (null if they aren't
-    // an assignee). The progress slider edits only this row, and only while
-    // it is To Do / In Progress — the same rules EmployeeController.UpdateProgress
+    // an assignee). The progress ring/slider edits only this row, and only
+    // while it is To Do / In Progress — the same rules EmployeeController.UpdateProgress
     // enforces on the server.
     var viewerId = Context.Session.GetInt32("UserId");
     var myAssignment = viewerId.HasValue
@@ -65,6 +66,18 @@
     var shownAssignee = isEmployeeView ? Context.Session.GetString("FullName") : task.Assignee?.FullName;
     var shownProgress = isEmployeeView ? myAssignment!.Progress : task.Progress;
 
+    // Whether proof can be submitted right now, and how far from unlocked —
+    // computed once here so the progress hero can show it as a headline
+    // instead of a footnote under a greyed-out button.
+    var minProgress = DTIOneLink.Services.TaskWorkflow.MinProgressToSubmitProof;
+    var canSubmitProofNow = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(status, sliderProgress);
+    var pointsToUnlock = Math.Max(0, minProgress - sliderProgress);
+
+    // How overdue, or how much runway is left — a concrete number the
+    // "Overdue" badge alone doesn't give you.
+    var daysLate = isOverdue ? (today - task.DueDate.Date).Days : 0;
+    var daysLeft = !isOverdue ? (task.DueDate.Date - today).Days : 0;
+
     // Assignees may permanently delete a task once it is fully Completed.
     // EmployeeController.Delete re-checks all of this on the server.
     var canDeleteTask = myAssignment != null
@@ -78,6 +91,13 @@
         if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
         return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
     }
+
+    // Progress ring geometry: r=58, circumference = 2*pi*58.
+    const double ringCircumference = 364.425;
+    var ringOffset = ringCircumference * (1 - (sliderProgress / 100.0));
+    var ringOffsetStr = ringOffset.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    var currentUserInitials = GetInitials(Context.Session.GetString("FullName"));
 }
 
 <div class="task-details">
@@ -109,78 +129,98 @@
             <!-- Task Details card -->
             <div class="td-panel">
                 <section class="td-header">
-                    <div class="td-eyebrow">
-                        <button type="button" class="td-code-btn" id="copyTaskCode" data-code="@taskCode" title="Copy task code">
-                            @taskCode
-                        </button>
-                    </div>
-                    <h2 class="td-title">@task.TaskName</h2>
-                    <div class="td-badges">
-                        <span class="td-badge @statusClass" id="tdStatusBadge">
-                            <span class="td-badge-dot"></span> <span id="tdStatusBadgeText">@statusLabel</span>
-                        </span>
-                        <span class="td-badge priority-@PriorityClass(task.Priority)">
-                            <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
-                        </span>
-                        <span class="td-badge assignee">
-                            <span class="td-badge-dot"></span> Assigned to @(shownAssignee ?? "Unassigned")
-                        </span>
+                    <div class="td-header-row">
+                        <div class="td-icon-badge" aria-hidden="true">
+                            <span class="material-symbols-outlined">task_alt</span>
+                        </div>
+                        <div class="td-header-text">
+                            <div class="td-eyebrow">
+                                <button type="button" class="td-code-btn" id="copyTaskCode" data-code="@taskCode" title="Copy task code">
+                                    @taskCode
+                                </button>
+                            </div>
+                            <h2 class="td-title">@task.TaskName</h2>
+                            <div class="td-badges">
+                                <span class="td-badge @statusClass" id="tdStatusBadge">
+                                    <span class="td-badge-dot"></span> <span id="tdStatusBadgeText">@statusLabel</span>
+                                </span>
+                                <span class="td-badge priority-@PriorityClass(task.Priority)">
+                                    <span class="td-badge-dot"></span> @PriorityLabel(task.Priority)
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
+                <!-- Due Date pairs with a concrete "how overdue / how much
+                     runway" fact instead of repeating the Overdue badge or
+                     the Progress number a second and third time. -->
                 <section class="td-meta-grid">
-                    <div>
-                        <h3>Created</h3>
-                        <p>@task.CreatedAt.ToString("MMM d, yyyy")</p>
+                    <div class="td-meta-tile @(isOverdue ? "is-danger" : "")">
+                        <span class="td-meta-icon material-symbols-outlined" aria-hidden="true">event_busy</span>
+                        <div>
+                            <h3>Due Date</h3>
+                            <p>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3>Created By</h3>
-                        <p>@creatorLabel</p>
-                    </div>
-                    <div>
-                        <h3>Due Date</h3>
-                        <p>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</p>
-                    </div>
-                    <div>
-                        <h3>Progress</h3>
-                        <p id="tdMetaProgress">@shownProgress%</p>
-                    </div>
-                    <div>
-                        <h3>Status</h3>
-                        <p id="tdMetaStatus">@statusLabel</p>
+                    <div class="td-meta-tile @(isOverdue ? "is-danger" : "")">
+                        <span class="td-meta-icon material-symbols-outlined" aria-hidden="true">schedule</span>
+                        <div>
+                            @if (isOverdue)
+                            {
+                                <h3>Days Late</h3>
+                                <p>@daysLate day@(daysLate == 1 ? "" : "s")</p>
+                            }
+                            else
+                            {
+                                <h3>Days Left</h3>
+                                <p>@daysLeft day@(daysLeft == 1 ? "" : "s")</p>
+                            }
+                        </div>
                     </div>
                 </section>
 
                 <section class="td-progress-section">
-                    @if (canEditProgress)
-                    {
-                        @* Assignee's own progress: drag (or use arrow keys) and it
-                           saves automatically when released. *@
-                        <div class="td-progress-head">
-                            <h3 id="tdProgressLabel">Progress</h3>
-                            <span class="td-progress-value" id="tdProgressValue">@(sliderProgress)%</span>
+                    <div class="td-progress-hero">
+                        <svg class="td-progress-ring" viewBox="0 0 140 140" aria-hidden="true">
+                            <circle class="td-progress-ring-track" cx="70" cy="70" r="58"></circle>
+                            <circle class="td-progress-ring-arc" id="tdProgressRingArc" cx="70" cy="70" r="58"
+                                    style="stroke-dasharray:@(ringCircumference.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)); stroke-dashoffset:@ringOffsetStr;"></circle>
+                            <text class="td-progress-ring-value" id="tdProgressRingValue" x="70" y="64" text-anchor="middle">@(sliderProgress)%</text>
+                            <text class="td-progress-ring-label" x="70" y="85" text-anchor="middle">@(canEditProgress ? "your progress" : "progress")</text>
+                        </svg>
+                        <div class="td-progress-hero-body">
+                            @if (canEditProgress)
+                            {
+                                @* Assignee's own progress: drag (or use arrow keys) and it
+                                   saves automatically when released. *@
+                                <div class="td-unlock-gate" id="tdUnlockGate" @(canSubmitProofNow ? "hidden" : null)>
+                                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                                    <span id="tdUnlockGateText">@pointsToUnlock points to go to unlock Submit Proof</span>
+                                </div>
+                                <p class="td-progress-hero-hint">Proof can be submitted once progress reaches @(minProgress)%, or any time once the task is returned for correction.</p>
+                                <input type="range"
+                                       class="td-progress-range"
+                                       id="tdProgressRange"
+                                       min="0" max="100" step="1"
+                                       value="@sliderProgress"
+                                       style="--pct: @(sliderProgress)%"
+                                       data-task-id="@task.Id"
+                                       data-overdue="@(isOverdue ? "true" : "false")"
+                                       data-min-progress="@minProgress"
+                                       aria-labelledby="tdProgressLabel"
+                                       aria-valuetext="@(sliderProgress) percent" />
+                                <span id="tdProgressLabel" class="visually-hidden">Your progress</span>
+                                <p class="td-progress-hint" id="tdProgressHint" aria-live="polite">
+                                    Drag the slider to update your progress. It saves automatically.
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="td-progress-hero-hint">This reflects @(isEmployeeView ? "your" : (shownAssignee ?? "the assignee") + "'s") current progress on this task.</p>
+                            }
                         </div>
-                        <input type="range"
-                               class="td-progress-range"
-                               id="tdProgressRange"
-                               min="0" max="100" step="1"
-                               value="@sliderProgress"
-                               style="--pct: @(sliderProgress)%"
-                               data-task-id="@task.Id"
-                               data-overdue="@(isOverdue ? "true" : "false")"
-                               aria-labelledby="tdProgressLabel"
-                               aria-valuetext="@(sliderProgress) percent" />
-                        <p class="td-progress-hint" id="tdProgressHint" aria-live="polite">
-                            Drag the slider to update your progress. It saves automatically.
-                        </p>
-                    }
-                    else
-                    {
-                        <h3>Progress</h3>
-                        <div class="td-progress-track">
-                            <div class="td-progress-fill" style="width: @(shownProgress)%"></div>
-                        </div>
-                    }
+                    </div>
                 </section>
 
                 <section class="td-description">
@@ -209,7 +249,6 @@
                         {
                             var myProgress = myAssignment?.Progress ?? task.Progress;
                             var canSubmitProof = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(status, myProgress);
-                            var minProgress = DTIOneLink.Services.TaskWorkflow.MinProgressToSubmitProof;
                             @* Same element either way — JS flips the lock state live as the
                                progress slider moves (data-min-progress), instead of needing
                                a page reload once the threshold is crossed. *@
@@ -223,9 +262,6 @@
                                     <span class="material-symbols-outlined">upload</span>
                                     Submit Proof
                                 </a>
-                                <p class="td-submit-hint" id="tdSubmitHint" @(canSubmitProof ? "hidden" : null)>
-                                    Reach @(minProgress)% progress to unlock
-                                </p>
                             </div>
                         }
                         @if (status == "returned-for-correction")
@@ -255,7 +291,11 @@
             <!-- Comments card -->
             <div class="td-panel td-comments-card">
     <section class="td-comments">
-        <h3>Comments</h3>
+        <h3>
+            Comments
+            @{ var commentCount = task.Comments?.Count ?? 0; }
+            <span class="td-comments-count">(@commentCount)</span>
+        </h3>
 
         @{
             var comments = task.Comments?.OrderByDescending(c => c.CreatedAt).ToList() ?? new();
@@ -267,11 +307,14 @@
                 {
                     var commentTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(comment.CreatedAt);
                     <li>
-                        <div class="td-comment-header">
-                            <span class="td-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
-                            <span class="td-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                        <div class="avatar-initials-sm" aria-hidden="true">@GetInitials(comment.Author?.FullName)</div>
+                        <div class="td-comment-body">
+                            <div class="td-comment-header">
+                                <span class="td-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
+                                <span class="td-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                            </div>
+                            <p class="td-comment-text">@comment.Text</p>
                         </div>
-                        <p class="td-comment-text">@comment.Text</p>
                     </li>
                 }
             </ul>
@@ -284,11 +327,14 @@
         <form asp-controller="Employee" asp-action="AddComment" method="post" class="td-comment-form">
             @Html.AntiForgeryToken()
             <input type="hidden" name="taskId" value="@task.Id" />
-            <textarea name="text" class="td-comment-input" placeholder="Write a comment..." rows="3" required></textarea>
-            <button type="submit" class="btn btn-primary td-comment-submit">
-                <span class="material-symbols-outlined">send</span>
-                Post
-            </button>
+            <div class="avatar-initials-sm" aria-hidden="true">@currentUserInitials</div>
+            <div class="td-comment-form-body">
+                <textarea name="text" class="td-comment-input" placeholder="Write a comment..." rows="2" required></textarea>
+                <button type="submit" class="btn btn-primary td-comment-submit">
+                    <span class="material-symbols-outlined">send</span>
+                    Post
+                </button>
+            </div>
         </form>
     </section>
 </div>
@@ -311,16 +357,12 @@
 
             <dl class="td-overview-list">
                 <div>
-                    <dt>Status</dt>
-                    <dd>@statusLabel</dd>
-                </div>
-                <div>
                     <dt>Priority</dt>
                     <dd>@PriorityLabel(task.Priority)</dd>
                 </div>
                 <div>
-                    <dt>Due date</dt>
-                    <dd>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</dd>
+                    <dt>Task Progress</dt>
+                    <dd id="tdMetaProgress">@task.Progress%</dd>
                 </div>
                 <div>
                     <dt>Created</dt>
@@ -333,55 +375,61 @@
             </dl>
 
                        @{
-                var activities = task.Activities?.OrderByDescending(a => a.OccurredAt).ToList() ?? new();
-            }
-            <div class="td-activity">
-                <h3 class="td-sidebar-subtitle">Activity History</h3>
-                <ul class="td-timeline">
-                    @* Synthetic first entry, rendered from TaskItem itself
-                       rather than TaskActivity — task creation predates the
-                       activity log, so there's no logged row for it. Always
-                       shown, since a task always has a creation event. *@
-                    <li class="td-timeline-item">
-                        <span class="td-timeline-dot default"></span>
-                        <div class="td-timeline-content">
-                            <div class="td-timeline-header">
-                                <span class="td-activity-user">@creatorLabel</span>
-                                <span class="td-activity-date">
-                                    @DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(task.CreatedAt).ToString("MMM d, yyyy, h:mm tt")
-                                </span>
-                            </div>
-                            <p class="td-activity-details">Created this task.</p>
-                        </div>
-                    </li>
-                    @foreach (var activity in activities)
+                // Chronological order, newest first — including task creation,
+                // which used to always render first regardless of its actual
+                // date, so a task created a month before its newest activity
+                // still showed "Created this task" above everything else.
+                var activityEntries = (task.Activities ?? new List<DTIOneLink.Models.TaskActivity>())
+                    .Select(a => new
                     {
-                        var localTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(activity.OccurredAt);
-                        var dotClass = activity.ActivityType switch
+                        When = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(a.OccurredAt),
+                        User = a.PerformedBy?.FullName ?? "Unknown",
+                        Details = (string?)a.Details,
+                        Dot = a.ActivityType switch
                         {
-                            "validated" => activity.Details.StartsWith("Submission approved") ? "approved" : "returned",
+                            "validated" => a.Details.StartsWith("Submission approved") ? "approved" : "returned",
                             "proof-submitted" => "submitted",
                             "status-changed" => "status",
                             _ => "default"
-                        };
-                        <li class="td-timeline-item">
-                            <span class="td-timeline-dot @dotClass"></span>
-                            <div class="td-timeline-content">
-                                <div class="td-timeline-header">
-                                    <span class="td-activity-user">@(activity.PerformedBy?.FullName ?? "Unknown")</span>
-                                    <span class="td-activity-date">@localTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                        },
+                        Download = a.RelatedSubmission
+                    })
+                    .Append(new
+                    {
+                        When = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(task.CreatedAt),
+                        User = creatorLabel,
+                        Details = (string?)"Created this task.",
+                        Dot = "default",
+                        Download = (DTIOneLink.Models.TaskSubmission?)null
+                    })
+                    .OrderByDescending(e => e.When)
+                    .ToList();
+            }
+            <div class="td-activity">
+                <h3 class="td-sidebar-subtitle">Activity History</h3>
+                <div class="td-timeline-scroll" id="tdTimelineScroll">
+                    <ul class="td-timeline" id="tdTimeline">
+                        @foreach (var entry in activityEntries)
+                        {
+                            <li class="td-timeline-item">
+                                <span class="td-timeline-dot @entry.Dot"></span>
+                                <div class="td-timeline-content">
+                                    <div class="td-timeline-header">
+                                        <span class="td-activity-user">@entry.User</span>
+                                        <span class="td-activity-date">@entry.When.ToString("MMM d, h:mm tt")</span>
+                                    </div>
+                                    <p class="td-activity-details">@entry.Details</p>
+                                    @if (entry.Download != null)
+                                    {
+                                        <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="td-timeline-download">
+                                            @entry.Download.ProofFileName
+                                        </a>
+                                    }
                                 </div>
-                                <p class="td-activity-details">@activity.Details</p>
-                                @if (activity.RelatedSubmission != null)
-                                {
-                                    <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@activity.RelatedSubmission.Id" class="td-timeline-download">
-                                        @activity.RelatedSubmission.ProofFileName
-                                    </a>
-                                }
-                            </div>
-                        </li>
-                    }
-                </ul>
+                            </li>
+                        }
+                    </ul>
+                </div>
             </div>
         </aside>
         <!-- /Sidebar -->

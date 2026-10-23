@@ -10,7 +10,10 @@ body{
     padding-top: 16px;
 }
 .task-details {
-    --td-primary: #1d357e;
+    /* Aligned to the app's real brand navy (#001e65) — this page used to run
+       its own slightly-off #1d357e, the one color on it that didn't match
+       Records, Dashboard, or anywhere else. */
+    --td-primary: #001e65;
     --td-primary-light: #3b5ab0;
     --td-surface-dim: #cbdbf5;
     --td-surface-container-low: #eff4ff;
@@ -29,7 +32,10 @@ body{
     --td-success: #166534;
     --td-success-container: #dcfce7;
     --td-on-success-container: #052e16;
-    --td-radius: 0.5rem;
+    /* 16px, matching the card radius the rest of the app (Records,
+       Dashboard) already settled on this round — this page's own 8px read
+       noticeably squarer than everything around it. */
+    --td-radius: 1rem;
 
     width: 100%;
     max-width: 100%;
@@ -50,6 +56,18 @@ body{
 
 .task-details a { text-decoration: none; }
 .task-details button { font-family: inherit; border: none; background: none; cursor: pointer; }
+
+.task-details .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
 
 /* --------------------------------------------------------------------
    Breadcrumb
@@ -120,6 +138,29 @@ body{
     text-transform: uppercase;
     color: var(--td-on-surface-variant);
     margin-bottom: 16px;
+}
+
+/* Scroll-aware fade: a mask over the list's last ~32px, added by JS only
+   once the list actually overflows (employeetaskdetails.js), and removed
+   again once scrolled to the real end — so it never implies there's more
+   below when there isn't, on either edge of the list. */
+.task-details .td-timeline-scroll {
+    position: relative;
+}
+.task-details .td-timeline-scroll::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 32px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.task-details .td-timeline-scroll.has-more::after {
+    opacity: 1;
 }
 
 .task-details .td-timeline {
@@ -216,11 +257,47 @@ body{
     margin-bottom: 12px;
 }
 
+.task-details .td-comments-count {
+    color: var(--td-on-surface-variant);
+    font-weight: 600;
+}
+
+.task-details .avatar-initials-sm {
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    background: var(--td-surface-container-high);
+    color: var(--td-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+}
+
+/* The commenting viewer's own avatar, filled solid — same treatment the
+   sidebar already gives the assignee, so it's recognizably "you" next to
+   everyone else's neutral initials. */
+.task-details .avatar-initials-sm--self {
+    background: var(--td-primary);
+    color: #ffffff;
+}
+
 .task-details .td-comment-form {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-top: 20px;
+}
+
+.task-details .td-comment-form-body {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-top: 20px;
 }
 
 .task-details .td-comment-input {
@@ -251,13 +328,20 @@ body{
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
 }
 
 .task-details .td-comment-list li {
-    padding: 12px;
-    border: 1px solid var(--td-outline-variant);
-    border-radius: var(--td-radius);
+    display: flex;
+    gap: 12px;
+}
+
+.task-details .td-comment-body {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    background: var(--td-surface-container-low);
+    border-radius: 12px;
 }
 
 .task-details .td-comment-header {
@@ -287,6 +371,29 @@ body{
 /* --------------------------------------------------------------------
    Header
    -------------------------------------------------------------------- */
+.task-details .td-header-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.task-details .td-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 9999px;
+    background: var(--td-surface-container);
+    color: var(--td-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.task-details .td-icon-badge .material-symbols-outlined { font-size: 25px; }
+
+.task-details .td-header-text {
+    min-width: 0;
+}
+
 .task-details .td-eyebrow {
     margin-bottom: 8px;
 }
@@ -465,36 +572,136 @@ body{
 /* --------------------------------------------------------------------
    Metadata grid
    -------------------------------------------------------------------- */
+/* Icon-forward meta tiles — the Due Date / Days Late (or Days Left) pair.
+   Status and Priority aren't repeated here: they're already the badges
+   above, and a third/fourth tile just restating them read as noise. */
 .task-details .td-meta-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-    padding: 24px 0;
-    border-top: 1px solid var(--td-outline-variant);
-    border-bottom: 1px solid var(--td-outline-variant);
+    gap: 14px;
 }
 
-@media (min-width: 640px) {
-    .task-details .td-meta-grid { grid-template-columns: repeat(4, 1fr); }
+.task-details .td-meta-tile {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 15px 17px;
+    background: var(--td-surface-container-low);
+    border-radius: 14px;
 }
 
-.task-details .td-meta-grid h3 {
+.task-details .td-meta-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 19px;
+    background: var(--td-surface-container);
+    color: var(--td-primary);
+}
+
+.task-details .td-meta-tile.is-danger .td-meta-icon {
+    background: var(--td-error-container);
+    color: var(--td-error);
+}
+
+.task-details .td-meta-tile h3 {
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    font-weight: 600;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     color: var(--td-on-surface-variant);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
-.task-details .td-meta-grid p {
-    font-weight: 600;
+.task-details .td-meta-tile p {
+    font-weight: 700;
+    font-size: 14px;
     color: var(--td-on-surface);
+}
+
+.task-details .td-meta-tile.is-danger p {
+    color: var(--td-error);
 }
 
 /* --------------------------------------------------------------------
    Progress
    -------------------------------------------------------------------- */
+/* The progress ring + (when editable) the Submit Proof unlock requirement
+   is the one thing this page is actually for — it gets its own tinted
+   card instead of being a plain number buried in the meta grid. */
+.task-details .td-progress-hero {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    padding: 24px;
+    background: var(--td-surface-container-low);
+    border-radius: 14px;
+    flex-wrap: wrap;
+}
+
+.task-details .td-progress-ring {
+    width: 130px;
+    height: 130px;
+    flex-shrink: 0;
+}
+
+.task-details .td-progress-ring-track {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 14;
+}
+
+.task-details .td-progress-ring-arc {
+    fill: none;
+    stroke: var(--td-primary);
+    stroke-width: 14;
+    stroke-linecap: round;
+    transform-origin: 70px 70px;
+    transform: rotate(-90deg);
+    transition: stroke-dashoffset 0.25s ease;
+}
+
+.task-details .td-progress-ring-value {
+    font-family: 'Hanken Grotesk', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    fill: var(--td-on-surface);
+}
+
+.task-details .td-progress-ring-label {
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: var(--td-on-surface-variant);
+}
+
+.task-details .td-progress-hero-body {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.task-details .td-unlock-gate {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    color: var(--td-warning);
+    font-weight: 700;
+    font-size: 14px;
+}
+.task-details .td-unlock-gate[hidden] { display: none; }
+.task-details .td-unlock-gate .material-symbols-outlined { font-size: 19px; }
+
+.task-details .td-progress-hero-hint {
+    font-size: 13px;
+    color: var(--td-on-surface-variant);
+    margin: 0 0 16px;
+}
+
 .task-details .td-progress-section h3 {
     font-size: 11px;
     font-weight: 700;
@@ -626,7 +833,7 @@ body{
     justify-content: flex-start;
     align-items: center;
     gap: 12px;
-    maargin-top: 24px;
+    margin-top: 24px;
 }
 
 .task-details .td-submit-gate {

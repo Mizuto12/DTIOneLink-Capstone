@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initBackButton();
     initProgressSlider();
     initDeleteConfirm();
+    initActivityFade();
 });
 
 /**
@@ -78,19 +79,44 @@ function initProgressSlider() {
     var isOverdue = range.getAttribute('data-overdue') === 'true';
     var defaultHint = hint ? hint.textContent.trim() : '';
 
+    // Progress ring (r=58; circumference = 2*pi*58).
+    var RING_CIRCUMFERENCE = 364.425;
+    var ringArc = document.getElementById('tdProgressRingArc');
+    var ringValue = document.getElementById('tdProgressRingValue');
+    var unlockGate = document.getElementById('tdUnlockGate');
+    var unlockGateText = document.getElementById('tdUnlockGateText');
+
     var savedValue = Number(range.value);
     var saveTimer = null;
 
     var submitGate = document.getElementById('tdSubmitGate');
     var submitBtn = document.getElementById('tdSubmitProofBtn');
     var submitHint = document.getElementById('tdSubmitHint');
-    var minProgress = submitGate ? Number(submitGate.getAttribute('data-min-progress')) : null;
+    // The range always carries this when the slider itself renders (same
+    // condition the unlock-gate card renders under); the Submit Proof
+    // button/gate only renders for the legacy single-assignee case, so
+    // prefer the range's own copy over requiring both to agree.
+    var minProgressAttr = range.getAttribute('data-min-progress')
+        || (submitGate ? submitGate.getAttribute('data-min-progress') : null);
+    var minProgress = minProgressAttr !== null ? Number(minProgressAttr) : null;
 
     // Mirrors TaskWorkflow.CanSubmitProof: locked unless progress has reached
     // the threshold (status is always pending/in-progress here — the gate
     // markup only renders in that branch; Returned-for-correction resubmits
     // through a separate, always-enabled link).
     function updateSubmitGate(progress) {
+        // The unlock-requirement headline lives in the progress hero, not
+        // just as a footnote under the button — update both together so
+        // they can never disagree about whether proof can be submitted yet.
+        if (unlockGate) {
+            var stillLocked = minProgress !== null && progress < minProgress;
+            unlockGate.hidden = !stillLocked;
+            if (stillLocked && unlockGateText) {
+                var pointsToGo = minProgress - progress;
+                unlockGateText.textContent = pointsToGo + ' point' + (pointsToGo === 1 ? '' : 's') + ' to go to unlock Submit Proof';
+            }
+        }
+
         if (!submitGate || !submitBtn || minProgress === null) {
             return;
         }
@@ -124,6 +150,12 @@ function initProgressSlider() {
         range.setAttribute('aria-valuetext', value + ' percent');
         if (valueLabel) {
             valueLabel.textContent = value + '%';
+        }
+        if (ringArc) {
+            ringArc.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - value / 100));
+        }
+        if (ringValue) {
+            ringValue.textContent = value + '%';
         }
     }
 
@@ -241,6 +273,29 @@ function initProgressSlider() {
         clearTimeout(saveTimer);
         saveTimer = setTimeout(save, 400);
     });
+}
+
+/**
+ * Activity History's scroll-aware fade: a soft mask over the list's last
+ * ~32px, shown only while there's more to scroll to, and removed once
+ * scrolled to the real end — so it never implies there's more below when
+ * there isn't, in either direction.
+ */
+function initActivityFade() {
+    var scrollEl = document.getElementById('tdTimeline');
+    var wrapper = document.getElementById('tdTimelineScroll');
+    if (!scrollEl || !wrapper) {
+        return;
+    }
+
+    function update() {
+        var hasMore = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight > 1;
+        wrapper.classList.toggle('has-more', hasMore);
+    }
+
+    scrollEl.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    update();
 }
 
 /**
