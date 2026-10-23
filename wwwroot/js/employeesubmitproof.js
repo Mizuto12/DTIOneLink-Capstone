@@ -87,14 +87,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch('/Employee/SubmitProof', { method: 'POST', body: body })
             .then(function (res) {
-                if (res.redirected || res.ok) {
-                    // The controller redirects to Details on success.
-                    window.location.href = res.redirected ? res.url : ('/Employee/Details/' + taskId);
+                // Only an actual redirect means the server accepted the
+                // submission — that's the ONLY response SubmitProof's POST
+                // action sends on success. A rejected file (wrong type,
+                // too large, content/extension mismatch) or any other
+                // ModelState error re-renders this same modal at a plain
+                // 200 OK, which used to be treated as success here too —
+                // silently discarding the error and bouncing the user back
+                // to Details with nothing actually submitted.
+                if (res.redirected) {
+                    window.location.href = res.url;
                     return;
                 }
-                return res.text().then(function () {
+                return res.text().then(function (html) {
                     submitBtn.disabled = false;
-                    setHint('Unable to submit — the task may have changed. Please refresh and try again.', 'error');
+                    var errors = [];
+                    try {
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        errors = Array.prototype.map.call(
+                            doc.querySelectorAll('.tp-alert.error li'),
+                            function (li) { return li.textContent.trim(); }
+                        ).filter(Boolean);
+                    } catch (e) { /* fall through to the generic message below */ }
+                    setHint(errors.length ? errors.join(' ') : 'Unable to submit — the task may have changed. Please refresh and try again.', 'error');
                 });
             })
             .catch(function (err) {
