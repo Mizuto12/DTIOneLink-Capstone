@@ -97,7 +97,14 @@
    /fonts/material-symbols/MaterialSymbolsOutlined.woff2. */
 @font-face {
   font-family: 'Material Symbols Outlined';
-  src: url('/fonts/material-symbols/MaterialSymbolsOutlined.woff2') format('woff2');
+  /* ?v=2 — bump this whenever the icon set changes and the woff2 is
+     regenerated. Program.cs only gives a file the long, immutable cache
+     when its URL carries a "v" query parameter (asp-append-version does
+     this automatically for <link>/<script> tags, but this file is a plain
+     url() inside a static .css, which it can't reach) — without one, a
+     content change here can sit in every visitor's browser cache for up
+     to a day before they see it, even after a fresh deploy. */
+  src: url('/fonts/material-symbols/MaterialSymbolsOutlined.woff2?v=2') format('woff2');
   font-weight: 100 700;
   font-style: normal;
   font-display: block; /* icons popping in unstyled looks worse than a brief delay */
