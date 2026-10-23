@@ -191,6 +191,14 @@ body {
   white-space: nowrap;
 }
 
+/* Starts hidden in the markup (offline-sync.js only reveals it for
+   Offline/Syncing/a warning, or briefly after a queued change finishes
+   syncing) — without this, the unconditional display:inline-flex above
+   overrides the browser's native [hidden], so "Online" sat visible in
+   the topbar permanently regardless of the hidden attribute or actual
+   connection state. */
+.offline-status-pill[hidden] { display: none; }
+
 .offline-status-pill.is-online {
   background: var(--surface-container-low);
   color: var(--secondary);
