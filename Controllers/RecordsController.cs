@@ -495,10 +495,10 @@ WHERE {VisibilityClause(user)} AND r.MasterlistId IS NOT NULL AND {statusFilter}
             }
         }
 
-        // GET: /Records/GetAll?q=&medium=&access=&retention=
+        // GET: /Records/GetAll?q=&medium=&access=&retention=&status=
         // Loads the list, filtered on the server. Every filter is optional.
         [HttpGet]
-        public IActionResult GetAll(string? q, string? medium, string? access, string? retention)
+        public IActionResult GetAll(string? q, string? medium, string? access, string? retention, string? status)
         {
             var accessResult = CheckAccess(out var user);
             if (accessResult != RecordsAccess.Allowed || user == null)
@@ -508,7 +508,7 @@ WHERE {VisibilityClause(user)} AND r.MasterlistId IS NOT NULL AND {statusFilter}
 
             try
             {
-                return Json(LoadRecords(user, q, medium, access, retention));
+                return Json(LoadRecords(user, q, medium, access, retention, status));
             }
             catch (Exception ex)
             {
@@ -517,7 +517,14 @@ WHERE {VisibilityClause(user)} AND r.MasterlistId IS NOT NULL AND {statusFilter}
             }
         }
 
-        private List<object> LoadRecords(RecordsUser user, string? q, string? medium, string? access, string? retention)
+        // The four values RecordStatus actually takes — see SetDisposalStatus
+        // and its three POST actions (plus RestoreToRetention back to the
+        // first one). Kept here, not re-derived from reflection or a config
+        // value, since nothing else in the system needs this list to be
+        // dynamic.
+        private static readonly string[] RecordStatuses = { "Retention", "Disposal", "Disposed", "Archived" };
+
+        private List<object> LoadRecords(RecordsUser user, string? q, string? medium, string? access, string? retention, string? status = null)
         {
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
@@ -609,6 +616,22 @@ WHERE ").Append(VisibilityClause(user));
                     case "not-computed":
                         sql.Append(" AND r.RetentionDueDate IS NULL");
                         break;
+                }
+            }
+
+            // Status (RecordStatus): Retention / Disposal / Disposed /
+            // Archived — lets Archived and Disposed records, which have no
+            // further actions and would otherwise just sit mixed in among
+            // the active ones, actually be found again. Unknown values are
+            // ignored, same discipline as medium/access above; only a
+            // system without the status columns has nothing to filter on.
+            if (HasSystemColumns(conn))
+            {
+                var statusFilter = MatchAllowed(status, RecordStatuses);
+                if (statusFilter != null)
+                {
+                    sql.Append(" AND r.RecordStatus = @Status");
+                    cmd.Parameters.Add("@Status", SqlDbType.NVarChar, 20).Value = statusFilter;
                 }
             }
 
@@ -864,12 +887,13 @@ WHERE ").Append(VisibilityClause(user));
         // back too so Update can recompute RetentionDueDate from the record's
         // real logging date, not "today" — editing an old record must not
         // silently shift its due date to be computed as if logged today.
-        private (int? CreatedByUserId, DateTime? RecordDate)? LoadRecordState(SqlConnection conn, int recordId)
+        private (int? CreatedByUserId, DateTime? RecordDate, string RecordStatus)? LoadRecordState(SqlConnection conn, int recordId)
         {
             var hasSystemColumns = HasSystemColumns(conn);
             var createdByCol = hasSystemColumns ? "CreatedByUserId" : "NULL";
             var recordDateCol = hasSystemColumns ? "RecordDate" : "NULL";
-            using var cmd = new SqlCommand($"SELECT {createdByCol}, {recordDateCol} FROM Records WHERE RecordId = @Id", conn);
+            var statusCol = hasSystemColumns ? "RecordStatus" : "'Retention'";
+            using var cmd = new SqlCommand($"SELECT {createdByCol}, {recordDateCol}, {statusCol} FROM Records WHERE RecordId = @Id", conn);
             cmd.Parameters.Add("@Id", SqlDbType.Int).Value = recordId;
             using var reader = cmd.ExecuteReader();
             if (!reader.Read())
@@ -878,7 +902,8 @@ WHERE ").Append(VisibilityClause(user));
             }
             return (
                 reader.IsDBNull(0) ? null : reader.GetInt32(0),
-                reader.IsDBNull(1) ? null : reader.GetDateTime(1)
+                reader.IsDBNull(1) ? null : reader.GetDateTime(1),
+                reader.IsDBNull(2) ? "Retention" : reader.GetString(2)
             );
         }
 
@@ -921,7 +946,7 @@ WHERE ").Append(VisibilityClause(user));
                 {
                     return NotFound(new { message = "Record not found." });
                 }
-                var (createdByUserId, recordDate) = state.Value;
+                var (createdByUserId, recordDate, _) = state.Value;
 
                 if (!user.CanManage && createdByUserId != user.UserId)
                 {
@@ -1016,7 +1041,7 @@ WHERE ").Append(VisibilityClause(user));
                 {
                     return NotFound(new { message = "Record not found." });
                 }
-                var (createdByUserId, _) = state.Value;
+                var (createdByUserId, _, _) = state.Value;
 
                 if (!user.CanManage && createdByUserId != user.UserId)
                 {
@@ -1120,7 +1145,19 @@ WHERE RecordId = @RecordId", conn);
         [ValidateAntiForgeryToken]
         public Task<IActionResult> MarkArchived(int id) => SetDisposalStatus(id, "Archived");
 
-        private async Task<IActionResult> SetDisposalStatus(int id, string newStatus)
+        // POST: /Records/RestoreToRetention/{id} — undoes an Archived mark,
+        // the one disposal-status transition that gets a way back. Archiving
+        // is a records-organization decision (where a permanent-value record
+        // lives), not a physical event like Disposed is — a mis-click or a
+        // schedule correction shouldn't be a dead end the way actual disposal
+        // has to be. Only allowed FROM Archived specifically: Disposed stays
+        // final, since the system has no way to know whether reversing it
+        // would be a lie about something that already physically happened.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> RestoreToRetention(int id) => SetDisposalStatus(id, "Retention", requireCurrentStatus: "Archived");
+
+        private async Task<IActionResult> SetDisposalStatus(int id, string newStatus, string? requireCurrentStatus = null)
         {
             var access = CheckAccess(out var user);
             if (access != RecordsAccess.Allowed || user == null)
@@ -1149,10 +1186,19 @@ WHERE RecordId = @RecordId", conn);
                 {
                     return NotFound(new { message = "Record not found." });
                 }
-                var (ownerOfRecord, _) = state.Value;
+                var (ownerOfRecord, _, currentStatus) = state.Value;
                 if (!user.CanManage && ownerOfRecord != user.UserId)
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can update disposal status." });
+                }
+
+                // Re-checked here, not trusted from whatever the client's
+                // own UI happened to show — a stale page (another tab moved
+                // the record on since this one loaded it) can't restore a
+                // record that isn't actually Archived anymore.
+                if (requireCurrentStatus != null && !string.Equals(currentStatus, requireCurrentStatus, StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(StatusCodes.Status409Conflict, new { message = $"This record is no longer {requireCurrentStatus} — refresh the page to see its current status." });
                 }
 
                 int? ownerUserId = null;

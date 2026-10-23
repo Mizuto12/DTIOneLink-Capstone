@@ -88,6 +88,10 @@ function statusCellHtml(data) {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
     } else if (data.recordStatus === 'Disposal') {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkDisposed">Mark Disposed</button>`);
+    } else if (data.recordStatus === 'Archived') {
+      // The one disposal-status transition with a way back — Disposed
+      // stays final (see RestoreToRetention in RecordsController).
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="RestoreToRetention">Restore to Retention</button>`);
     }
   }
 
@@ -95,7 +99,11 @@ function statusCellHtml(data) {
 }
 
 function mediumBadgeHtml(medium) {
-  return `<span class="badge badge-medium">${escapeHtml(medium)}</span>`;
+  const esc = escapeHtml(medium);
+  // Same truncate-with-hover pattern as Access Control's badge — "Hard
+  // Copy/Electronic" and a typed "Other" value both run longer than
+  // medium-col's actual width.
+  return `<span class="badge badge-medium" title="${esc}">${esc}</span>`;
 }
 
 // Access Control is usually one of the four standard choices, but "Other /

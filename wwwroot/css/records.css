@@ -119,38 +119,37 @@
   margin: 2px 0 0 0;
 }
 
+/* Any badge-rendering column's value can run longer than its column is
+   wide — Access Control's "Other / Specify" text (e.g. "DTI use only;
+   Public upon request") and Medium's standard "Hard Copy/Electronic"
+   both do, at the columns' actual widths (118px, minus 9px/12px cell
+   padding, leaves ~94px of real content room). Fixed here on the base
+   .badge class, not per column, since the same overflow bug hits every
+   column that renders one, not just the one it was first noticed on.
+   max-width stays relative (100%, the cell's own content box) rather
+   than a guessed fixed px, which is exactly what let this recur after
+   the first fix: a fixed cap bigger than the column's real room still
+   overflows regardless of the cap existing. overflow:hidden on the
+   cell itself is a hard backstop against that happening a third time. */
 .records-page .badge {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--on-surface-variant);
-  background: var(--surface-container-low);
-  border-radius: var(--radius-full);
-  padding: 6px 12px;
-  white-space: nowrap;
-}
-
-/* Access Control's "Other / Specify" values can run much longer than the
-   four standard choices (e.g. "DTI use only; Public upon request") — left
-   unconstrained, white-space:nowrap let that text overflow the narrow
-   access-col width and visually bleed into the Retention column next to
-   it. Truncated with an ellipsis, full text on hover via its title attr.
-   The badge's max-width must stay relative (100%, i.e. the cell's own
-   content box) rather than a guessed fixed px: access-col is 118px with
-   9px/12px cell padding, leaving ~94px of content room — a fixed 150px
-   cap is bigger than that, so the badge overflowed its cell and bled
-   into Retention regardless of this rule. overflow:hidden on the cell
-   itself is a hard backstop against that happening again if either
-   value ever drifts out of sync. */
-.records-page td[data-label="Access Control"] {
-  overflow: hidden;
-}
-.records-page td[data-label="Access Control"] .badge {
   display: inline-block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--on-surface-variant);
+  background: var(--surface-container-low);
+  border-radius: var(--radius-full);
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.records-page td[data-label="Access Control"],
+.records-page td[data-label="Medium"] {
+  overflow: hidden;
 }
 
 /* ---------- Status column (approval / disposal) ---------- */
@@ -481,16 +480,12 @@
 .records-page .trunc.trunc-retention { max-width: 200px; }
 
 /* Compact badges for the enum-like columns (Medium, Access Control), freeing
-   width for Title and Location, which actually need it. */
-.records-page .badge {
-  display: inline-block;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 3px 9px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
+   width for Title and Location, which actually need it — merged into the
+   single .badge rule above; this was a second, later-cascading definition
+   of the same selector; a real column renders the standard set at
+   .records-page .badge's font-size/weight/padding, this duplicate kept
+   overriding those by source order alone, which made the two definitions
+   feel like they were fighting whenever one got edited without the other. */
 .records-page .badge-medium { background: var(--surface-container); color: var(--on-surface-variant); }
 
 /* Access Control badges are colored so Confidential visibly stands out from

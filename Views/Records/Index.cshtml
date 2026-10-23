@@ -192,6 +192,16 @@
           <option value="other">Other</option>
         </select>
       </div>
+      <div class="field">
+        <label for="filter-status">Status</label>
+        <select id="filter-status" name="status">
+          <option value="">All</option>
+          <option value="Retention">Retention</option>
+          <option value="Disposal">Disposal</option>
+          <option value="Disposed">Disposed</option>
+          <option value="Archived">Archived</option>
+        </select>
+      </div>
       @if (ViewBag.CanManageRecords == true)
       {
         <div class="field">
