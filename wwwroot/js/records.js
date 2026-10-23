@@ -859,7 +859,7 @@ function renderMasterlists(items) {
     const addButton = item.isOpen
       ? ''
       : `<button class="btn btn-outline" type="button" data-add-records="${item.id}">
-           <span class="material-symbols-outlined">add</span> Add Records
+           <span class="material-symbols-outlined">edit_note</span> Add Records
          </button>`;
     li.innerHTML = `
       <div class="masterlist-info">
