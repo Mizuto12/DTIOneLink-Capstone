@@ -10,6 +10,10 @@ verify-obj/
 # Files users upload while using the app (proofs of work)
 App_Data/ProofUploads/
 
+# Data Protection key ring — generated locally (by tests) and on the host
+# (on first run); machine-specific key material, never shared between them.
+App_Data/keys/
+
 # Editor / tool leftovers
 .vs/
 *.user

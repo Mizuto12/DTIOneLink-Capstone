@@ -3,6 +3,7 @@ using DTIOneLink.Security;
 using DTIOneLink.Controllers;
 using DTIOneLink.Services;
 using DTIOneLink.Services.Email;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
@@ -55,6 +56,24 @@ builder.Services.AddScoped<OneTimeCodeService>();
 builder.Services.AddScoped<AccountSessionService>();
 builder.Services.AddHostedService<EmailDispatchService>();
 builder.Services.AddAuthRateLimit();
+
+// ── Data Protection (keeps the antiforgery/session cookie keys stable) ──
+// Without this, ASP.NET Core keeps the key ring in memory only, so it
+// regenerates on every app restart — which includes every deploy, since
+// this host rebuilds and restarts the app on every push to main. Each
+// regeneration gives the antiforgery cookie a NEW auto-generated name, so
+// the browser never overwrites the old one — it just adds another. A
+// browser that's been through many deploys this way accumulates one
+// stale antiforgery cookie per deploy until the total request-header size
+// trips the host's limit, which IIS reports as a bare "HTTP Error 400"
+// with no app-level error at all (confirmed: the same URL curled fresh,
+// with no accumulated cookies, returns a normal 200/405). Persisting the
+// key ring to App_Data — already proven writable on this host, it's where
+// a failed migration's error log goes — keeps that key, and so the cookie
+// name, stable across restarts.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys")))
+    .SetApplicationName("DTIOneLink");
 
 builder.Services.AddAntiforgery(options =>
 {
