@@ -41,7 +41,12 @@
    period framing — out of scope for what this page is (see Index.cshtml). */
 .time-logs-page .time-logs-toolbar {
     display: flex;
-    align-items: center;
+    /* flex-end, not center: the filter form's own labels sit above its
+       inputs, making it taller than the single-line Daily Summary button
+       beside it. Center-aligning the two made Daily Summary float above
+       where Filter actually sits; flex-end bottom-aligns both to the
+       same row the inputs and Filter button are already on. */
+    align-items: flex-end;
     flex-wrap: wrap;
     gap: 16px;
     padding: 16px 20px;
