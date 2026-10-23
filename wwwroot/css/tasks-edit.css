@@ -144,32 +144,70 @@
 .edit-task .et-btn-primary:hover { background-color: var(--et-primary-container); }
 
 /* --------------------------------------------------------------------
-   Split-pane layout
+   Tabbed workspace: one card, Details/People/Discussion/History switch
+   in place instead of a long two-pane scroll.
    -------------------------------------------------------------------- */
-.edit-task .et-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
-    /* Without this, grid's default align-items: stretch forces the
-       sidebar column to match the (taller) form panel's height, and
-       since it's a top-aligned flex column, the leftover space shows up
-       as a dead gap below its last card instead of just ending there. */
-    align-items: start;
-}
-
-@media (min-width: 1280px) {
-    .edit-task .et-grid {
-        grid-template-columns: 2fr 1fr;
-    }
-}
-
-.edit-task .et-panel {
+.edit-task .et-workspace {
+    max-width: 980px;
+    margin: 0 auto;
     background-color: var(--et-surface-container-lowest);
     border: 1px solid var(--et-surface-container-highest);
     border-radius: var(--et-radius-lg);
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    padding: 32px;
+    overflow: hidden;
 }
+
+.edit-task .et-tab-bar {
+    display: flex;
+    gap: 28px;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--et-surface-container-highest);
+    overflow-x: auto;
+}
+
+.edit-task .et-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    padding: 0 2px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: var(--et-on-surface-variant);
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.edit-task .et-tab:hover { color: var(--et-primary); }
+.edit-task .et-tab.active { color: var(--et-primary); border-bottom-color: var(--et-primary); }
+
+.edit-task .et-tab-badge {
+    background-color: var(--et-surface-container-low);
+    color: var(--et-primary);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 9999px;
+}
+.edit-task .et-tab.active .et-tab-badge { background-color: var(--et-primary-fixed); }
+
+.edit-task .et-tab-panel {
+    padding: 32px 28px;
+}
+.edit-task .et-tab-panel[hidden] { display: none; }
+
+.edit-task .et-stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--et-outline-variant);
+}
+.edit-task .et-stat-row span { display: block; font-size: 12.5px; color: var(--et-on-surface-variant); margin-bottom: 4px; }
+.edit-task .et-stat-row strong { font-size: 15px; }
 
 .edit-task .et-field-grid {
     display: grid;
@@ -349,25 +387,8 @@
 }
 
 /* --------------------------------------------------------------------
-   Sidebar: Task Overview
+   Task Overview text (now inline within the Details/People tab panels)
    -------------------------------------------------------------------- */
-.edit-task .et-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-.edit-task .et-overview-card {
-    background-color: var(--et-surface-container-lowest);
-    border: 1px solid var(--et-surface-container-highest);
-    border-radius: var(--et-radius-lg);
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
 .edit-task .et-overview-title {
     font-size: 18px;
     font-weight: 700;
@@ -543,7 +564,9 @@
 
 /* Phones */
 @media (max-width: 640px) {
-    .edit-task .et-panel { padding: 20px; }
+    .edit-task .et-tab-panel { padding: 20px; }
+    .edit-task .et-tab-bar { padding: 0 20px; gap: 20px; }
+    .edit-task .et-stat-row { grid-template-columns: 1fr; gap: 12px; }
     .edit-task .et-title { font-size: 22px; }
     .edit-task .et-header-actions { flex-wrap: wrap; width: 100%; }
     .edit-task .et-header-actions > * { flex: 1 1 140px; justify-content: center; min-height: 44px; }
