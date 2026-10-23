@@ -354,6 +354,14 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
+/* .report-card[hidden] has this already; .report-row never did, so "Show N
+   more" toggled the hidden attribute on every row-style group (Completed
+   Tasks, Task History, Archived, Disposed) with no visible effect — the
+   row's own display:flex above overrides the browser's native
+   [hidden]{display:none} by source specificity, same as any other element
+   with its own unconditional display rule. */
+.reports-page .report-row[hidden] { display: none; }
+
 /* "Show N more" — same reveal-in-place pattern Time Logs already uses for
    a capped session list, applied here per category group. */
 .reports-page .report-group__more {
