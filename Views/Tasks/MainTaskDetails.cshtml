@@ -37,6 +37,16 @@
         _ => ("Task", "task")
     };
     var typeInfo = TaskTypeInfo(task.TaskType);
+
+    string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "NA";
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+        return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
+    }
+    var currentUserInitials = GetInitials(Context.Session.GetString("FullName"));
+    var comments = task.Comments?.OrderByDescending(c => c.CreatedAt).ToList() ?? new();
 }
 
 @section Styles {
@@ -322,6 +332,51 @@
             </form>
         }
     }
+
+    <h2 class="mtd-section-title">
+        Comments
+        <span class="mtd-comments-count">(@comments.Count)</span>
+    </h2>
+
+    @if (comments.Any())
+    {
+        <ul class="mtd-comment-list">
+            @foreach (var comment in comments)
+            {
+                var commentTime = DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(comment.CreatedAt);
+                <li class="mtd-comment">
+                    <div class="mtd-comment-avatar" aria-hidden="true">@GetInitials(comment.Author?.FullName)</div>
+                    <div class="mtd-comment-body">
+                        <div class="mtd-comment-header">
+                            <span class="mtd-comment-author">@(comment.Author?.FullName ?? "Unknown")</span>
+                            <span class="mtd-comment-date">@commentTime.ToString("MMM d, yyyy, h:mm tt")</span>
+                        </div>
+                        <p class="mtd-comment-text">@comment.Text</p>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <div class="mtd-empty">
+            <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+            <p>No comments yet</p>
+        </div>
+    }
+
+    <form asp-controller="Employee" asp-action="AddComment" method="post" class="mtd-comment-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="taskId" value="@task.Id" />
+        <div class="mtd-comment-avatar" aria-hidden="true">@currentUserInitials</div>
+        <div class="mtd-comment-form-body">
+            <textarea name="text" class="mtd-comment-input" placeholder="Write a comment..." rows="2" required></textarea>
+            <button type="submit" class="mtd-btn mtd-btn-primary">
+                <span class="material-symbols-outlined" aria-hidden="true">send</span>
+                Post
+            </button>
+        </div>
+    </form>
 </div>
 
 <partial name="_NoticeDialog" />

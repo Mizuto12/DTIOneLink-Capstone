@@ -1526,6 +1526,10 @@ public async Task<IActionResult> MainTaskDetails(int id)
         .Include(t => t.Assignments).ThenInclude(a => a.ReassignedFrom)
         // Pending proofs, so the OPD can review each person of a Whole Office task.
         .Include(t => t.Submissions)
+        // Comments were previously never loaded here at all, so this page
+        // (unlike Employee/Details.cshtml) had no way to show or post them —
+        // Admin/SuperAdmin genuinely could not comment on a Main Task.
+        .Include(t => t.Comments).ThenInclude(c => c.Author)
         // This page loads the main task's assignments and its subtasks (each
         // with assignments). A single SQL query multiplies those rows.
         .AsSplitQuery()
