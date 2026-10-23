@@ -146,6 +146,35 @@ public class NotificationServiceTests
     }
 
     [Fact]
+    public async Task NotifyTaskOverdueAsync_QueuesOutboxEmail()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(ActiveConfirmedUser(1));
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.NotifyTaskOverdueAsync(1, taskId: 5, "Report", DateTime.Today.AddDays(-1));
+
+        var outbox = await db.EmailOutbox.SingleAsync();
+        Assert.Equal("user1@dti.gov.ph", outbox.ToEmail);
+        Assert.Equal("Your task is overdue", outbox.Subject);
+    }
+
+    [Fact]
+    public async Task NotifyTaskOverdueAsync_AdminCopy_QueuesOutboxEmailWithDifferentSubject()
+    {
+        using var db = InMemoryDbContextFactory.Create();
+        db.Users.Add(ActiveConfirmedUser(1));
+        await db.SaveChangesAsync();
+        var service = BuildService(db);
+
+        await service.NotifyTaskOverdueAsync(1, taskId: 5, "Report", DateTime.Today.AddDays(-1), isAdminCopy: true);
+
+        var outbox = await db.EmailOutbox.SingleAsync();
+        Assert.Equal("A task is overdue", outbox.Subject);
+    }
+
+    [Fact]
     public async Task ResetDeadlineRemindersAsync_RemovesStaleDueSoonAndOverdueNotifications()
     {
         // Called when a due date changes, so a new date can trigger fresh

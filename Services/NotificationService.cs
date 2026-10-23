@@ -372,7 +372,9 @@ namespace DTIOneLink.Services
                 type: NotificationType.Overdue,
                 message: message,
                 relatedTaskId: taskId,
-                link: isAdminCopy ? $"/Tasks/Edit/{taskId}" : $"/Employee/Details/{taskId}"
+                link: isAdminCopy ? $"/Tasks/Edit/{taskId}" : $"/Employee/Details/{taskId}",
+                emailSubject: isAdminCopy ? "A task is overdue" : "Your task is overdue",
+                emailMessage: message
             );
         }
         // The previous assignee can no longer open the task (Details returns
