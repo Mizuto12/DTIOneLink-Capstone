@@ -280,9 +280,19 @@ namespace DTIOneLink.Controllers
                 // assignee-department fallback, so it could wrongly 404 an
                 // in-department subtask with an out-of-department assignee
                 // (edge case), and had no OwningDepartment check at all.
+                //
+                // The assignment check below is just as important: it's what
+                // GetAccessibleTaskAsync checks FIRST, and this page was
+                // missing it entirely — a department-elevated Admin who is
+                // personally assigned to a Direct Admin / Whole Office Main
+                // Task (own TaskAssignment row, no department check needed)
+                // got 404'd here if the department match below didn't line
+                // up for any reason, even though they could already open the
+                // same task from Task Management.
                 var department = HttpContext.Session.GetString("UserDepartment");
                 task = await query.FirstOrDefaultAsync(t => t.Id == id &&
-                    ((t.OwningDepartment != null && t.OwningDepartment == department) ||
+                    (t.Assignments.Any(a => a.UserId == userId) ||
+                     (t.OwningDepartment != null && t.OwningDepartment == department) ||
                      (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
                      (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
                         t.Assignments.Any(a => a.User != null && a.User.Department == department))));
