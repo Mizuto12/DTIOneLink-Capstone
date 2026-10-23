@@ -120,6 +120,14 @@
 
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
+  /* Google's own reference CSS for this font sets this explicitly —
+     self-hosting it here dropped that property. Relying on the browser's
+     default ligature heuristics instead of asking for 'liga' outright
+     turned out to not reliably substitute every glyph in every browser
+     (some icons rendered fine, a few specific ones silently fell back to
+     literal text), which this restores. */
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
 }
 
 /* While the icon font is still downloading, keep icons invisible so

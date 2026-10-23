@@ -157,7 +157,7 @@
                      the Progress number a second and third time. -->
                 <section class="td-meta-grid">
                     <div class="td-meta-tile @(isOverdue ? "is-danger" : "")">
-                        <span class="td-meta-icon material-symbols-outlined" aria-hidden="true">event_busy</span>
+                        <span class="td-meta-icon material-symbols-outlined" aria-hidden="true">calendar_today</span>
                         <div>
                             <h3>Due Date</h3>
                             <p>@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)</p>
@@ -267,7 +267,7 @@
                         @if (status == "returned-for-correction")
                         {
                             <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
-                                <span class="material-symbols-outlined">refresh</span>
+                                <span class="material-symbols-outlined">upload</span>
                                 Resubmit
                             </a>
                         }

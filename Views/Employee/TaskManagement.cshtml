@@ -160,7 +160,7 @@
                     {
                         <div class="action-card">
                             <div class="action-card__tag">
-                                <span class="material-symbols-outlined">refresh</span>
+                                <span class="material-symbols-outlined">edit</span>
                                 <span>Returned for correction</span>
                             </div>
                             <div class="action-card__title">@task.TaskName</div>
@@ -177,7 +177,7 @@
                         var daysLate = (today - spotlightOverdue.DueDate.Date).Days;
                         <div class="action-card">
                             <div class="action-card__tag action-card__tag--overdue">
-                                <span class="material-symbols-outlined">event_busy</span>
+                                <span class="material-symbols-outlined">warning</span>
                                 <span>Most overdue · @daysLate day@(daysLate == 1 ? "" : "s")</span>
                             </div>
                             <div class="action-card__title">@spotlightOverdue.TaskName</div>
@@ -197,7 +197,7 @@
         {
             <section class="due-panel due-panel--overdue">
                 <div class="due-panel__head">
-                    <span class="material-symbols-outlined">event_busy</span>
+                    <span class="material-symbols-outlined">warning</span>
                     <h3>Overdue</h3>
                     <span class="due-panel__count due-panel__count--overdue">@overdueGroup.Count</span>
                 </div>
