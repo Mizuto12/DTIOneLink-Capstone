@@ -339,7 +339,7 @@ namespace DTIOneLink.Controllers
         // SuperAdmin (approval-only) does not get this on someone else's
         // record, only on one they logged themselves, same as anyone else.
         private static bool CanEditRow(RecordRow row, RecordsUser user) =>
-            user.CanManage || row.CreatedByUserId == user.UserId;
+            RecordAttachmentAccess.CanManage(user.CanManage, row.CreatedByUserId, user.UserId);
 
         // Disposal is the record owner's call too (not just a records
         // manager's — see SetDisposalStatus), so an Employee needs to see
@@ -348,7 +348,7 @@ namespace DTIOneLink.Controllers
         // here: VisibilityClause already limits a non-manager/approver to
         // only the records they logged themselves.
         private static bool CanDisposeRow(RecordRow row, RecordsUser user) =>
-            user.CanManage || row.CreatedByUserId == user.UserId;
+            RecordAttachmentAccess.CanManage(user.CanManage, row.CreatedByUserId, user.UserId);
 
         private static object ToClientRow(RecordRow row, RecordsUser user)
         {
@@ -522,7 +522,7 @@ WHERE {VisibilityClause(user)} AND r.MasterlistId IS NOT NULL AND {statusFilter}
         // first one). Kept here, not re-derived from reflection or a config
         // value, since nothing else in the system needs this list to be
         // dynamic.
-        private static readonly string[] RecordStatuses = { "Retention", "Disposal", "Disposed", "Archived" };
+        private static readonly string[] RecordStatuses = RecordDisposalWorkflow.AllStatuses;
 
         private List<object> LoadRecords(RecordsUser user, string? q, string? medium, string? access, string? retention, string? status = null)
         {
@@ -1122,15 +1122,41 @@ WHERE RecordId = @RecordId", conn);
         // retention text), which the background run can never promote on its own.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public Task<IActionResult> MarkForDisposal(int id) => SetDisposalStatus(id, "Disposal");
+        public Task<IActionResult> MarkForDisposal(int id) => SetDisposalStatus(id, RecordDisposalWorkflow.Disposal);
+
+        // POST: /Records/MarkDisposalRequested/{id} — the office has
+        // submitted its own internal request to pursue disposal (the first
+        // step of the RA 9470/NAP pipeline, before anything goes to NAP).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> MarkDisposalRequested(int id) => SetDisposalStatus(id, RecordDisposalWorkflow.DisposalRequested);
+
+        // POST: /Records/MarkAwaitingNapAuthority/{id} — the request has
+        // actually been sent to the National Archives (NAP) and is now
+        // waiting on their decision.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> MarkAwaitingNapAuthority(int id) => SetDisposalStatus(id, RecordDisposalWorkflow.AwaitingNapAuthority);
+
+        // POST: /Records/MarkAuthorizedForDisposal/{id} — NAP has granted
+        // disposal authority. authorityReference is an honest paper trail
+        // only (decision 4): free text, stored and shown as-is, never
+        // validated or required to look like a real NAP reference number —
+        // the app makes no compliance claim about it.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> MarkAuthorizedForDisposal(int id, string? authorityReference, string? notes) =>
+            SetDisposalStatus(id, RecordDisposalWorkflow.AuthorizedForDisposal, authorityReference, notes);
 
         // POST: /Records/MarkDisposed/{id} — the records officer's (Admin's)
         // confirmation that a record has actually been physically disposed of.
         // This step stays manual: the system has no way to know disposal truly
-        // happened, only that it is due.
+        // happened, only that it is due. Now only reachable once NAP has
+        // actually authorized it (RecordDisposalWorkflow) — previously this
+        // could be called from any status at all.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public Task<IActionResult> MarkDisposed(int id) => SetDisposalStatus(id, "Disposed");
+        public Task<IActionResult> MarkDisposed(int id) => SetDisposalStatus(id, RecordDisposalWorkflow.Disposed);
 
         // POST: /Records/MarkArchived/{id} — the other real outcome once a
         // record's retention period is due, alongside Disposal: under RA
@@ -1143,21 +1169,31 @@ WHERE RecordId = @RecordId", conn);
         // archiving isn't a disposal action, it's the opposite of one.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public Task<IActionResult> MarkArchived(int id) => SetDisposalStatus(id, "Archived");
+        public Task<IActionResult> MarkArchived(int id) => SetDisposalStatus(id, RecordDisposalWorkflow.Archived);
 
         // POST: /Records/RestoreToRetention/{id} — undoes an Archived mark,
         // the one disposal-status transition that gets a way back. Archiving
         // is a records-organization decision (where a permanent-value record
         // lives), not a physical event like Disposed is — a mis-click or a
         // schedule correction shouldn't be a dead end the way actual disposal
-        // has to be. Only allowed FROM Archived specifically: Disposed stays
-        // final, since the system has no way to know whether reversing it
-        // would be a lie about something that already physically happened.
+        // has to be. Only allowed FROM Archived specifically (enforced by
+        // RecordDisposalWorkflow, same as every other transition now):
+        // Disposed stays final, since the system has no way to know whether
+        // reversing it would be a lie about something that already
+        // physically happened.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public Task<IActionResult> RestoreToRetention(int id) => SetDisposalStatus(id, "Retention", requireCurrentStatus: "Archived");
+        public Task<IActionResult> RestoreToRetention(int id) => SetDisposalStatus(id, RecordDisposalWorkflow.Retention);
 
-        private async Task<IActionResult> SetDisposalStatus(int id, string newStatus, string? requireCurrentStatus = null)
+        // Every status change here is now a real gate (RecordDisposalWorkflow),
+        // not just a new string: the UPDATE itself is conditioned on the
+        // record still being in the exact status this call expects, so two
+        // concurrent requests (a double-click, two tabs, two admins) can't
+        // both succeed from a status that's only valid to leave once — and a
+        // disposition-event row is written atomically with the status change,
+        // in the same transaction, so the timeline can never show an event
+        // for a status change that didn't actually commit.
+        private async Task<IActionResult> SetDisposalStatus(int id, string newStatus, string? authorityReference = null, string? notes = null)
         {
             var access = CheckAccess(out var user);
             if (access != RecordsAccess.Allowed || user == null)
@@ -1187,48 +1223,58 @@ WHERE RecordId = @RecordId", conn);
                     return NotFound(new { message = "Record not found." });
                 }
                 var (ownerOfRecord, _, currentStatus) = state.Value;
-                if (!user.CanManage && ownerOfRecord != user.UserId)
+                if (!RecordAttachmentAccess.CanManage(user.CanManage, ownerOfRecord, user.UserId))
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can update disposal status." });
                 }
 
-                // Re-checked here, not trusted from whatever the client's
-                // own UI happened to show — a stale page (another tab moved
-                // the record on since this one loaded it) can't restore a
-                // record that isn't actually Archived anymore.
-                if (requireCurrentStatus != null && !string.Equals(currentStatus, requireCurrentStatus, StringComparison.OrdinalIgnoreCase))
+                if (!RecordDisposalWorkflow.CanTransition(currentStatus, newStatus))
                 {
-                    return StatusCode(StatusCodes.Status409Conflict, new { message = $"This record is no longer {requireCurrentStatus} — refresh the page to see its current status." });
+                    return StatusCode(StatusCodes.Status409Conflict, new
+                    {
+                        message = $"This record is currently \"{currentStatus}\" and can't move to \"{newStatus}\" from there. Refresh the page to see its current status."
+                    });
                 }
 
+                using var tx = conn.BeginTransaction();
                 int? ownerUserId = null;
                 string? code = null, title = null;
                 using (var cmd = new SqlCommand(@"
 UPDATE Records SET RecordStatus = @Status
 OUTPUT inserted.CreatedByUserId, inserted.Code, inserted.Title
-WHERE RecordId = @RecordId", conn))
+WHERE RecordId = @RecordId AND RecordStatus = @ExpectedStatus", conn, tx))
                 {
-                    cmd.Parameters.Add("@Status", SqlDbType.NVarChar, 20).Value = newStatus;
+                    cmd.Parameters.Add("@Status", SqlDbType.NVarChar, 30).Value = newStatus;
                     cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = id;
+                    cmd.Parameters.Add("@ExpectedStatus", SqlDbType.NVarChar, 30).Value = currentStatus;
                     using var reader = cmd.ExecuteReader();
                     if (!reader.Read())
                     {
-                        return NotFound(new { message = "Record not found." });
+                        // Someone else (another tab, another admin) changed
+                        // this record's status in the instant between our
+                        // check above and this write — not a bug, a genuine
+                        // race, so no SaveChanges-style exception, just the
+                        // same "refresh and try again" conflict.
+                        tx.Rollback();
+                        return StatusCode(StatusCodes.Status409Conflict, new { message = "This record's status changed since the page loaded — refresh and try again." });
                     }
                     ownerUserId = reader.IsDBNull(0) ? null : reader.GetInt32(0);
                     code = reader.GetString(1);
                     title = reader.GetString(2);
                 }
 
+                InsertDispositionEvent(conn, tx, id, newStatus, user.UserId, authorityReference, notes);
+                tx.Commit();
+
                 // No owner on a legacy record (logged before CreatedByUserId
                 // existed) — nobody to notify, same as the reminder job.
                 if (ownerUserId.HasValue)
                 {
-                    if (newStatus == "Disposal")
+                    if (newStatus == RecordDisposalWorkflow.Disposal)
                     {
                         await _notifications.NotifyRecordMarkedForDisposalAsync(ownerUserId.Value, id, code!, title!);
                     }
-                    else if (newStatus == "Disposed")
+                    else if (newStatus == RecordDisposalWorkflow.Disposed)
                     {
                         await _notifications.NotifyRecordDisposedAsync(ownerUserId.Value, id, code!, title!);
                     }
@@ -1240,6 +1286,358 @@ WHERE RecordId = @RecordId", conn))
             {
                 _logger.LogError(ex, "Failed to set record {RecordId} status to {Status} for user {UserId}.", id, newStatus, user.UserId);
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // One row per disposal-status change, written atomically with the
+        // status change itself (same connection/transaction) — this is what
+        // makes the timeline trustworthy: it can never show an event for a
+        // transition that didn't actually commit, and (per the no-op gate in
+        // RecordDisposalWorkflow) never two rows for one double-clicked
+        // action, since the second click's transition is no longer legal
+        // from the status the first click already moved it to.
+        private static void InsertDispositionEvent(SqlConnection conn, SqlTransaction tx, int recordId, string eventType,
+            int actorUserId, string? authorityReference, string? notes)
+        {
+            using var cmd = new SqlCommand(@"
+INSERT INTO RecordDispositionEvents (RecordId, EventType, OccurredAt, ActorUserId, AuthorityReference, Notes)
+VALUES (@RecordId, @EventType, SYSUTCDATETIME(), @ActorUserId, @AuthorityReference, @Notes)", conn, tx);
+            cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = recordId;
+            cmd.Parameters.Add("@EventType", SqlDbType.NVarChar, 30).Value = eventType;
+            cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
+            cmd.Parameters.Add("@AuthorityReference", SqlDbType.NVarChar, 200).Value = (object?)NullIfBlank(authorityReference) ?? DBNull.Value;
+            cmd.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = (object?)NullIfBlank(notes) ?? DBNull.Value;
+            cmd.ExecuteNonQuery();
+        }
+
+        private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        // GET: /Records/Timeline/{id} — every disposition event for one
+        // record, in order. Same visibility rule as every other read action
+        // (VisibilityClause): no separate, narrower permission for this —
+        // anyone who can see the record at all can see its history. An
+        // ordinary page (not JSON): there's exactly one way to view this,
+        // no fetch-and-render client script needed.
+        [HttpGet]
+        public IActionResult Timeline(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access == RecordsAccess.NotLoggedIn)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                var model = new RecordTimelineViewModel { RecordId = id };
+                using (var cmd = new SqlCommand($@"
+SELECT Code, Title, RecordStatus FROM Records
+WHERE RecordId = @Id AND ({VisibilityClause(user)})", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    using var reader = cmd.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        return NotFound();
+                    }
+                    model.Code = reader.GetString(0);
+                    model.Title = reader.GetString(1);
+                    model.CurrentStatus = reader.IsDBNull(2) ? RecordDisposalWorkflow.Retention : reader.GetString(2);
+                }
+
+                using (var cmd = new SqlCommand(@"
+SELECT e.EventType, e.OccurredAt, e.AuthorityReference, e.Notes, u.FullName
+FROM RecordDispositionEvents e
+LEFT JOIN Users u ON u.Id = e.ActorUserId
+WHERE e.RecordId = @Id
+ORDER BY e.OccurredAt ASC, e.Id ASC", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        model.Events.Add(new RecordDispositionEventViewModel
+                        {
+                            EventType = reader.GetString(0),
+                            OccurredAt = reader.GetDateTime(1),
+                            AuthorityReference = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            Notes = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            ActorName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                        });
+                    }
+                }
+
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load the disposition timeline for record {RecordId}.", id);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+        }
+
+        // ══════════════ Record attachments (decision 7: tied to the
+        // record, not the masterlist entry — one reusable attachment per
+        // upload, visible anywhere the record shows up, not re-attached
+        // per masterlist) ══════════════
+
+        private static string AttachmentStorageRoot =>
+            Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "RecordAttachments");
+
+        // POST: /Records/UploadAttachment — same ownership rule as editing
+        // the record itself (CanEditRow/RecordAttachmentAccess.CanManage).
+        // Reuses ProofFileValidator as-is (extension + magic-byte check) —
+        // it's generic to "office documents", nothing Task-specific about it.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadAttachment(int recordId, IFormFile? file)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            if (file == null)
+            {
+                return BadRequest(new { message = "Choose a file to attach." });
+            }
+
+            var (isValid, error) = ProofFileValidator.Validate(file);
+            if (!isValid)
+            {
+                return BadRequest(new { message = error });
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                var state = LoadRecordState(conn, recordId);
+                if (state == null)
+                {
+                    return NotFound(new { message = "Record not found." });
+                }
+                var (ownerOfRecord, _, _) = state.Value;
+                if (!RecordAttachmentAccess.CanManage(user.CanManage, ownerOfRecord, user.UserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can attach files to it." });
+                }
+
+                Directory.CreateDirectory(AttachmentStorageRoot);
+                var extension = Path.GetExtension(file.FileName);
+                var storedFileName = $"{Guid.NewGuid()}{extension}";
+                var fullPath = Path.Combine(AttachmentStorageRoot, storedFileName);
+                using (var stream = new FileStream(fullPath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                using var cmd = new SqlCommand(@"
+INSERT INTO RecordAttachments (RecordId, FileName, StoredFileName, ContentType, FileSizeBytes, UploadedByUserId, UploadedAt)
+VALUES (@RecordId, @FileName, @StoredFileName, @ContentType, @FileSizeBytes, @UploadedByUserId, SYSUTCDATETIME())", conn);
+                cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = recordId;
+                cmd.Parameters.Add("@FileName", SqlDbType.NVarChar, 260).Value = Path.GetFileName(file.FileName);
+                cmd.Parameters.Add("@StoredFileName", SqlDbType.NVarChar, 100).Value = storedFileName;
+                cmd.Parameters.Add("@ContentType", SqlDbType.NVarChar, 100).Value = (object?)file.ContentType ?? DBNull.Value;
+                cmd.Parameters.Add("@FileSizeBytes", SqlDbType.BigInt).Value = file.Length;
+                cmd.Parameters.Add("@UploadedByUserId", SqlDbType.Int).Value = user.UserId;
+                await cmd.ExecuteNonQueryAsync();
+
+                return Json(new { ok = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to upload an attachment for record {RecordId}.", recordId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // GET: /Records/DownloadAttachment/{id} — same visibility rule as
+        // every other read action (VisibilityClause, joined through to the
+        // attachment's own record): no separate, narrower permission here.
+        [HttpGet]
+        public IActionResult DownloadAttachment(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                string storedFileName, fileName;
+                using (var cmd = new SqlCommand($@"
+SELECT a.StoredFileName, a.FileName
+FROM RecordAttachments a
+JOIN Records r ON r.RecordId = a.RecordId
+WHERE a.Id = @Id AND ({VisibilityClause(user)})", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    using var reader = cmd.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        return NotFound();
+                    }
+                    storedFileName = reader.GetString(0);
+                    fileName = reader.GetString(1);
+                }
+
+                var fullPath = Path.Combine(AttachmentStorageRoot, storedFileName);
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    return NotFound();
+                }
+
+                var bytes = System.IO.File.ReadAllBytes(fullPath);
+                return File(bytes, "application/octet-stream", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to download attachment {AttachmentId}.", id);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+        }
+
+        // POST: /Records/DeleteAttachment/{id} — same ownership rule as uploading.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteAttachment(int id)
+        {
+            var access = CheckAccess(out var user);
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return AccessDeniedJson(access);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                int? createdByUserId;
+                string storedFileName;
+                using (var cmd = new SqlCommand(@"
+SELECT r.CreatedByUserId, a.StoredFileName
+FROM RecordAttachments a
+JOIN Records r ON r.RecordId = a.RecordId
+WHERE a.Id = @Id", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    using var reader = cmd.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        return NotFound(new { message = "Attachment not found." });
+                    }
+                    createdByUserId = reader.IsDBNull(0) ? null : reader.GetInt32(0);
+                    storedFileName = reader.GetString(1);
+                }
+
+                if (!RecordAttachmentAccess.CanManage(user.CanManage, createdByUserId, user.UserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can remove this attachment." });
+                }
+
+                using (var cmd = new SqlCommand("DELETE FROM RecordAttachments WHERE Id = @Id", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    cmd.ExecuteNonQuery();
+                }
+
+                try
+                {
+                    var fullPath = Path.Combine(AttachmentStorageRoot, storedFileName);
+                    if (System.IO.File.Exists(fullPath))
+                    {
+                        System.IO.File.Delete(fullPath);
+                    }
+                }
+                catch (Exception fileEx)
+                {
+                    _logger.LogWarning(fileEx, "Could not delete attachment file {StoredFileName} for attachment {AttachmentId}.", storedFileName, id);
+                }
+
+                return Json(new { ok = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete attachment {AttachmentId}.", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = GenericSaveError });
+            }
+        }
+
+        // GET: /Records/FileBrowser — every uploaded record document this
+        // user can see, reusing VisibilityClause exactly like the main
+        // table — no new permission logic. "Digital locker" presentation:
+        // each card shows a lock icon when its record's AccessControl is
+        // Confidential, unlocked otherwise — a visual cue only, same data,
+        // not an additional access gate (none exists for Confidential
+        // today beyond VisibilityClause itself).
+        [HttpGet]
+        public IActionResult FileBrowser()
+        {
+            var access = CheckAccess(out var user);
+            if (access == RecordsAccess.NotLoggedIn)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            if (access != RecordsAccess.Allowed || user == null)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                conn.Open();
+
+                var items = new List<RecordAttachmentViewModel>();
+                using var cmd = new SqlCommand($@"
+SELECT a.Id, a.FileName, a.FileSizeBytes, a.UploadedAt, u.FullName,
+       r.RecordId, r.Code, r.Title, r.AccessControl
+FROM RecordAttachments a
+JOIN Records r ON r.RecordId = a.RecordId
+LEFT JOIN Users u ON u.Id = a.UploadedByUserId
+WHERE {VisibilityClause(user)}
+ORDER BY a.UploadedAt DESC", conn);
+                cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    items.Add(new RecordAttachmentViewModel
+                    {
+                        AttachmentId = reader.GetInt32(0),
+                        FileName = reader.GetString(1),
+                        FileSizeBytes = reader.GetInt64(2),
+                        UploadedAt = reader.GetDateTime(3),
+                        UploadedByName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                        RecordId = reader.GetInt32(5),
+                        RecordCode = reader.GetString(6),
+                        RecordTitle = reader.GetString(7),
+                        AccessControl = reader.GetString(8),
+                    });
+                }
+
+                return View(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load the record file browser.");
+                return StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
 

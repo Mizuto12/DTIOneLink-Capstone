@@ -69,7 +69,11 @@ const showStatusColumn = true;
 
 function statusCellHtml(data) {
   const parts = [];
-  parts.push(`<span class="status-pill status-${escapeHtml((data.recordStatus || 'Retention').toLowerCase())}">${escapeHtml(data.recordStatus || 'Retention')}</span>`);
+  // Slugified (spaces -> hyphens): the new multi-word statuses ("Disposal
+  // Requested", "Awaiting NAP Authority", "Authorized for Disposal") would
+  // otherwise split a raw-text class attribute into multiple classes.
+  const statusSlug = (data.recordStatus || 'Retention').toLowerCase().trim().replace(/\s+/g, '-');
+  parts.push(`<span class="status-pill status-${escapeHtml(statusSlug)}">${escapeHtml(data.recordStatus || 'Retention')}</span>`);
 
   if (canApproveRecords) {
     parts.push(data.approvedByName
@@ -87,13 +91,28 @@ function statusCellHtml(data) {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkForDisposal">Mark for Disposal</button>`);
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
     } else if (data.recordStatus === 'Disposal') {
+      // RA 9470/NAP pipeline: a request for disposal authority must be
+      // submitted and approved before actual disposal — Mark Disposed is
+      // no longer reachable directly from here (see RecordDisposalWorkflow).
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkDisposalRequested">Request Disposal</button>`);
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
+    } else if (data.recordStatus === 'Disposal Requested') {
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkAwaitingNapAuthority">Send to NAP</button>`);
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
+    } else if (data.recordStatus === 'Awaiting NAP Authority') {
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn authorize-disposal-btn" data-id="${data.recordId}">Authorized for Disposal</button>`);
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
+    } else if (data.recordStatus === 'Authorized for Disposal') {
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkDisposed">Mark Disposed</button>`);
+      parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="MarkArchived">Mark as Archived</button>`);
     } else if (data.recordStatus === 'Archived') {
       // The one disposal-status transition with a way back — Disposed
       // stays final (see RestoreToRetention in RecordsController).
       parts.push(`<button type="button" class="btn btn-outline btn-small disposal-btn" data-id="${data.recordId}" data-action="RestoreToRetention">Restore to Retention</button>`);
     }
   }
+
+  parts.push(`<a class="btn btn-outline btn-small" href="/Records/Timeline/${data.recordId}" target="_blank" rel="noopener">History</a>`);
 
   return parts.join(' ');
 }
@@ -164,6 +183,12 @@ function actionsCellHtml(data) {
               title="Edit" aria-label="Edit ${escapeHtml(data.code)}">
         <span class="material-symbols-outlined">edit</span>
       </button>
+      <button type="button" class="row-action-btn attach-file-btn" data-id="${data.recordId}"
+              title="Attach a file" aria-label="Attach a file to ${escapeHtml(data.code)}">
+        <span class="material-symbols-outlined">attach_file</span>
+      </button>
+      <input type="file" class="attach-file-input" data-id="${data.recordId}" hidden
+             accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
       <button type="button" class="row-action-btn row-action-danger delete-record-btn" data-id="${data.recordId}" data-code="${escapeHtml(data.code)}"
               title="Delete" aria-label="Delete ${escapeHtml(data.code)}">
         <span class="material-symbols-outlined">delete</span>
@@ -233,8 +258,13 @@ function renderRows() {
     tableBody.querySelectorAll('.approve-btn').forEach(btn => {
       btn.addEventListener('click', () => handleStatusAction(btn, `/Records/Approve?id=${encodeURIComponent(btn.dataset.id)}`));
     });
-    tableBody.querySelectorAll('.disposal-btn').forEach(btn => {
+    // .authorize-disposal-btn has no data-action (it needs to collect the
+    // authority reference first) — wired separately below instead.
+    tableBody.querySelectorAll('.disposal-btn:not(.authorize-disposal-btn)').forEach(btn => {
       btn.addEventListener('click', () => handleStatusAction(btn, `/Records/${btn.dataset.action}?id=${encodeURIComponent(btn.dataset.id)}`));
+    });
+    tableBody.querySelectorAll('.authorize-disposal-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleAuthorizeForDisposal(btn));
     });
   }
   tableBody.querySelectorAll('.edit-record-btn').forEach(btn => {
@@ -242,6 +272,12 @@ function renderRows() {
   });
   tableBody.querySelectorAll('.delete-record-btn').forEach(btn => {
     btn.addEventListener('click', () => handleDelete(btn));
+  });
+  tableBody.querySelectorAll('.attach-file-btn').forEach(btn => {
+    btn.addEventListener('click', () => btn.parentElement.querySelector('.attach-file-input').click());
+  });
+  tableBody.querySelectorAll('.attach-file-input').forEach(input => {
+    input.addEventListener('change', () => handleAttachFile(input));
   });
 
   if (legend) {
@@ -264,6 +300,54 @@ async function handleStatusAction(btn, url) {
       message: err.message || 'Please try again.',
       okText: 'OK'
     });
+  }
+}
+
+// "Authorized for Disposal" is the one transition that records a free-text
+// paper trail (decision 4: honest record only, never validated against a
+// real NAP reference format) — collected with two plain prompts rather
+// than a whole new dialog, matching this app's existing native-dialog-first,
+// minimal-dependency approach.
+async function handleAuthorizeForDisposal(btn) {
+  const authorityReference = window.prompt('NAP disposal authority reference (required):');
+  if (authorityReference === null) {
+    return; // cancelled — no transition attempted
+  }
+  if (!authorityReference.trim()) {
+    await showNotice({
+      tone: 'error', icon: 'error', title: 'Authority reference needed',
+      message: 'Enter the NAP disposal authority reference to continue, or cancel.', okText: 'OK'
+    });
+    return;
+  }
+  const notes = window.prompt('Notes (optional):') || '';
+
+  const params = new URLSearchParams({ id: btn.dataset.id, authorityReference, notes });
+  await handleStatusAction(btn, `/Records/MarkAuthorizedForDisposal?${params.toString()}`);
+}
+
+// Decision 7: the attachment belongs to the record itself, so it's
+// reusable everywhere that record shows up — not tied to any one
+// masterlist save.
+async function handleAttachFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) {
+    return;
+  }
+
+  const body = new FormData();
+  body.append('recordId', input.dataset.id);
+  body.append('file', file);
+  body.append('__RequestVerificationToken', getCsrfToken());
+
+  try {
+    const res = await fetch('/Records/UploadAttachment', { method: 'POST', body });
+    if (!res.ok) throw new Error(await readErrorMessage(res));
+    await showNotice({ tone: 'success', icon: 'check_circle', title: 'File attached', message: `${file.name} was attached to this record.`, okText: 'OK' });
+  } catch (err) {
+    await showNotice({ tone: 'error', icon: 'error', title: 'Couldn’t attach the file', message: err.message || 'Please try again.', okText: 'OK' });
+  } finally {
+    input.value = '';
   }
 }
 
