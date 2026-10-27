@@ -249,6 +249,38 @@ namespace DTIOneLink.Migrations
                     b.ToTable("TaskAssignments");
                 });
 
+            modelBuilder.Entity("DTIOneLink.Models.TaskChecklistItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DoneAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDone")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("TaskAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskAssignmentId");
+
+                    b.ToTable("TaskChecklistItems");
+                });
+
             modelBuilder.Entity("DTIOneLink.Models.TaskComment", b =>
                 {
                     b.Property<int>("Id")
@@ -321,8 +353,14 @@ namespace DTIOneLink.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<bool>("RequiresReview")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("ResponsibleAdminUserId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReviewDueDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -437,6 +475,9 @@ namespace DTIOneLink.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActivatedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -642,6 +683,17 @@ namespace DTIOneLink.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DTIOneLink.Models.TaskChecklistItem", b =>
+                {
+                    b.HasOne("DTIOneLink.Models.TaskAssignment", "TaskAssignment")
+                        .WithMany("ChecklistItems")
+                        .HasForeignKey("TaskAssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskAssignment");
+                });
+
             modelBuilder.Entity("DTIOneLink.Models.TaskComment", b =>
                 {
                     b.HasOne("DTIOneLink.Models.User", "Author")
@@ -725,6 +777,11 @@ namespace DTIOneLink.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DTIOneLink.Models.TaskAssignment", b =>
+                {
+                    b.Navigation("ChecklistItems");
                 });
 
             modelBuilder.Entity("DTIOneLink.Models.TaskItem", b =>

@@ -6,6 +6,7 @@ verify-bin/
 verify-obj/
 .build-obj/
 .build-output/
+publish/
 
 # Files users upload while using the app (proofs of work)
 App_Data/ProofUploads/

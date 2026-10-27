@@ -137,6 +137,88 @@ IF COL_LENGTH(N'dbo.Users', N'RememberTokenHash') IS NULL
     ALTER TABLE dbo.Users ADD RememberTokenHash nvarchar(64) NULL;
 IF COL_LENGTH(N'dbo.Users', N'RememberTokenExpiresUtc') IS NULL
     ALTER TABLE dbo.Users ADD RememberTokenExpiresUtc datetime2 NULL;");
+
+            // AddUserAccountActivation — grandfather existing accounts the
+            // same way the EF migration does, so a deploy that hits this
+            // fallback path doesn't lock everyone out.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.Users', N'ActivatedAtUtc') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD ActivatedAtUtc datetime2 NULL;
+    UPDATE dbo.Users SET ActivatedAtUtc = CreatedAt WHERE ActivatedAtUtc IS NULL;
+END");
+
+            // AddRecordAttachments
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'dbo.RecordAttachments', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.RecordAttachments (
+        Id               int IDENTITY(1,1) NOT NULL CONSTRAINT PK_RecordAttachments PRIMARY KEY,
+        RecordId         int            NOT NULL,
+        FileName         nvarchar(260)  NOT NULL,
+        StoredFileName   nvarchar(100)  NOT NULL,
+        ContentType      nvarchar(100)  NULL,
+        FileSizeBytes    bigint         NOT NULL,
+        UploadedByUserId int            NULL,
+        UploadedAt       datetime2      NOT NULL CONSTRAINT DF_RecordAttachments_UploadedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_RecordAttachments_Records_RecordId
+            FOREIGN KEY (RecordId) REFERENCES dbo.Records (RecordId) ON DELETE CASCADE,
+        CONSTRAINT FK_RecordAttachments_Users_UploadedByUserId
+            FOREIGN KEY (UploadedByUserId) REFERENCES dbo.Users (Id) ON DELETE NO ACTION
+    );
+    CREATE INDEX IX_RecordAttachments_RecordId ON dbo.RecordAttachments (RecordId);
+END");
+
+            // AddRecordDispositionEvents
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.Records', N'RecordStatus') IS NOT NULL
+    ALTER TABLE dbo.Records ALTER COLUMN RecordStatus nvarchar(30) NOT NULL;
+
+IF OBJECT_ID(N'dbo.RecordDispositionEvents', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.RecordDispositionEvents (
+        Id                 int IDENTITY(1,1) NOT NULL CONSTRAINT PK_RecordDispositionEvents PRIMARY KEY,
+        RecordId           int           NOT NULL,
+        EventType          nvarchar(30)  NOT NULL,
+        OccurredAt         datetime2     NOT NULL CONSTRAINT DF_RecordDispositionEvents_OccurredAt DEFAULT SYSUTCDATETIME(),
+        ActorUserId        int           NOT NULL,
+        AuthorityReference nvarchar(200) NULL,
+        Notes              nvarchar(1000) NULL,
+        AttachmentId       int           NULL,
+        CONSTRAINT FK_RecordDispositionEvents_Records_RecordId
+            FOREIGN KEY (RecordId) REFERENCES dbo.Records (RecordId) ON DELETE CASCADE,
+        CONSTRAINT FK_RecordDispositionEvents_Users_ActorUserId
+            FOREIGN KEY (ActorUserId) REFERENCES dbo.Users (Id) ON DELETE NO ACTION
+    );
+    CREATE INDEX IX_RecordDispositionEvents_RecordId ON dbo.RecordDispositionEvents (RecordId, OccurredAt);
+END");
+
+            // AddTaskReviewDueDate
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.TaskItems', N'ReviewDueDate') IS NULL
+    ALTER TABLE dbo.TaskItems ADD ReviewDueDate datetime2 NULL;");
+
+            // AddTaskChecklistAndRequiresReview — default TRUE, not the bit
+            // default of 0: every task that already exists keeps requiring
+            // review exactly as it does today.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.TaskItems', N'RequiresReview') IS NULL
+    ALTER TABLE dbo.TaskItems ADD RequiresReview bit NOT NULL DEFAULT 1;
+
+IF OBJECT_ID(N'dbo.TaskChecklistItems', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TaskChecklistItems (
+        Id               int IDENTITY(1,1) NOT NULL CONSTRAINT PK_TaskChecklistItems PRIMARY KEY,
+        TaskAssignmentId int           NOT NULL,
+        Label            nvarchar(200) NOT NULL,
+        Weight           int           NOT NULL,
+        IsDone           bit           NOT NULL,
+        DoneAt           datetime2     NULL,
+        CONSTRAINT FK_TaskChecklistItems_TaskAssignments_TaskAssignmentId
+            FOREIGN KEY (TaskAssignmentId) REFERENCES dbo.TaskAssignments (Id) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_TaskChecklistItems_TaskAssignmentId ON dbo.TaskChecklistItems (TaskAssignmentId);
+END");
         }
     }
 }
