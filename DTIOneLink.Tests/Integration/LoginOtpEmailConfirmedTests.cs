@@ -76,6 +76,7 @@ public class LoginOtpEmailConfirmedTests : IDisposable
             EmailConfirmed = false,
             MustChangePassword = false,
             SecurityStamp = "stamp-1",
+            ActivatedAtUtc = DateTime.UtcNow,
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();

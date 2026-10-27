@@ -1,6 +1,7 @@
 using DTIOneLink.Controllers;
 using DTIOneLink.Models;
 using DTIOneLink.Services;
+using DTIOneLink.Services.Email;
 using DTIOneLink.Tests.TestDoubles;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -45,7 +46,13 @@ public class UserManagementControllerTests
             httpContext.Session.SetString("UserDepartment", callerDepartment);
         }
 
-        var controller = new UserManagementController(new DatabaseHelper(config), NullLogger<UserManagementController>.Instance)
+        // Never actually invoked — every test here is rejected by a
+        // before-the-database guard, the same reason UnreachableConnectionString
+        // is safe above.
+        var codes = new OneTimeCodeService(InMemoryDbContextFactory.Create(), new OneTimeCodeHasher(),
+            new OtpEmailQueue(), NullLogger<OneTimeCodeService>.Instance);
+
+        var controller = new UserManagementController(new DatabaseHelper(config), codes, NullLogger<UserManagementController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(httpContext, new FakeTempDataProvider()),

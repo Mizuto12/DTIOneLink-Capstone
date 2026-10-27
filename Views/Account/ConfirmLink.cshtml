@@ -1,0 +1,40 @@
+@model DTIOneLink.Models.ConfirmLinkViewModel
+@{
+    // Deliberately does nothing but display a button: the token was only
+    // peeked at (not consumed) to get here, so clicking anything other than
+    // this specific Continue button - a refresh, a back button, an email
+    // scanner's automated visit - leaves the link still usable.
+    Layout = "_AuthLayout";
+    ViewData["Title"] = Model.IsActivation ? "Activate Your Account" : "Reset Your Password";
+}
+
+<h1 class="login-title change-password-title">
+    @if (Model.IsActivation)
+    {
+        <span class="navy">Activate</span> <span class="accent">Account</span>
+    }
+    else
+    {
+        <span class="navy">Reset</span> <span class="accent">Password</span>
+    }
+</h1>
+
+<p class="change-password-note">
+    @if (Model.IsActivation)
+    {
+        <span>Press Continue to activate your account and choose your password.</span>
+    }
+    else
+    {
+        <span>Press Continue to reset your password.</span>
+    }
+</p>
+
+<form asp-controller="Account" asp-action="@(Model.IsActivation ? "ActivateConfirm" : "ResetLinkConfirm")" method="post" class="change-password-form account-form">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="uid" value="@Model.Uid" />
+    <input type="hidden" name="token" value="@Model.Token" />
+    <button type="submit" class="btn-login">CONTINUE</button>
+</form>
+
+<a asp-controller="Account" asp-action="Login" class="change-password-secondary">Back to login</a>

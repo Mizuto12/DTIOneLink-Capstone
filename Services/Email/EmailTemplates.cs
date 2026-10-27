@@ -64,6 +64,27 @@ namespace DTIOneLink.Services.Email
             return new EmailMessage(toEmail, toName, subject, text, html);
         }
 
+        public static EmailMessage ActivationLink(string toEmail, string toName, string link, int hoursValid)
+        {
+            const string subject = "Activate your DTI OneLink account";
+
+            var text =
+                $"Hello {toName},\n\nAn account was created for you in DTI OneLink. Use this link to activate it and choose your own password:\n\n{link}\n\n" +
+                $"The link expires in {hoursValid} hours and can only be used once. Never share it with anyone, including DTI staff.\n\n" +
+                "If you were not expecting this, contact your administrator.\n\n" +
+                "— DTI OneLink, DTI Laguna Provincial Office";
+
+            var html = Wrap(
+                $"<p>Hello {Html.Encode(toName)},</p>" +
+                "<p>An account was created for you in DTI OneLink. Use the button below to activate it and choose your own password.</p>" +
+                $"<p><a href=\"{Html.Encode(link)}\" style=\"display:inline-block;background:#1c3f94;color:#ffffff;padding:10px 20px;border-radius:20px;text-decoration:none;\">Activate Account</a></p>" +
+                $"<p style=\"color:#5a6b8c;font-size:13px;\">Or paste this link into your browser:<br>{Html.Encode(link)}</p>" +
+                $"<p>The link expires in <strong>{hoursValid} hours</strong> and can only be used once. Never share it with anyone, including DTI staff.</p>" +
+                "<p style=\"color:#5a6b8c;\">If you were not expecting this, contact your administrator.</p>");
+
+            return new EmailMessage(toEmail, toName, subject, text, html);
+        }
+
         public static EmailMessage PasswordChanged(string toEmail, string toName, DateTime changedAtLocal)
         {
             const string subject = "Your DTI OneLink password was changed";

@@ -39,6 +39,13 @@ namespace DTIOneLink.Controllers
         // state to track alongside it.
         private const string ResetVerifiedUserIdKey = "ResetVerifiedUserId";
         private const string ResetVerifiedAtKey = "ResetVerifiedAt";
+
+        // Same shape as the reset-verified pair above, for a brand-new
+        // account's activation link (AccountController.Activate). Kept
+        // separate so the two "a link was just verified" states can never
+        // be confused with each other.
+        private const string ActivationVerifiedUserIdKey = "ActivationVerifiedUserId";
+        private const string ActivationVerifiedAtKey = "ActivationVerifiedAt";
         public const string SecurityStampKey = "SecurityStamp";
 
         private const string GenericLoginError = "Invalid username or password.";
@@ -97,13 +104,40 @@ namespace DTIOneLink.Controllers
                 return LoginView(model, null);
             }
 
-            var username = model.Username.Trim();
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+            var email = model.Email.Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
 
             if (user == null || !user.IsActive)
             {
                 _passwordHasher.VerifyHashedPassword(new User(), DummyHash, model.Password);
                 return LoginView(model, GenericLoginError);
+            }
+
+            // A brand-new account starts with a random, never-disclosed
+            // password hash — nobody could type it correctly anyway — but
+            // this gives a clear next step instead of letting them retry a
+            // generic "invalid password" forever.
+            if (user.ActivatedAtUtc == null)
+            {
+                _passwordHasher.VerifyHashedPassword(new User(), DummyHash, model.Password);
+                return LoginView(model, "This account hasn't been activated yet. Check your email for the activation link, or ask your Admin to resend it.");
+            }
+
+            // Decision 3: at most one signed-in account per browser — not
+            // cross-device (a phone and a desktop can both stay signed in).
+            // The Login GET already redirects away whenever this browser is
+            // signed in, so the only way to reach this POST while still
+            // signed in is a stale/cached form or a second tab — most
+            // plausibly someone using a shared office PC that was never
+            // signed out. Checked before the password itself: this is a
+            // workflow guard, not a credential check, and it's the
+            // attempting browser's own session state, not information about
+            // anyone else's account, so there's nothing to leak by skipping
+            // the usual timing-equalized dummy-hash check here.
+            if (HttpContext.Session.GetInt32("UserId") is int activeUserId && activeUserId != user.Id)
+            {
+                var activeUserName = HttpContext.Session.GetString("FullName") ?? "another account";
+                return LoginView(model, $"{activeUserName} is already signed in on this browser. Sign out first to switch accounts.");
             }
 
             var now = DateTime.UtcNow;
@@ -473,11 +507,13 @@ namespace DTIOneLink.Controllers
         }
 
         // GET: /Account/ResetLink — reached only by clicking the link emailed
-        // from ForgotPassword. Verifies the token once, then hands off to the
-        // ordinary ResetPassword GET/POST pair via session — exactly as if a
-        // typed code had just been confirmed — so a page refresh on the set-
-        // password form re-checks the session instead of re-consuming (and
-        // invalidating) the one-time link in the URL.
+        // from ForgotPassword. Only peeks at the token (doesn't consume it):
+        // some email security gateways automatically visit a link to scan
+        // it before the person ever clicks it themselves, and a GET that
+        // consumed the token outright would let that automated visit burn
+        // a genuine link before its owner saw it. Shows a confirmation page;
+        // only submitting that page's form (ResetLinkConfirm) actually
+        // consumes the token.
         [HttpGet]
         [EnableRateLimiting(AuthRateLimit.Policy)]
         public async Task<IActionResult> ResetLink(int? uid, string? token)
@@ -488,6 +524,31 @@ namespace DTIOneLink.Controllers
             }
 
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == uid.Value && u.IsActive && u.EmailConfirmed);
+            var check = user == null
+                ? new CodeCheckResult(CodeCheckStatus.Invalid)
+                : await _codes.PeekLinkAsync(user.Id, OneTimeCodePurpose.PasswordReset, token);
+
+            if (check.Status != CodeCheckStatus.Valid || user == null)
+            {
+                TempData["ForgotPasswordNotice"] = "This link is invalid, expired, or was already used. Request a new one below.";
+                return RedirectToAction(nameof(ForgotPassword));
+            }
+
+            return View("ConfirmLink", new ConfirmLinkViewModel { Uid = uid.Value, Token = token, IsActivation = false });
+        }
+
+        // POST: /Account/ResetLinkConfirm — the actual token consumption,
+        // only reachable by submitting ConfirmLink's form. Hands off to the
+        // ordinary ResetPassword GET/POST pair via session, exactly as if a
+        // typed code had just been confirmed, so a page refresh on the set-
+        // password form re-checks the session instead of re-consuming (and
+        // invalidating) the one-time link.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> ResetLinkConfirm(int uid, string token)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == uid && u.IsActive && u.EmailConfirmed);
             var check = user == null
                 ? new CodeCheckResult(CodeCheckStatus.Invalid)
                 : await _codes.VerifyLinkAsync(user.Id, OneTimeCodePurpose.PasswordReset, token);
@@ -543,6 +604,152 @@ namespace DTIOneLink.Controllers
             HttpContext.Session.Clear();
             TempData["LoginNotice"] = "Your password has been changed. Please log in with your new password.";
             return RedirectToAction(nameof(Login));
+        }
+
+        // ══════════════ Account Activation (brand-new accounts) ══════════════
+        // UserManagementController.Create issues the link this verifies;
+        // there is no default password to sign in with first — the account
+        // only becomes usable once this completes.
+
+        // GET: /Account/Activate — reached only by clicking the emailed
+        // link. Only peeks at the token (doesn't consume it) — same
+        // email-scanner reasoning as ResetLink — and shows a confirmation
+        // page; only submitting that page's form (ActivateConfirm) actually
+        // consumes the token and hands off to ActivatePassword.
+        [HttpGet]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> Activate(int? uid, string? token)
+        {
+            if (uid == null || string.IsNullOrEmpty(token))
+            {
+                return RedirectToAction(nameof(Login));
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == uid.Value && u.IsActive && u.ActivatedAtUtc == null);
+            var check = user == null
+                ? new CodeCheckResult(CodeCheckStatus.Invalid)
+                : await _codes.PeekLinkAsync(user.Id, OneTimeCodePurpose.AccountActivation, token);
+
+            if (check.Status != CodeCheckStatus.Valid || user == null)
+            {
+                TempData["LoginNotice"] = "This activation link is invalid, expired, or was already used. Ask an Admin to resend it from User Management.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            return View("ConfirmLink", new ConfirmLinkViewModel { Uid = uid.Value, Token = token, IsActivation = true });
+        }
+
+        // POST: /Account/ActivateConfirm — the actual token consumption,
+        // only reachable by submitting ConfirmLink's form.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> ActivateConfirm(int uid, string token)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == uid && u.IsActive && u.ActivatedAtUtc == null);
+            var check = user == null
+                ? new CodeCheckResult(CodeCheckStatus.Invalid)
+                : await _codes.VerifyLinkAsync(user.Id, OneTimeCodePurpose.AccountActivation, token);
+
+            if (check.Status != CodeCheckStatus.Valid || user == null)
+            {
+                TempData["LoginNotice"] = "This activation link is invalid, expired, or was already used. Ask an Admin to resend it from User Management.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            HttpContext.Session.SetInt32(ActivationVerifiedUserIdKey, user.Id);
+            HttpContext.Session.SetString(ActivationVerifiedAtKey, DateTime.UtcNow.Ticks.ToString());
+            _logger.LogInformation("Activation link verified for user {UserId}.", user.Id);
+
+            return RedirectToAction(nameof(ActivatePassword));
+        }
+
+        // GET: /Account/ActivatePassword
+        [HttpGet]
+        public async Task<IActionResult> ActivatePassword()
+        {
+            var user = await GetVerifiedActivationUserAsync();
+            if (user == null) return RedirectToAction(nameof(Login));
+
+            return SetPasswordView(user, isReset: false, new SetPasswordViewModel(), isActivation: true);
+        }
+
+        // POST: /Account/ActivatePassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> ActivatePassword(SetPasswordViewModel model)
+        {
+            var user = await GetVerifiedActivationUserAsync();
+            if (user == null) return RedirectToAction(nameof(Login));
+
+            if (ModelState.IsValid && NewPasswordProblem(user, model.NewPassword) is string problem)
+            {
+                ModelState.AddModelError(nameof(model.NewPassword), problem);
+            }
+            if (!ModelState.IsValid)
+            {
+                return SetPasswordView(user, isReset: false, new SetPasswordViewModel(), isActivation: true);
+            }
+
+            // Clicking this link already proved they control the inbox —
+            // same reasoning VerifyLoginCode uses for EmailConfirmed.
+            user.EmailConfirmed = true;
+            user.ActivatedAtUtc = DateTime.UtcNow;
+            user.FailedLoginCount = 0;
+            user.LockoutEndUtc = null;
+            await SavePasswordAsync(user, model.NewPassword);
+            ClearActivationState();
+            _logger.LogInformation("User {UserId} activated their account.", user.Id);
+
+            // Not signed in automatically: they log in with the password
+            // they just chose — same choice ResetPassword makes.
+            HttpContext.Session.Clear();
+            TempData["LoginNotice"] = "Your account is now active. Log in with your new password.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        // ══════════ Self-service activation-link resend ══════════
+        // Before this, only an Admin could resend a stuck activation link
+        // (UserManagementController.ResendActivation). This lets the account
+        // owner ask for a new one themselves — the same enumeration-safe
+        // pattern ForgotPassword already uses, since neither page should be
+        // usable to find out who has an account.
+
+        // GET: /Account/ResendActivationLink
+        [HttpGet]
+        public IActionResult ResendActivationLink()
+        {
+            return View(new ForgotPasswordViewModel());
+        }
+
+        // POST: /Account/ResendActivationLink
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimit.Policy)]
+        public async Task<IActionResult> ResendActivationLink(ForgotPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var email = model.Email.Trim();
+            var user = await FindPendingActivationUserAsync(email);
+            if (user != null)
+            {
+                // Too-soon / too-many requests send nothing, but say nothing
+                // different either — same reasoning as the generic notice
+                // below, just one layer deeper (see ForgotPassword).
+                await _codes.IssueLinkAsync(user, OneTimeCodePurpose.AccountActivation,
+                    token => Url.Action(nameof(Activate), "Account", new { uid = user.Id, token }, Request.Scheme)!);
+                _logger.LogInformation("Activation link self-requested for user {UserId}.", user.Id);
+            }
+
+            TempData["ResendActivationNotice"] =
+                "If that email has an account awaiting activation, we sent a new link to it. " +
+                "Check your inbox (and Spam/Junk folder). The link is valid for 24 hours.";
+            return RedirectToAction(nameof(ResendActivationLink));
         }
 
         // ══════════════ Change Password (signed in, profile menu) ══════════════
@@ -694,6 +901,19 @@ namespace DTIOneLink.Controllers
                 (u.Email.ToLower() == lowered || u.Username.ToLower() == lowered));
         }
 
+        // Only a still-pending account can self-request a new activation
+        // link — once activated, ForgotPassword is the right recovery path.
+        // No EmailConfirmed requirement (unlike FindResettableUserAsync):
+        // a never-activated account can't have confirmed its email yet, by
+        // definition — clicking the activation link is what sets it.
+        private async Task<User?> FindPendingActivationUserAsync(string email)
+        {
+            var lowered = email.ToLower();
+            return await _db.Users.FirstOrDefaultAsync(u =>
+                u.IsActive && u.ActivatedAtUtc == null &&
+                (u.Email.ToLower() == lowered || u.Username.ToLower() == lowered));
+        }
+
         private async Task<User?> GetVerifiedResetUserAsync()
         {
             var id = HttpContext.Session.GetInt32(ResetVerifiedUserIdKey);
@@ -714,6 +934,31 @@ namespace DTIOneLink.Controllers
         {
             HttpContext.Session.Remove(ResetVerifiedUserIdKey);
             HttpContext.Session.Remove(ResetVerifiedAtKey);
+        }
+
+        // Same shape as GetVerifiedResetUserAsync, for the activation-link
+        // flow. Re-checks ActivatedAtUtc is still null in case the same
+        // link was raced in two tabs — only the first to finish should win.
+        private async Task<User?> GetVerifiedActivationUserAsync()
+        {
+            var id = HttpContext.Session.GetInt32(ActivationVerifiedUserIdKey);
+            var at = HttpContext.Session.GetString(ActivationVerifiedAtKey);
+            if (id == null || !long.TryParse(at, out var ticks)
+                || DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc) > AccountDefaults.ResetWindow)
+            {
+                ClearActivationState();
+                return null;
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id.Value && u.IsActive && u.ActivatedAtUtc == null);
+            if (user == null) ClearActivationState();
+            return user;
+        }
+
+        private void ClearActivationState()
+        {
+            HttpContext.Session.Remove(ActivationVerifiedUserIdKey);
+            HttpContext.Session.Remove(ActivationVerifiedAtKey);
         }
 
         // Saves the new password, signs the account out everywhere else (new
@@ -797,9 +1042,10 @@ namespace DTIOneLink.Controllers
             return View("EnterCode", model);
         }
 
-        private IActionResult SetPasswordView(User user, bool isReset, SetPasswordViewModel model)
+        private IActionResult SetPasswordView(User user, bool isReset, SetPasswordViewModel model, bool isActivation = false)
         {
             ViewData["IsReset"] = isReset;
+            ViewData["IsActivation"] = isActivation;
             ViewData["AccountName"] = user.FullName;
             ViewData["AccountEmail"] = user.Email;
             return View("SetPassword", model);

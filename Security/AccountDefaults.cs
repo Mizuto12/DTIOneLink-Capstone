@@ -29,6 +29,13 @@ namespace DTIOneLink.Security
         // than CodeLifetime.
         public static readonly TimeSpan ResetLinkLifetime = TimeSpan.FromMinutes(30);
 
+        // A brand-new account's activation link. Longer than a password
+        // reset link because there's no existing working password to fall
+        // back on while it sits in an inbox — if it expires unused, an Admin
+        // has to resend it (which invalidates the old one) rather than the
+        // owner simply trying again a minute later.
+        public static readonly TimeSpan ActivationLinkLifetime = TimeSpan.FromHours(24);
+
         // "Remember this device" cookie lifetime on the login-OTP step, and
         // how long the token it names stays valid for in the database — the
         // two are always set together. OTP-only on purpose: the password is

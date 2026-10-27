@@ -11,7 +11,13 @@ namespace DTIOneLink.Models
         // Second factor on an ordinary sign-in (password already verified),
         // distinct from ConfirmEmail which only ever fires on a forced
         // first-time/reset password change.
-        Login = 3
+        Login = 3,
+
+        // A brand-new account's one-time activation link (replaces the old
+        // shared-default-password first sign-in). Issued by
+        // UserManagementController.Create, consumed by
+        // AccountController.Activate.
+        AccountActivation = 4
     }
 
     // A 6-digit code emailed to a user. Only a keyed hash of the code is

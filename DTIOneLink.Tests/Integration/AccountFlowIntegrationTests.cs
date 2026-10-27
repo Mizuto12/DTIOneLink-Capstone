@@ -52,7 +52,7 @@ public class AccountFlowIntegrationTests : IDisposable
 
         var postResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = token,
         }));
@@ -83,7 +83,7 @@ public class AccountFlowIntegrationTests : IDisposable
         var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
         await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = token,
         }));
@@ -92,6 +92,83 @@ public class AccountFlowIntegrationTests : IDisposable
 
         Assert.Equal(HttpStatusCode.Redirect, secondVisit.StatusCode);
         Assert.Contains("/Employee", secondVisit.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task Login_AlreadySignedInAsSomeoneElse_IsBlockedAndTheOriginalSessionStays()
+    {
+        using (var db = _factory.CreateDbContext())
+        {
+            db.Users.Add(IntegrationTestHelpers.NewActiveUser("Employee", "Business Development Division",
+                password: "Correct-Horse-1", username: "first.user@dti.gov.ph"));
+            db.Users.Add(IntegrationTestHelpers.NewActiveUser("Employee", "Business Development Division",
+                password: "Correct-Horse-2", username: "second.user@dti.gov.ph"));
+            await db.SaveChangesAsync();
+        }
+
+        // Sign in as the first account.
+        var firstLoginGet = await _client.GetAsync("/Account/Login");
+        var firstLoginToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(firstLoginGet);
+        var firstLoginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Email"] = "first.user@dti.gov.ph",
+            ["Password"] = "Correct-Horse-1",
+            ["__RequestVerificationToken"] = firstLoginToken,
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, firstLoginResponse.StatusCode);
+
+        // Same browser (same cookie container) attempts a second, different
+        // account — correct credentials and all — without signing out first.
+        // The GET itself would normally redirect away while signed in, so
+        // this simulates the realistic path: a stale/cached form posted
+        // directly, exactly the shared-office-PC scenario this guards.
+        var secondLoginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Email"] = "second.user@dti.gov.ph",
+            ["Password"] = "Correct-Horse-2",
+            ["__RequestVerificationToken"] = firstLoginToken,
+        }));
+
+        Assert.Equal(HttpStatusCode.OK, secondLoginResponse.StatusCode); // re-renders the form with an error, not a redirect
+        var html = await secondLoginResponse.Content.ReadAsStringAsync();
+        Assert.Contains("already signed in", html);
+
+        // The original session is untouched — still signed in as the first account.
+        var secondLoginGet = await _client.GetAsync("/Account/Login");
+        Assert.Equal(HttpStatusCode.Redirect, secondLoginGet.StatusCode); // redirected away: still signed in
+        Assert.Contains("/Employee", secondLoginGet.Headers.Location!.ToString());
+    }
+
+    [Fact]
+    public async Task Login_AlreadySignedInAsTheSameAccount_IsNotBlocked()
+    {
+        using (var db = _factory.CreateDbContext())
+        {
+            db.Users.Add(IntegrationTestHelpers.NewActiveUser("Employee", "Business Development Division"));
+            await db.SaveChangesAsync();
+        }
+
+        var getResponse = await _client.GetAsync("/Account/Login");
+        var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
+        await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Email"] = "test.user@dti.gov.ph",
+            ["Password"] = "Correct-Horse-1",
+            ["__RequestVerificationToken"] = token,
+        }));
+
+        // A stale form re-submitted for the SAME already-active account —
+        // e.g. a second tab that hadn't yet redirected — must not be treated
+        // as a blocked account switch.
+        var secondResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Email"] = "test.user@dti.gov.ph",
+            ["Password"] = "Correct-Horse-1",
+            ["__RequestVerificationToken"] = token,
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, secondResponse.StatusCode);
+        Assert.Contains("/Employee", secondResponse.Headers.Location!.ToString());
     }
 
     [Fact]
@@ -108,7 +185,7 @@ public class AccountFlowIntegrationTests : IDisposable
 
         var postResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "totally-wrong-password",
             ["__RequestVerificationToken"] = token,
         }));
@@ -131,7 +208,7 @@ public class AccountFlowIntegrationTests : IDisposable
 
         var postResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "nobody@dti.gov.ph",
+            ["Email"] = "nobody@dti.gov.ph",
             ["Password"] = "whatever",
             ["__RequestVerificationToken"] = token,
         }));
@@ -156,7 +233,7 @@ public class AccountFlowIntegrationTests : IDisposable
 
             var postResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["Username"] = "test.user@dti.gov.ph",
+                ["Email"] = "test.user@dti.gov.ph",
                 ["Password"] = "wrong-" + attempt,
                 ["__RequestVerificationToken"] = token,
             }));
@@ -177,7 +254,7 @@ public class AccountFlowIntegrationTests : IDisposable
         var finalToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(finalGet);
         var finalAttempt = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = finalToken,
         }));
@@ -190,7 +267,7 @@ public class AccountFlowIntegrationTests : IDisposable
     {
         var postResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "anything",
             // No __RequestVerificationToken, and no antiforgery cookie either
             // (never did the GET that would have issued one).
@@ -212,7 +289,7 @@ public class AccountFlowIntegrationTests : IDisposable
         var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
         await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = token,
         }));
@@ -239,6 +316,15 @@ public class AccountFlowIntegrationTests : IDisposable
         return match.Value;
     }
 
+    // Pulls a hidden <input name="..." value="..."> field's value out of
+    // ConfirmLink's rendered HTML (uid/token are round-tripped through it).
+    private static string ExtractHiddenField(string html, string name)
+    {
+        var match = Regex.Match(html, $@"name=""{name}""\s+value=""([^""]*)""");
+        Assert.True(match.Success, $"No hidden field named \"{name}\" found in response.");
+        return match.Groups[1].Value;
+    }
+
     [Fact]
     public async Task ForgotPassword_ValidEmail_EmailedLinkActuallyResetsThePassword()
     {
@@ -261,13 +347,28 @@ public class AccountFlowIntegrationTests : IDisposable
         Assert.True(readOk, "Expected a password reset link to have been queued.");
         var link = ExtractLink(message!.TextBody);
 
-        // Clicking the link redirects to the clean ResetPassword URL ...
+        // Clicking the link only shows a confirmation page — the token is
+        // peeked at, not consumed yet, so an email scanner pre-fetching this
+        // same URL couldn't have burned it already.
         var clickResponse = await _client.GetAsync(new Uri(link).PathAndQuery);
-        Assert.Equal(HttpStatusCode.Redirect, clickResponse.StatusCode);
-        Assert.Contains("ResetPassword", clickResponse.Headers.Location!.ToString());
+        Assert.Equal(HttpStatusCode.OK, clickResponse.StatusCode);
+        var confirmToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(clickResponse);
+        var uid = ExtractHiddenField(await clickResponse.Content.ReadAsStringAsync(), "uid");
+        var tokenValue = ExtractHiddenField(await clickResponse.Content.ReadAsStringAsync(), "token");
+
+        // Submitting that confirmation actually consumes the token and
+        // redirects to the clean ResetPassword URL ...
+        var confirmResponse = await _client.PostAsync("/Account/ResetLinkConfirm", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["uid"] = uid,
+            ["token"] = tokenValue,
+            ["__RequestVerificationToken"] = confirmToken,
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, confirmResponse.StatusCode);
+        Assert.Contains("ResetPassword", confirmResponse.Headers.Location!.ToString());
 
         // ... which now actually renders the set-password form.
-        var formResponse = await _client.GetAsync(clickResponse.Headers.Location);
+        var formResponse = await _client.GetAsync(confirmResponse.Headers.Location);
         Assert.Equal(HttpStatusCode.OK, formResponse.StatusCode);
         var formToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(formResponse);
 
@@ -284,7 +385,7 @@ public class AccountFlowIntegrationTests : IDisposable
         var loginToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(loginGet);
         var loginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Brand-New-Pass2",
             ["__RequestVerificationToken"] = loginToken,
         }));
@@ -325,7 +426,7 @@ public class AccountFlowIntegrationTests : IDisposable
         var loginToken = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(loginGet);
         var loginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = loginToken,
         }));

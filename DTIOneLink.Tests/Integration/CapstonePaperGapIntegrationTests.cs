@@ -40,7 +40,7 @@ public class CapstonePaperGapIntegrationTests : IDisposable
         var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
         var loginResponse = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = username,
+            ["Email"] = username,
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = token,
         }));

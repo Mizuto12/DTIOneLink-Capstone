@@ -36,7 +36,7 @@ public class AuthorizationIntegrationTests : IDisposable
         var token = await IntegrationTestHelpers.ExtractAntiforgeryTokenAsync(getResponse);
         var loginResponse = await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = "test.user@dti.gov.ph",
+            ["Email"] = "test.user@dti.gov.ph",
             ["Password"] = "Correct-Horse-1",
             ["__RequestVerificationToken"] = token,
         }));

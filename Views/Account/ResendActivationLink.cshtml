@@ -1,0 +1,35 @@
+@model DTIOneLink.Models.ForgotPasswordViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Resend Activation Link";
+}
+
+<h1 class="login-title change-password-title"><span class="navy">Resend</span> <span class="accent">Activation Link</span></h1>
+
+@{
+    var notice = TempData["ResendActivationNotice"] as string;
+}
+
+@if (notice != null)
+{
+    <p class="change-password-note" role="status">@notice</p>
+}
+
+<form asp-controller="Account" asp-action="ResendActivationLink" method="post" novalidate class="change-password-form account-form compact-form">
+    @Html.AntiForgeryToken()
+
+    @if (notice == null)
+    {
+        <p class="change-password-note">Enter the email your account was created with. If it's still waiting to be activated, we'll send a new link.</p>
+    }
+
+    <div class="field-group">
+        <label asp-for="Email">Email</label>
+        <input asp-for="Email" type="email" class="text-input" autocomplete="username" placeholder="Enter your Email" autofocus />
+        <span asp-validation-for="Email" class="field-error"></span>
+    </div>
+
+    <button type="submit" class="btn-login">SEND LINK</button>
+</form>
+
+<a asp-controller="Account" asp-action="Login" class="change-password-secondary">Back to login</a>

@@ -275,12 +275,19 @@
                                 <td class="um-td-division" data-label="Division"><span class="um-division-badge um-ell" title="@user.Department">@user.Department</span></td>
                                 <td class="um-td-role" data-label="Role"><span class="um-ell" title="@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)">@DTIOneLink.Controllers.UserManagementController.RoleLabel(user.Role)</span></td>
                                 <td class="um-td-status" data-label="Status">
-                                    @* Deactivated wins; then signed in right now; then signed out (or never signed in). *@
+                                    @* Deactivated wins; then pending activation; then signed in right now; then signed out (or never signed in). *@
                                     @if (!isActive)
                                     {
                                         <div class="um-status-badge um-status-disabled">
                                             <span class="um-status-dot"></span>
                                             <span>Deactivated</span>
+                                        </div>
+                                    }
+                                    else if (user.IsPendingActivation)
+                                    {
+                                        <div class="um-status-badge um-status-pending" title="An activation link was emailed to them. They can't sign in until they use it.">
+                                            <span class="um-status-dot"></span>
+                                            <span>Pending activation</span>
                                         </div>
                                     }
                                     else if (user.IsSignedIn)
@@ -339,6 +346,33 @@
                                                     <span class="material-symbols-outlined" aria-hidden="true">mail</span>
                                                     <span class="um-btn-txt">Edit Email</span>
                                                 </button>
+                                            }
+                                            @if (user.IsPendingActivation && DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
+                                            {
+                                                <form asp-controller="UserManagement" asp-action="ResendActivation" method="post" class="um-resend-activation-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    @* Reuses um-btn-edit-email's styling/responsive rules — same quiet,
+                                                       neutral action-button look, just a different icon/label. *@
+                                                    <button type="submit" class="um-btn-edit-email"
+                                                            title="Resend Activation Link" aria-label="Resend activation link to @user.FullName">
+                                                        <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
+                                                        <span class="um-btn-txt">Resend Link</span>
+                                                    </button>
+                                                </form>
+                                                @* Only for when the emailed link genuinely can't reach them — an
+                                                   Admin hands this one over in person or by phone instead. *@
+                                                <form asp-controller="UserManagement" asp-action="IssueActivationFallbackPassword" method="post"
+                                                      class="um-issue-fallback-password-form"
+                                                      onsubmit="return confirm('Issue a one-time temporary password for @user.FullName? Hand it over in person or by phone only — never by email. Any pending activation link stops working.');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <button type="submit" class="um-btn-edit-email"
+                                                            title="Issue Temporary Password" aria-label="Issue a temporary password to @user.FullName">
+                                                        <span class="material-symbols-outlined" aria-hidden="true">password</span>
+                                                        <span class="um-btn-txt">Temp Password</span>
+                                                    </button>
+                                                </form>
                                             }
                                             @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
                                             {

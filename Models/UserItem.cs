@@ -39,6 +39,13 @@ namespace DTIOneLink.Models
         [NotMapped] public DateTime? LastLogoutAtUtc { get; set; }
         [NotMapped] public DateTime? LastSeenAtUtc { get; set; }
 
+        // Null until the owner clicks their emailed activation link and
+        // chooses a password (see User.ActivatedAtUtc). Accounts that
+        // existed before this column shipped were backfilled, so this is
+        // only ever null for a genuinely brand-new, not-yet-activated account.
+        [NotMapped] public DateTime? ActivatedAtUtc { get; set; }
+        public bool IsPendingActivation => ActivatedAtUtc == null;
+
         // Logged in after their last Sign Out, and heard from within the
         // 30-minute session timeout (Program.cs AddSession).
         public bool IsSignedIn =>

@@ -36,6 +36,15 @@ namespace DTIOneLink.Models
         // (temporary password). The user must choose their own before going on.
         public bool MustChangePassword { get; set; }
 
+        // Null until a brand-new account clicks its emailed activation link
+        // and chooses a password (AccountController.ActivatePassword) — Login
+        // refuses sign-in until then, since the password hash a new account
+        // starts with is a random value nobody was ever told. Accounts that
+        // existed before this column shipped were backfilled to their
+        // CreatedAt value (see the AddUserAccountActivation migration), so
+        // nobody already using the system is retroactively locked out.
+        public DateTime? ActivatedAtUtc { get; set; }
+
         // Login lockout: AccountDefaults.MaxFailedLogins wrong passwords in a
         // row locks sign-in until LockoutEndUtc.
         public int FailedLoginCount { get; set; }

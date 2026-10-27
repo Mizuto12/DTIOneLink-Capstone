@@ -8,10 +8,8 @@ using Microsoft.Data.SqlClient;
 namespace DTIOneLink.Controllers;
 [RequirePermission(Permissions.ManageUserAccounts)]
 
-public class UserManagementController(DatabaseHelper db, ILogger<UserManagementController> logger) : Controller
+public class UserManagementController(DatabaseHelper db, OneTimeCodeService codes, ILogger<UserManagementController> logger) : Controller
 {
-    private const string DefaultPassword = AccountDefaults.DefaultPassword;
-
     // The only values ChangeStanding accepts (same as the Create form).
     public static readonly string[] Divisions =
     {
@@ -35,7 +33,7 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
     public async Task<IActionResult> Index()
     {
         var users = new List<UserItem>();
-        const string sql = "SELECT Id, FullName, Username, Email, Department, Role, IsActive, LastLoginAtUtc, LastLogoutAtUtc, LastSeenAtUtc FROM dbo.Users ORDER BY FullName";
+        const string sql = "SELECT Id, FullName, Username, Email, Department, Role, IsActive, LastLoginAtUtc, LastLogoutAtUtc, LastSeenAtUtc, ActivatedAtUtc FROM dbo.Users ORDER BY FullName";
 
         using var conn = db.GetConnection();
         await conn.OpenAsync();
@@ -54,7 +52,8 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
                 Status = reader.GetBoolean(6) ? "active" : "disabled",
                 LastLoginAtUtc = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
                 LastLogoutAtUtc = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                LastSeenAtUtc = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
+                LastSeenAtUtc = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                ActivatedAtUtc = reader.IsDBNull(10) ? null : reader.GetDateTime(10)
             });
         }
         await reader.CloseAsync();
@@ -171,38 +170,200 @@ public class UserManagementController(DatabaseHelper db, ILogger<UserManagementC
             return RedirectToAction(nameof(Index));
         }
 
-        var passwordHash = new PasswordHasher<object>().HashPassword(null!, DefaultPassword);
+        // No real password is set yet — a random value nobody is ever told,
+        // so the account literally cannot be signed into (defense in depth
+        // alongside the ActivatedAtUtc gate in AccountController.Login).
+        // They become the owner of the account by clicking the emailed
+        // activation link and choosing their own password.
+        var unusablePassword = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var passwordHash = new PasswordHasher<object>().HashPassword(null!, unusablePassword);
         const string sql = @"INSERT INTO dbo.Users
             (Username, PasswordHash, Role, FullName, IsActive, Email, Department, CreatedAt,
-             EmailConfirmed, MustChangePassword, SecurityStamp)
+             EmailConfirmed, MustChangePassword, SecurityStamp, ActivatedAtUtc)
+            OUTPUT INSERTED.Id
             VALUES (@Username, @PasswordHash, @Role, @FullName, 1, @Email, @Department, @CreatedAt,
-             0, 1, @SecurityStamp)";
+             0, 1, @SecurityStamp, NULL)";
 
         try
         {
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@Username", email);
-            cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
-            cmd.Parameters.AddWithValue("@Role", role);
-            cmd.Parameters.AddWithValue("@FullName", fullName);
-            cmd.Parameters.AddWithValue("@Email", email);
-            cmd.Parameters.AddWithValue("@Department", department);
-            cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
-            cmd.Parameters.AddWithValue("@SecurityStamp", Guid.NewGuid().ToString("N"));
-            await cmd.ExecuteNonQueryAsync();
+            int newUserId;
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@Username", email);
+                cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                cmd.Parameters.AddWithValue("@Role", role);
+                cmd.Parameters.AddWithValue("@FullName", fullName);
+                cmd.Parameters.AddWithValue("@Email", email);
+                cmd.Parameters.AddWithValue("@Department", department);
+                cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+                cmd.Parameters.AddWithValue("@SecurityStamp", Guid.NewGuid().ToString("N"));
+                newUserId = (int)(await cmd.ExecuteScalarAsync())!;
+            }
+
+            await codes.IssueLinkAsync(new User { Id = newUserId, Email = email, FullName = fullName },
+                OneTimeCodePurpose.AccountActivation,
+                token => Url.Action("Activate", "Account", new { uid = newUserId, token }, Request.Scheme)!);
 
             // Saved: clear the kept form values.
             TempData.Remove("FormEmail");
             TempData.Remove("FormFullName");
             TempData.Remove("FormDepartment");
             TempData.Remove("FormRole");
-            TempData["SuccessMessage"] = $"Account for {fullName} created. They sign in with their email and the default password {DefaultPassword}, then confirm their email with a code and choose their own password.";
+            TempData["SuccessMessage"] = $"Account for {fullName} created. We emailed them an activation link to {email} — it's valid for 24 hours and lets them choose their own password.";
         }
         catch (SqlException ex) when (ex.Number is 2601 or 2627)
         {
             TempData["ErrorMessage"] = "An account with that email already exists.";
         }
 
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Admin-triggered resend: issues a fresh activation link, which
+    // invalidates any earlier unused one for the same account (same
+    // cancel-the-previous-one rule OneTimeCodeService already applies to
+    // every other code/link it issues) — only one activation link is ever
+    // live at a time.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResendActivation(int id)
+    {
+        var actorRole = HttpContext.Session.GetString("UserRole");
+        var actorDepartment = HttpContext.Session.GetString("UserDepartment");
+        var actorId = HttpContext.Session.GetInt32("UserId");
+
+        using var conn = db.GetConnection();
+        await conn.OpenAsync();
+
+        DateTime? activatedAtUtc;
+        string fullName, role, department, email;
+        using (var find = new SqlCommand(
+            "SELECT FullName, Role, Department, Email, ActivatedAtUtc FROM dbo.Users WHERE Id = @Id", conn))
+        {
+            find.Parameters.AddWithValue("@Id", id);
+            using var reader = await find.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                TempData["DirectoryError"] = "That account no longer exists.";
+                return RedirectToAction(nameof(Index));
+            }
+            fullName = reader.GetString(0);
+            role = reader.GetString(1);
+            department = reader.IsDBNull(2) ? "" : reader.GetString(2);
+            email = reader.IsDBNull(3) ? "" : reader.GetString(3);
+            activatedAtUtc = reader.IsDBNull(4) ? null : reader.GetDateTime(4);
+        }
+
+        if (!CanSetActive(actorRole, actorDepartment, actorId, id, role, department))
+        {
+            TempData["DirectoryError"] = "You can only resend an activation link for employees of your own division.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (activatedAtUtc != null)
+        {
+            TempData["DirectoryMessage"] = $"{fullName}'s account is already active — there's no activation link to resend.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var issued = await codes.IssueLinkAsync(new User { Id = id, Email = email, FullName = fullName },
+            OneTimeCodePurpose.AccountActivation,
+            token => Url.Action("Activate", "Account", new { uid = id, token }, Request.Scheme)!);
+
+        logger.LogInformation("Activation link resent for user {UserId} by {ActorRole} {ActorId}.", id, actorRole, actorId);
+
+        TempData["HighlightUserId"] = id;
+        TempData["DirectoryMessage"] = issued.Status == CodeIssueStatus.Sent
+            ? $"A new activation link was emailed to {fullName}. The old link no longer works."
+            : $"Please wait before resending {fullName}'s activation link — one was sent too recently.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Fallback for a pending account whose activation link genuinely can't
+    // reach them (wrong address, broken email, nothing Resend Link can fix):
+    // an Admin hands out a one-time temporary password through a channel
+    // the system doesn't control — in person or by phone — the same way
+    // ResetPassword below already does for an existing account's forgotten
+    // password. Security properties this preserves, deliberately:
+    //   - Same authorization scope as every other sensitive account action
+    //     (CanSetActive): an Admin can only do this for their own division.
+    //   - The password is cryptographically random, shown once on screen,
+    //     and never logged — only the fact that it was issued is.
+    //   - Any outstanding activation link is invalidated in the same
+    //     action, so at most one "become this account" credential is ever
+    //     live at a time.
+    //   - MustChangePassword and EmailConfirmed are untouched (both stay as
+    //     they were — false/true respectively, same as account creation),
+    //     so the temporary password still has to pass through VerifyEmail
+    //     and SetPassword on first use exactly like the old shared-default-
+    //     password flow did. It cannot grant normal access by itself.
+    //   - Only usable while the account is still pending: once activated,
+    //     this isn't the right tool — ResetPassword is.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> IssueActivationFallbackPassword(int id)
+    {
+        var actorRole = HttpContext.Session.GetString("UserRole");
+        var actorDepartment = HttpContext.Session.GetString("UserDepartment");
+        var actorId = HttpContext.Session.GetInt32("UserId");
+
+        using var conn = db.GetConnection();
+        await conn.OpenAsync();
+
+        DateTime? activatedAtUtc;
+        string fullName, role, department;
+        using (var find = new SqlCommand(
+            "SELECT FullName, Role, Department, ActivatedAtUtc FROM dbo.Users WHERE Id = @Id", conn))
+        {
+            find.Parameters.AddWithValue("@Id", id);
+            using var reader = await find.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                TempData["DirectoryError"] = "That account no longer exists.";
+                return RedirectToAction(nameof(Index));
+            }
+            fullName = reader.GetString(0);
+            role = reader.GetString(1);
+            department = reader.IsDBNull(2) ? "" : reader.GetString(2);
+            activatedAtUtc = reader.IsDBNull(3) ? null : reader.GetDateTime(3);
+        }
+
+        if (!CanSetActive(actorRole, actorDepartment, actorId, id, role, department))
+        {
+            TempData["DirectoryError"] = "You can only issue a temporary password for employees of your own division.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (activatedAtUtc != null)
+        {
+            TempData["DirectoryMessage"] = $"{fullName}'s account is already active — use Reset Password instead.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var temporaryPassword = NewTemporaryPassword();
+        const string sql = @"UPDATE dbo.Users
+            SET PasswordHash = @Hash, ActivatedAtUtc = @ActivatedAtUtc, FailedLoginCount = 0,
+                LockoutEndUtc = NULL, SecurityStamp = @Stamp
+            WHERE Id = @Id";
+        using (var update = new SqlCommand(sql, conn))
+        {
+            update.Parameters.AddWithValue("@Hash", new PasswordHasher<object>().HashPassword(null!, temporaryPassword));
+            update.Parameters.AddWithValue("@ActivatedAtUtc", DateTime.UtcNow);
+            update.Parameters.AddWithValue("@Stamp", Guid.NewGuid().ToString("N"));
+            update.Parameters.AddWithValue("@Id", id);
+            await update.ExecuteNonQueryAsync();
+        }
+
+        // Only one path to sign in as this account should ever be live —
+        // the emailed link, if one is still outstanding, no longer is.
+        await codes.InvalidateAsync(id, OneTimeCodePurpose.AccountActivation);
+
+        // Audit event: who, which account, when — deliberately never the
+        // password value itself.
+        logger.LogInformation("Temporary activation password issued for pending account {UserId} by {ActorRole} {ActorId}.",
+            id, actorRole, actorId);
+
+        TempData["HighlightUserId"] = id;
+        TempData["TempPasswordFor"] = fullName;
+        TempData["TempPassword"] = temporaryPassword;
         return RedirectToAction(nameof(Index));
     }
 

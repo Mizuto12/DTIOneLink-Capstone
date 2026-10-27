@@ -80,6 +80,18 @@ namespace DTIOneLink.Services
             return null;
         }
 
+        // Cancels every unconsumed code/link of this purpose without issuing
+        // a replacement — for when some other action makes the outstanding
+        // one moot (e.g. an admin hands out a temporary password for an
+        // account whose activation link never arrived: only one "become
+        // this account" credential should ever be live at a time).
+        public async Task InvalidateAsync(int userId, OneTimeCodePurpose purpose)
+        {
+            await _db.OneTimeCodes
+                .Where(c => c.UserId == userId && c.Purpose == purpose && c.ConsumedAtUtc == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.ConsumedAtUtc, DateTime.UtcNow));
+        }
+
         // Creates a new code (cancelling any earlier one for the same purpose)
         // and queues the email — unless the user asked too recently or too
         // often, which stops inbox flooding and collecting many codes to guess.
@@ -191,6 +203,9 @@ namespace DTIOneLink.Services
                 .ExecuteUpdateAsync(s => s.SetProperty(c => c.ConsumedAtUtc, now));
 
             var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+            var lifetime = purpose == OneTimeCodePurpose.AccountActivation
+                ? AccountDefaults.ActivationLinkLifetime
+                : AccountDefaults.ResetLinkLifetime;
 
             _db.OneTimeCodes.Add(new OneTimeCode
             {
@@ -198,26 +213,32 @@ namespace DTIOneLink.Services
                 Purpose = purpose,
                 CodeHash = _hasher.Hash(user.Id, purpose, token),
                 CreatedAtUtc = now,
-                ExpiresAtUtc = now + AccountDefaults.ResetLinkLifetime
+                ExpiresAtUtc = now + lifetime
             });
             await _db.SaveChangesAsync();
 
-            var message = EmailTemplates.ResetLink(user.Email, user.FullName, buildLink(token), (int)AccountDefaults.ResetLinkLifetime.TotalMinutes);
+            var message = purpose == OneTimeCodePurpose.AccountActivation
+                ? EmailTemplates.ActivationLink(user.Email, user.FullName, buildLink(token), (int)lifetime.TotalHours)
+                : EmailTemplates.ResetLink(user.Email, user.FullName, buildLink(token), (int)lifetime.TotalMinutes);
             if (!_queue.TryEnqueue(message))
             {
-                _logger.LogError("The verification email queue is full; a password reset link for user {UserId} was not sent.", user.Id);
+                _logger.LogError("The verification email queue is full; a {Purpose} link for user {UserId} was not sent.", purpose, user.Id);
             }
 
-            _logger.LogInformation("Issued a password reset link for user {UserId}.", user.Id);
+            _logger.LogInformation("Issued a {Purpose} link for user {UserId}.", purpose, user.Id);
             return new CodeIssueResult(CodeIssueStatus.Sent);
         }
 
-        // VerifyAsync's equivalent for a link token: no attempt-limiting,
-        // because a 256-bit token isn't something worth rate-limiting
-        // guesses against the way a 6-digit code is — brute-forcing it is
-        // computationally infeasible regardless. The caller still wraps this
-        // action in the normal rate limiter against sheer request volume.
-        public async Task<CodeCheckResult> VerifyLinkAsync(int userId, OneTimeCodePurpose purpose, string? token)
+        // Read-only check for a link token: same matching rules as
+        // VerifyLinkAsync, but never consumes it. Callers use this for the
+        // page a GET request first lands on, specifically because some
+        // email security gateways and link-preview features automatically
+        // visit a link to scan it before a human ever clicks it — if GET
+        // consumed the token the way it used to, that automated visit would
+        // burn a genuine one-time link before its owner saw it. The actual
+        // consuming check (VerifyLinkAsync) only ever runs from an explicit
+        // POST the person submits themselves.
+        public async Task<CodeCheckResult> PeekLinkAsync(int userId, OneTimeCodePurpose purpose, string? token)
         {
             var now = DateTime.UtcNow;
             var current = await _db.OneTimeCodes.AsNoTracking()
@@ -236,8 +257,41 @@ namespace DTIOneLink.Services
 
             if (!matches)
             {
-                _logger.LogWarning("Wrong/forged {Purpose} link token presented for user {UserId}.", purpose, userId);
+                _logger.LogWarning("Wrong/forged {Purpose} link token previewed for user {UserId}.", purpose, userId);
                 return new CodeCheckResult(CodeCheckStatus.Invalid);
+            }
+
+            return new CodeCheckResult(CodeCheckStatus.Valid);
+        }
+
+        // Actually consumes a link token — only reachable from the POST a
+        // person submits after PeekLinkAsync showed them a "click to
+        // continue" confirmation page. No attempt-limiting, because a
+        // 256-bit token isn't something worth rate-limiting guesses against
+        // the way a 6-digit code is — brute-forcing it is computationally
+        // infeasible regardless. The caller still wraps this action in the
+        // normal rate limiter against sheer request volume.
+        public async Task<CodeCheckResult> VerifyLinkAsync(int userId, OneTimeCodePurpose purpose, string? token)
+        {
+            var peeked = await PeekLinkAsync(userId, purpose, token);
+            if (peeked.Status != CodeCheckStatus.Valid)
+            {
+                return peeked;
+            }
+
+            var now = DateTime.UtcNow;
+            // PeekLinkAsync already confirmed a live, matching code exists —
+            // re-select it (AsNoTracking there gave no entity to update
+            // directly) and consume it the same atomic way VerifyAsync
+            // consumes a typed code: a single conditional UPDATE, so two
+            // concurrent requests for the same token can't both succeed.
+            var current = await _db.OneTimeCodes.AsNoTracking()
+                .Where(c => c.UserId == userId && c.Purpose == purpose && c.ConsumedAtUtc == null)
+                .OrderByDescending(c => c.CreatedAtUtc)
+                .FirstOrDefaultAsync();
+            if (current == null)
+            {
+                return new CodeCheckResult(CodeCheckStatus.Expired);
             }
 
             var claimed = await _db.OneTimeCodes

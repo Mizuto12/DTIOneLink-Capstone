@@ -52,6 +52,11 @@ public static class IntegrationTestHelpers
             EmailConfirmed = true,
             MustChangePassword = mustChangePassword,
             SecurityStamp = Guid.NewGuid().ToString("N"),
+            // These helpers seed an already-established account (the
+            // equivalent of one grandfathered in by the
+            // AddUserAccountActivation migration), not a brand-new one
+            // still waiting on its activation link.
+            ActivatedAtUtc = DateTime.UtcNow,
         };
         user.PasswordHash = new PasswordHasher<User>().HashPassword(user, password);
         return user;
