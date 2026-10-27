@@ -140,11 +140,16 @@
   border: 1px solid var(--outline-variant);
   border-radius: var(--radius-full);
   padding: 12px 16px 12px 48px;
-  font-style: italic;
   font-family: inherit;
   font-size: 14px;
   outline: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+/* Italic belongs on the placeholder prompt, not on what the person types —
+   typed search text rendering in italics read as a mistake. */
+.reports-page .search-pill input::placeholder {
+  font-style: italic;
 }
 
 .reports-page .search-pill input:focus {
@@ -228,6 +233,16 @@
   background: rgba(0, 30, 101, 0.07);
   font-weight: 700;
   color: var(--primary);
+}
+
+.reports-page .filter-group + .filter-group { border-top: 1px solid var(--outline-variant); margin-top: 4px; padding-top: 4px; }
+.reports-page .filter-group-label {
+  margin: 4px 20px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
 }
 
 .reports-page .icon-btn-outline {

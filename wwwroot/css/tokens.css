@@ -1,0 +1,43 @@
+/* ==========================================================
+   DTI Laguna OneLink — Shared design tokens
+   The single source for the Material-3-style palette, shell
+   spacing, and font stack used by the authenticated app shell
+   (Admin/Employee/SuperAdmin layouts). Imported by adminlayout.css
+   so every page that already loads that file gets these for free.
+   Page-specific stylesheets with their own distinct palette
+   (records.css, login.css, admindashboard.css's --dash-* set, etc.)
+   are deliberately left alone — only exact, value-for-value
+   duplicates of this block were removed from other files.
+   ========================================================== */
+
+:root {
+    --primary:                  #001e65;
+    --primary-container:        #1d357e;
+    --primary-fixed-dim:        #b6c4ff;
+    --on-primary:               #ffffff;
+    --secondary:                #5c5f61;
+    --secondary-fixed:          #e0e3e6;
+    --on-secondary-container:   #626567;
+    --surface:                  #f8f9ff;
+    --surface-container:        #e5eeff;
+    --surface-container-low:    #eff4ff;
+    --surface-container-lowest: #ffffff;
+    --background:               #f8f9ff;
+    --on-background:            #0b1c30;
+    --on-surface:               #0b1c30;
+    --on-surface-variant:       #444651;
+    --error:                    #ba1a1a;
+    --outline-variant:          #c5c5d2;
+    --outline:                  #757682;
+
+    --sidebar-w:    260px;
+    --topbar-h:     80px;
+    --pad-x:        24px;
+    --stack-sm:     8px;
+    --gutter-md:    16px;
+
+    --font-display: 'Hanken Grotesk', sans-serif;
+    --font-ui:      'Inter', sans-serif;
+    --font-anton:   'Anton', sans-serif;
+    --font-sauce:   'Open Sauce Sans', 'Segoe UI', sans-serif;
+}

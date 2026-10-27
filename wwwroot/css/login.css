@@ -13,7 +13,13 @@
     --field-border-focus: #16306f;
     --text-muted: #5a6b8c;
 
-    --font-display: 'Anton', sans-serif;
+    /* Named --font-brand, not --font-display: the shared tokens.css (used
+       by every authenticated page) already gives --font-display a
+       different meaning (Hanken Grotesk). This page never loads
+       tokens.css, so there's no runtime collision today, but reusing the
+       same name for a different font here was a trap for whoever edits
+       one file expecting it to mean what it means in the other. */
+    --font-brand: 'Anton', sans-serif;
     --font-body: 'Open Sauce Sans', 'Segoe UI', Arial, sans-serif;
 }
 
@@ -138,7 +144,7 @@ html, body {
 }
 
 .login-title {
-    font-family: var(--font-display);
+    font-family: var(--font-brand);
     font-weight: 400;
     font-size: clamp(42px, 5.2vw, 56px);
     text-align: center;
@@ -306,7 +312,11 @@ html, body {
     color: var(--navy);
 }
 
-.remember-row {
+/* Was named .remember-row — a leftover from a "remember me" checkbox that
+   no longer exists here (the real one lives on EnterCode.cshtml as
+   .otp-remember-row, a device-remember toggle after OTP verification, not
+   this page). This is just a right-aligned link row. */
+.login-links-row {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -315,7 +325,7 @@ html, body {
     flex-wrap: wrap;
 }
 
-.remember-row .forgot-link {
+.login-links-row .forgot-link {
     display: inline;
     margin-top: 0;
 }
@@ -381,7 +391,7 @@ html, body {
     border-radius: 30px;
     background: var(--navy);
     color: var(--white);
-    font-family: var(--font-display);
+    font-family: var(--font-brand);
     font-size: clamp(18px, 2.2vw, 24px);
     letter-spacing: 1px;
     cursor: pointer;
@@ -411,6 +421,9 @@ html, body {
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-6px); }
     40%, 80% { transform: translateX(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .btn-login.shake { animation: none; }
 }
 
 /* =========================================================

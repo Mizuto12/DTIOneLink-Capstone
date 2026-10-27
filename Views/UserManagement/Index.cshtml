@@ -161,8 +161,8 @@
 
             <div class="um-form-actions">
             <p class="um-default-password-note">
-                <span class="material-symbols-outlined">key</span>
-                <span>They will sign in with this email and the default password <strong>@DTIOneLink.Security.AccountDefaults.DefaultPassword</strong>. On their first sign-in they confirm their email with a code and choose their own password.</span>
+                <span class="material-symbols-outlined">mail</span>
+                <span>An activation link will be emailed to this address. They'll use it to confirm their email and choose their own password — no shared password is set.</span>
             </p>
 
             <div class="um-form-foot">
@@ -210,6 +210,7 @@
                     <p>Temporary password for <strong>@TempData["TempPasswordFor"]</strong>:</p>
                     <p class="um-temp-password-value">@tempPassword</p>
                     <p>Give it to them in person or by phone. It is shown only this once. They must choose their own password when they log in with it.</p>
+                    <p class="um-temp-password-recovery">If you lose this before handing it over, it's not recoverable — issue a new one from this same action instead; the old one stops working the moment you do.</p>
                 </div>
             </div>
         }
@@ -349,30 +350,41 @@
                                             }
                                             @if (user.IsPendingActivation && DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
                                             {
-                                                <form asp-controller="UserManagement" asp-action="ResendActivation" method="post" class="um-resend-activation-form">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@user.Id" />
-                                                    @* Reuses um-btn-edit-email's styling/responsive rules — same quiet,
-                                                       neutral action-button look, just a different icon/label. *@
-                                                    <button type="submit" class="um-btn-edit-email"
-                                                            title="Resend Activation Link" aria-label="Resend activation link to @user.FullName">
-                                                        <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
-                                                        <span class="um-btn-txt">Resend Link</span>
-                                                    </button>
-                                                </form>
-                                                @* Only for when the emailed link genuinely can't reach them — an
-                                                   Admin hands this one over in person or by phone instead. *@
-                                                <form asp-controller="UserManagement" asp-action="IssueActivationFallbackPassword" method="post"
-                                                      class="um-issue-fallback-password-form"
-                                                      onsubmit="return confirm('Issue a one-time temporary password for @user.FullName? Hand it over in person or by phone only — never by email. Any pending activation link stops working.');">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@user.Id" />
-                                                    <button type="submit" class="um-btn-edit-email"
-                                                            title="Issue Temporary Password" aria-label="Issue a temporary password to @user.FullName">
-                                                        <span class="material-symbols-outlined" aria-hidden="true">password</span>
-                                                        <span class="um-btn-txt">Temp Password</span>
-                                                    </button>
-                                                </form>
+                                                @* Resend Link and Temp Password are the two least-common actions on
+                                                   this row (only shown at all for a pending-activation user) — kept
+                                                   behind "More" so a row with every permission doesn't show 5 buttons
+                                                   at once. Plain show/hide, no floating menu: a row near the bottom
+                                                   of the table is inside .um-table-scroll's overflow-x:auto, which
+                                                   would clip an absolutely-positioned dropdown. *@
+                                                <button type="button" class="um-btn-more" aria-expanded="false" aria-controls="umMore-@user.Id"
+                                                        title="More actions" aria-label="More actions for @user.FullName">
+                                                    <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+                                                    <span class="um-btn-txt">More</span>
+                                                </button>
+                                                <span class="um-more-group" id="umMore-@user.Id" hidden>
+                                                    <form asp-controller="UserManagement" asp-action="ResendActivation" method="post" class="um-resend-activation-form">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@user.Id" />
+                                                        <button type="submit" class="um-btn-secondary-action"
+                                                                title="Resend Activation Link" aria-label="Resend activation link to @user.FullName">
+                                                            <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
+                                                            <span class="um-btn-txt">Resend Link</span>
+                                                        </button>
+                                                    </form>
+                                                    @* Only for when the emailed link genuinely can't reach them — an
+                                                       Admin hands this one over in person or by phone instead. *@
+                                                    <form asp-controller="UserManagement" asp-action="IssueActivationFallbackPassword" method="post"
+                                                          class="um-issue-fallback-password-form"
+                                                          onsubmit="return confirm('Issue a one-time temporary password for @user.FullName? Hand it over in person or by phone only — never by email. Any pending activation link stops working.');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@user.Id" />
+                                                        <button type="submit" class="um-btn-secondary-action"
+                                                                title="Issue Temporary Password" aria-label="Issue a temporary password to @user.FullName">
+                                                            <span class="material-symbols-outlined" aria-hidden="true">password</span>
+                                                            <span class="um-btn-txt">Temp Password</span>
+                                                        </button>
+                                                    </form>
+                                                </span>
                                             }
                                             @if (DTIOneLink.Controllers.UserManagementController.CanSetActive(currentRole, currentDepartment, currentUserId, user.Id, user.Role, user.Department))
                                             {

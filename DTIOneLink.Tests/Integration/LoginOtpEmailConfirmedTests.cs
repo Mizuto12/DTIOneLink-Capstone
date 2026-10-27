@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DTIOneLink.Tests.Integration;
@@ -50,7 +51,8 @@ public class LoginOtpEmailConfirmedTests : IDisposable
         httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new FakeSessionFeature());
 
-        var controller = new AccountController(NullLogger<AccountController>.Instance, db, codes, sessions, new FakeWebHostEnvironment())
+        var controller = new AccountController(NullLogger<AccountController>.Instance, db, codes, sessions,
+            new FakeWebHostEnvironment(), new ConfigurationBuilder().Build())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(httpContext, new FakeTempDataProvider()),

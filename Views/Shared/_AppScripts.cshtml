@@ -1,0 +1,10 @@
+@* Shared bottom-of-body scripts for the three authenticated layouts.
+   text-format.js was previously missing from EmployeeLayout only — no
+   Employee view used data-capitalize yet, so it was a silent gap rather
+   than a visible bug, but any Employee page that adds one later now gets
+   it for free instead of needing to remember this script tag. *@
+<script src="~/js/adminlayout.js" asp-append-version="true"></script>
+<script src="~/js/text-format.js" asp-append-version="true"></script>
+<script src="~/lib/microsoft-signalr/signalr.min.js" asp-append-version="true"></script>
+<script src="~/js/live-refresh.js" asp-append-version="true"></script>
+<script src="~/js/offline-sync.js" asp-append-version="true"></script>

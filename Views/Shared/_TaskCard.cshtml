@@ -1,0 +1,18 @@
+@model DTIOneLink.Models.TaskCardViewModel
+@{
+    var cardClass = "kanban-card"
+        + (Model.IsOverdue ? " is-overdue" : "")
+        + (Model.IsAtRisk ? " is-at-risk" : "");
+}
+@if (Model.IsRealLink)
+{
+    <a class="@cardClass" href="@Model.Url" data-division="@Model.DivisionValue" aria-label="Open @Model.TaskName">
+        <partial name="_TaskCardBody" model="Model" />
+    </a>
+}
+else
+{
+    <div class="@cardClass" data-href="@Model.Url" data-division="@Model.DivisionValue" role="link" tabindex="0" aria-label="Open @Model.TaskName">
+        <partial name="_TaskCardBody" model="Model" />
+    </div>
+}

@@ -20,7 +20,13 @@
     </div>
 }
 
-<!-- ── Create Task Modal (native dialog, opened by tasks-create.js) ── -->
+<!-- ── Create Task Modal (native dialog, opened by tasks-create.js) ──
+     Laid out like composing an email: To (who it's sent to) / Subject
+     (task name) / a toolbar for the metadata that doesn't have an email
+     equivalent (priority, due date, repeat, review) / Body (description) /
+     Subtasks kept visually secondary beneath the body, same as an
+     attachments strip would be, since breaking the directive down isn't
+     the primary thing being composed. -->
 <dialog class="modal-overlay" id="createTaskModal" aria-labelledby="modalTitle"
         data-close-url="@Url.Action("Index", "Tasks")">
     <div class="modal">
@@ -48,113 +54,105 @@
             <form id="taskForm" asp-controller="Tasks" asp-action="Create" method="post" novalidate>
                 @Html.AntiForgeryToken()
 
-                <!-- Task Name -->
-                <div class="field-group">
-                    <label class="field-label" for="taskName">TASK NAME <span class="required-star">*</span></label>
-                    <input class="pill-input" id="taskName" asp-for="TaskName" type="text" data-capitalize="title"
-                           placeholder="e.g. MSME Development Seminar Coordination" />
-                    <span asp-validation-for="TaskName" class="field-error"></span>
-                </div>
-
-                <!-- Description -->
-                <div class="field-group">
-                    <label class="field-label" for="description">TASK DESCRIPTION <span class="required-star">*</span></label>
-                    <textarea class="pill-input" id="description" asp-for="Description" rows="4" data-capitalize="sentence"
-                              placeholder="Describe the task scope, objectives, and any specific requirements..."></textarea>
-                    <span asp-validation-for="Description" class="field-error"></span>
-                </div>
-
-                               @if (ViewBag.CanCreateMainTask == true)
+                @if (ViewBag.CanCreateMainTask == true)
                 {
-                    <!-- Task Type -->
-                    <div class="field-group">
-                        <label class="field-label" for="taskType">
-                            TASK TYPE <span class="required-star">*</span>
-                            <button type="button" class="help-hint" aria-label="What's the difference between task types?" aria-expanded="false"
-                                    data-help-text="Direct Admin Task: one Admin does the work themselves. Department Directive: sent to a division, whose Admin then assigns it to employees. Whole Office: every active staff member gets and submits their own copy.">?</button>
-                        </label>
-                        <div class="select-wrap">
-                            <select class="pill-input" id="taskType" asp-for="TaskType">
-                                <option value="">Select Task Type</option>
-                                <option value="direct-admin">Direct Admin Task — assigned straight to one Admin</option>
-                                <option value="department-directive">Department Directive — sent to the department</option>
-                                <option value="whole-office">Whole Office — everyone submits (e.g. Monthly CSF Report)</option>
-                            </select>
-                            <span class="material-symbols-outlined select-icon">expand_more</span>
-                        </div>
-                        <span asp-validation-for="TaskType" class="field-error"></span>
-                        <p class="modal-sub" style="margin-top:4px;">
-                            Only a Department Directive breaks into subtasks — a Direct Admin Task or Whole Office task is worked and submitted directly by its assignee(s), so there's nothing to break down.
-                        </p>
-                        <p class="modal-sub" id="wholeOfficeNote" style="margin-top:4px;" hidden>
-                            Every active Division Chief and employee (@ViewBag.WholeOfficeCount people) gets this task and submits their own. You review each submission.
-                        </p>
-                    </div>
+                    <!-- "To" — Task Type (how it's sent) and who it goes to,
+                         merged into one compose-to-row: Task Type stays
+                         visible always (it's the mode switch), the "Send To"
+                         picker underneath hides for Whole Office, which has
+                         no single recipient. Target Department is no longer
+                         its own choice — picking who to send to already
+                         determines the department (ValidateResponsibleAdminAsync
+                         still checks this server-side either way), so there's
+                         one decision here instead of two. -->
+                    <div class="compose-to-row" id="composeToRow">
+                        <span class="compose-to-row__label">To</span>
+                        <div class="compose-to-row__fields">
+                            <div class="field-group">
+                                <span class="field-label">
+                                    TASK TYPE <span class="required-star">*</span>
+                                    <button type="button" class="help-hint" aria-label="What's the difference between task types?" aria-expanded="false"
+                                            data-help-text="Direct Admin Task: one Admin does the work themselves. Department Directive: sent to a division, whose Admin then assigns it to employees. Whole Office: every active staff member gets and submits their own copy.">?</button>
+                                </span>
+                                <div class="priority-row" id="taskTypeRow">
+                                    <label class="priority-option">
+                                        <input type="radio" asp-for="TaskType" value="direct-admin" />
+                                        <div class="priority-pill">
+                                            <span class="material-symbols-outlined">badge</span>
+                                            <span>Direct Admin</span>
+                                        </div>
+                                    </label>
+                                    <label class="priority-option">
+                                        <input type="radio" asp-for="TaskType" value="department-directive" />
+                                        <div class="priority-pill">
+                                            <span class="material-symbols-outlined">folder</span>
+                                            <span>Department</span>
+                                        </div>
+                                    </label>
+                                    <label class="priority-option">
+                                        <input type="radio" asp-for="TaskType" value="whole-office" />
+                                        <div class="priority-pill">
+                                            <span class="material-symbols-outlined">groups</span>
+                                            <span>Whole Office</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                <span asp-validation-for="TaskType" class="field-error"></span>
+                                <p class="modal-sub" style="margin-top:4px;">
+                                    Only a Department Directive breaks into subtasks — a Direct Admin Task or Whole Office task is worked and submitted directly by its assignee(s), so there's nothing to break down.
+                                </p>
+                            </div>
 
-                    <!-- Target Department -->
-                    <div class="field-group" id="targetDepartmentGroup">
-                        <label class="field-label" for="targetDepartment">TARGET DEPARTMENT <span class="required-star">*</span></label>
-                        <div class="select-wrap">
-                            <select class="pill-input" id="targetDepartment" asp-for="OwningDepartment">
-                                <option value="">Select Department</option>
-                                @foreach (var dept in (string[])ViewBag.TargetDepartments)
-                                {
-                                    <option value="@dept">@dept</option>
-                                }
-                            </select>
-                            <span class="material-symbols-outlined select-icon">expand_more</span>
-                        </div>
-                        <span asp-validation-for="OwningDepartment" class="field-error"></span>
-                    </div>
+                            <!-- Send To — every active Admin, each already labeled
+                                 with their own department. Choosing one is now the
+                                 only step; OwningDepartment (hidden) is filled in
+                                 from whichever Admin is picked. -->
+                            <div class="field-group" id="sendToGroup">
+                                <label class="field-label" for="responsibleAdmin">SEND TO <span class="required-star">*</span></label>
+                                <div class="select-wrap">
+                                    <select class="pill-input" id="responsibleAdmin" asp-for="ResponsibleAdminUserId">
+                                        <option value="">Select who this goes to</option>
+                                        @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
+                                        {
+                                            <option value="@admin.Id" data-department="@admin.Department">@admin.FullName (@admin.Department)</option>
+                                        }
+                                    </select>
+                                    <span class="material-symbols-outlined select-icon">expand_more</span>
+                                </div>
+                                <span asp-validation-for="ResponsibleAdminUserId" class="field-error"></span>
+                                <input type="hidden" id="targetDepartment" asp-for="OwningDepartment" />
+                            </div>
 
-                    <!-- Responsible Admin — every active Admin is rendered here once,
-                         tagged with their own department; responsible-admin-lookup.js
-                         hides the ones that don't match the selected Target Department.
-                         No network call, so the list can never come back empty due to a
-                         failed fetch. -->
-                    <div class="field-group" id="responsibleAdminGroup">
-                        <label class="field-label" for="responsibleAdmin">RESPONSIBLE ADMIN <span class="required-star">*</span></label>
-                        <div class="select-wrap">
-                            <select class="pill-input" id="responsibleAdmin" asp-for="ResponsibleAdminUserId" data-responsible-admin-select>
-                                <option value="">Select Responsible Admin</option>
-                                @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
-                                {
-                                    <option value="@admin.Id" data-department="@admin.Department">@admin.FullName (@admin.Department)</option>
-                                }
-                            </select>
-                            <span class="material-symbols-outlined select-icon">expand_more</span>
+                            <p class="modal-sub" id="wholeOfficeNote" hidden>
+                                Every active Division Chief and employee (@ViewBag.WholeOfficeCount people) gets this task and submits their own. You review each submission.
+                            </p>
                         </div>
-                        <p class="modal-sub" style="margin-top:4px;">Division Chief or Supervisor for the selected department.</p>
-                        <span asp-validation-for="ResponsibleAdminUserId" class="field-error"></span>
-                    </div>
-
-                    <!-- Subtasks — optional, plain-text breakdown. Only applies to a
-                         Department Directive; hidden via JS for Direct Admin Task and
-                         ignored server-side if submitted anyway (see TasksController). -->
-                    <div class="field-group" id="subtasksFieldGroup">
-                        <label class="field-label">SUBTASKS</label>
-                        <div id="subtaskList" class="subtask-list"></div>
-                        <button type="button" id="addSubtaskBtn" class="subtask-add-btn">
-                            <span class="material-symbols-outlined">edit_note</span>
-                            Add subtask
-                        </button>
-                        <p class="modal-sub" style="margin-top:4px;">Optional — break this down now, or add subtasks later.</p>
                     </div>
                 }
 
-                                             <!-- Due Date -->
-                <div class="field-row">
-                    <div class="field-group">
+                <!-- "Subject" — the task name. -->
+                <div class="compose-subject">
+                    <label class="compose-subject__label" for="taskName">Subject</label>
+                    <div style="flex:1; min-width:0;">
+                        <input class="compose-subject__input" id="taskName" asp-for="TaskName" type="text" data-capitalize="title"
+                               autocomplete="off" placeholder="e.g. MSME Development Seminar Coordination" />
+                        <span asp-validation-for="TaskName" class="field-error"></span>
+                    </div>
+                </div>
+
+                <!-- Toolbar — the metadata an email has no equivalent for. -->
+                <div class="compose-toolbar">
+                    <div class="compose-toolbar__item">
                         <label class="field-label" for="dueDate">DUE DATE <span class="required-star">*</span></label>
-                        <div class="select-wrap">
+                        <div class="select-wrap compose-toolbar__due">
                             <input class="pill-input" id="dueDate" asp-for="DueDate" type="datetime-local" />
                             <span class="material-symbols-outlined select-icon">calendar_today</span>
                         </div>
                         <span asp-validation-for="DueDate" class="field-error"></span>
                     </div>
-                    <div class="field-group">
+                    <div class="compose-toolbar__item">
                         <label class="field-label" for="recurrence">REPEAT</label>
-                        <div class="select-wrap">
+                        <div class="select-wrap compose-toolbar__repeat">
                             <select class="pill-input" id="recurrence" asp-for="Recurrence">
                                 <option value="">Does Not Repeat</option>
                                 <option value="daily">Every Day</option>
@@ -164,53 +162,72 @@
                             </select>
                             <span class="material-symbols-outlined select-icon">expand_more</span>
                         </div>
-                        <p class="modal-sub" style="margin-top:4px;">On each due date, a new copy is sent out the same way as this task.</p>
                         <span asp-validation-for="Recurrence" class="field-error"></span>
                     </div>
-                </div>
-                <!-- Priority -->
-                <div class="field-group">
-                    <span class="field-label">PRIORITY LEVEL <span class="required-star">*</span></span>
-                    <div class="priority-row">
-                        <label class="priority-option">
-                            <input type="radio" asp-for="Priority" value="low" />
-                            <div class="priority-pill">
-                                <span class="priority-dot dot-low"></span>
-                                <span>Low</span>
-                            </div>
-                        </label>
-                        <label class="priority-option">
-                            <input type="radio" asp-for="Priority" value="medium" checked />
-                            <div class="priority-pill">
-                                <span class="priority-dot dot-medium"></span>
-                                <span>Medium</span>
-                            </div>
-                        </label>
-                        <label class="priority-option">
-                            <input type="radio" asp-for="Priority" value="high" />
-                            <div class="priority-pill">
-                                <span class="priority-dot dot-high"></span>
-                                <span>High</span>
-                            </div>
-                        </label>
+                    <div class="compose-toolbar__item compose-toolbar__item--grow">
+                        <span class="field-label">PRIORITY LEVEL <span class="required-star">*</span></span>
+                        <div class="priority-row">
+                            <label class="priority-option">
+                                <input type="radio" asp-for="Priority" value="low" />
+                                <div class="priority-pill">
+                                    <span class="priority-dot dot-low"></span>
+                                    <span>Low</span>
+                                </div>
+                            </label>
+                            <label class="priority-option">
+                                <input type="radio" asp-for="Priority" value="medium" checked />
+                                <div class="priority-pill">
+                                    <span class="priority-dot dot-medium"></span>
+                                    <span>Medium</span>
+                                </div>
+                            </label>
+                            <label class="priority-option">
+                                <input type="radio" asp-for="Priority" value="high" />
+                                <div class="priority-pill">
+                                    <span class="priority-dot dot-high"></span>
+                                    <span>High</span>
+                                </div>
+                            </label>
+                        </div>
+                        <span asp-validation-for="Priority" class="field-error"></span>
                     </div>
-                    <span asp-validation-for="Priority" class="field-error"></span>
-                </div>
-
-                <!-- Requires Review -->
-                <div class="field-row">
-                    <div class="field-group">
-                        <label class="field-label" style="display:flex; align-items:center; gap:8px; font-weight:normal;">
+                    <div class="compose-toolbar__item">
+                        <span class="field-label">&nbsp;</span>
+                        <label class="compose-toolbar__review">
                             <input type="checkbox" asp-for="RequiresReview" />
                             Requires review before completion
                         </label>
-                        <p class="modal-sub" style="margin-top:4px;">
-                            Unchecked: submitting proof completes the task directly — no Admin decision needed.
-                            Can't be changed after the task is created.
-                        </p>
                     </div>
                 </div>
+                <p class="modal-sub">
+                    Unchecked: submitting proof completes the task directly — no Admin decision needed.
+                    Can't be changed after the task is created.
+                </p>
 
+                <!-- "Body" — the task description. -->
+                <div class="field-group">
+                    <label class="field-label" for="description">TASK DESCRIPTION <span class="required-star">*</span></label>
+                    <textarea class="compose-body__input" id="description" asp-for="Description" rows="5" data-capitalize="sentence"
+                              placeholder="Describe the task scope, objectives, and any specific requirements..."></textarea>
+                    <span asp-validation-for="Description" class="field-error"></span>
+                </div>
+
+                @if (ViewBag.CanCreateMainTask == true)
+                {
+                    <!-- Subtasks — optional, plain-text breakdown. Only applies to a
+                         Department Directive; hidden via JS for Direct Admin Task and
+                         ignored server-side if submitted anyway (see TasksController).
+                         Kept visually secondary to the Subject/Body above it. -->
+                    <div class="compose-subtasks" id="subtasksFieldGroup">
+                        <p class="compose-subtasks__label">SUBTASKS (OPTIONAL)</p>
+                        <div id="subtaskList" class="subtask-list"></div>
+                        <button type="button" id="addSubtaskBtn" class="subtask-add-btn">
+                            <span class="material-symbols-outlined">edit_note</span>
+                            Add subtask
+                        </button>
+                        <p class="modal-sub" style="margin-top:8px;">Optional — break this down now, or add subtasks later.</p>
+                    </div>
+                }
             </form>
         </div>
 
@@ -229,31 +246,47 @@
 
 @section Scripts {
     <script src="~/js/help-hint.js" asp-append-version="true"></script>
-    <script src="~/js/responsible-admin-lookup.js" asp-append-version="true"></script>
     <script src="~/js/subtask-list.js" asp-append-version="true"></script>
     <script src="~/js/tasks-create.js" asp-append-version="true"></script>
     <script>
         (function () {
-            var taskTypeSelect = document.getElementById('taskType');
+            var typeRadios = document.querySelectorAll('input[name="TaskType"]');
             var subtasksGroup = document.getElementById('subtasksFieldGroup');
-            if (!taskTypeSelect || !subtasksGroup) return;
+            if (!typeRadios.length || !subtasksGroup) return;
 
-            // Direct Admin: no subtasks. Whole Office: no division, Responsible
-            // Admin or subtasks (it goes to everyone).
-            function syncSubtaskVisibility() {
-                var type = taskTypeSelect.value;
+            function selectedType() {
+                var checked = document.querySelector('input[name="TaskType"]:checked');
+                return checked ? checked.value : '';
+            }
+
+            // Direct Admin: no subtasks. Whole Office: no "Send To" picker or
+            // subtasks (it goes to everyone) — the note explains that instead.
+            function syncVisibility() {
+                var type = selectedType();
                 var wholeOffice = type === 'whole-office';
                 subtasksGroup.style.display = type === 'direct-admin' || wholeOffice ? 'none' : '';
-                ['targetDepartmentGroup', 'responsibleAdminGroup'].forEach(function (id) {
-                    var group = document.getElementById(id);
-                    if (group) group.style.display = wholeOffice ? 'none' : '';
-                });
+                var sendToGroup = document.getElementById('sendToGroup');
+                if (sendToGroup) sendToGroup.style.display = wholeOffice ? 'none' : '';
                 var note = document.getElementById('wholeOfficeNote');
                 if (note) note.hidden = !wholeOffice;
             }
 
-            taskTypeSelect.addEventListener('change', syncSubtaskVisibility);
-            syncSubtaskVisibility();
+            typeRadios.forEach(function (radio) {
+                radio.addEventListener('change', syncVisibility);
+            });
+            syncVisibility();
+
+            // OwningDepartment is inferred from whichever Admin is picked —
+            // there's no separate department choice anymore (each option
+            // already carries its own department as data-department).
+            var adminSelect = document.getElementById('responsibleAdmin');
+            var departmentField = document.getElementById('targetDepartment');
+            if (adminSelect && departmentField) {
+                adminSelect.addEventListener('change', function () {
+                    var chosen = adminSelect.options[adminSelect.selectedIndex];
+                    departmentField.value = chosen ? (chosen.getAttribute('data-department') || '') : '';
+                });
+            }
         })();
     </script>
 }

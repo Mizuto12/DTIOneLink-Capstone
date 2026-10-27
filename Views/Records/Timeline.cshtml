@@ -9,46 +9,57 @@
     ViewData["Title"] = "Record History";
 }
 
-<div style="max-width:680px; margin:0 auto; padding:24px 16px;">
-    <p style="color:var(--secondary,#5a6b8c); margin-bottom:4px;">@Model.Code</p>
-    <h1 style="margin-top:0;">@Model.Title</h1>
-    <p>Current status: <strong>@Model.CurrentStatus</strong></p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/records.css" asp-append-version="true">
+}
 
-    @if (!Model.Events.Any())
-    {
-        <p style="color:var(--secondary,#5a6b8c);">
-            No disposal-status changes yet — this record hasn't moved off Retention since this
-            history started being tracked. Status changes made before this feature shipped are
-            not shown here; nothing is backfilled or guessed at.
-        </p>
-    }
-    else
-    {
-        <ol style="list-style:none; padding:0; margin:16px 0 0; border-left:2px solid var(--outline-variant,#dfe3ea);">
-            @foreach (var ev in Model.Events)
-            {
-                <li style="padding:0 0 18px 16px; position:relative;">
-                    <span style="position:absolute; left:-7px; top:2px; width:12px; height:12px; border-radius:50%; background:var(--primary,#1c3f94);"></span>
-                    <div style="font-weight:600;">@ev.EventType</div>
-                    <div style="color:var(--secondary,#5a6b8c); font-size:13px;">
-                        @ev.OccurredAt.ToString("MMM d, yyyy, h:mm tt") UTC
-                        @if (!string.IsNullOrWhiteSpace(ev.ActorName))
+<main class="records-page">
+
+    <section class="card">
+        <p class="page-eyebrow">@Model.Code</p>
+        <h2 class="card-title">@Model.Title</h2>
+        <p class="card-desc">Current status: <span class="badge">@Model.CurrentStatus</span></p>
+    </section>
+
+    <section class="card">
+        @if (!Model.Events.Any())
+        {
+            <p class="card-desc">
+                No disposal-status changes yet — this record hasn't moved off Retention since this
+                history started being tracked. Status changes made before this feature shipped are
+                not shown here; nothing is backfilled or guessed at.
+            </p>
+        }
+        else
+        {
+            <ol class="timeline">
+                @foreach (var ev in Model.Events)
+                {
+                    <li class="timeline-item">
+                        <span class="timeline-item__dot" aria-hidden="true"></span>
+                        <div class="timeline-item__type">@ev.EventType</div>
+                        <div class="timeline-item__meta">
+                            @DTIOneLink.Services.TimeZoneHelper.ToPhilippineTime(ev.OccurredAt).ToString("MMM d, yyyy, h:mm tt")
+                            @if (!string.IsNullOrWhiteSpace(ev.ActorName))
+                            {
+                                <text> — by @ev.ActorName</text>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(ev.AuthorityReference))
                         {
-                            <text> — by @ev.ActorName</text>
+                            <div class="timeline-item__detail">Authority reference: @ev.AuthorityReference</div>
                         }
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(ev.AuthorityReference))
-                    {
-                        <div style="font-size:14px; margin-top:4px;">Authority reference: @ev.AuthorityReference</div>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(ev.Notes))
-                    {
-                        <div style="font-size:14px; margin-top:4px; color:var(--secondary,#5a6b8c);">@ev.Notes</div>
-                    }
-                </li>
-            }
-        </ol>
-    }
+                        @if (!string.IsNullOrWhiteSpace(ev.Notes))
+                        {
+                            <div class="timeline-item__detail timeline-item__detail--muted">@ev.Notes</div>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+    </section>
 
-    <a href="/Records" class="btn-cancel" style="display:inline-block; margin-top:12px;">Back to Records</a>
-</div>
+    <a asp-controller="Records" asp-action="Index" class="btn btn-outline page-back">
+        <span class="material-symbols-outlined">arrow_back</span> Back to Records
+    </a>
+</main>

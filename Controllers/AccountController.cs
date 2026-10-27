@@ -60,17 +60,31 @@ namespace DTIOneLink.Controllers
         private readonly OneTimeCodeService _codes;
         private readonly AccountSessionService _sessions;
         private readonly IWebHostEnvironment _env;
+        private readonly IConfiguration _config;
         private readonly PasswordHasher<User> _passwordHasher = new();
 
         public AccountController(ILogger<AccountController> logger, AppDbContext db, OneTimeCodeService codes,
-            AccountSessionService sessions, IWebHostEnvironment env)
+            AccountSessionService sessions, IWebHostEnvironment env, IConfiguration config)
         {
             _logger = logger;
             _db = db;
             _codes = codes;
             _sessions = sessions;
             _env = env;
+            _config = config;
         }
+
+        // Skips the login-OTP step on this machine only: requires BOTH
+        // ASPNETCORE_ENVIRONMENT=Development (never true once deployed —
+        // Program.cs sets Production there) AND an explicit opt-in flag, so
+        // a normal "dotnet run" locally still exercises the real OTP email
+        // flow unless you turn this on yourself (user secrets or an
+        // environment variable — never committed to appsettings.json).
+        // The password is still checked in full either way; this only
+        // skips the second factor, the same carve-out already made for the
+        // "Testing" environment below and for a trusted device.
+        private bool SkipOtpForLocalDev() =>
+            _env.IsDevelopment() && _config.GetValue<bool>("SkipOtpInDevelopment");
 
         // ═════════════════════════════ Login ═════════════════════════════
 
@@ -197,6 +211,13 @@ namespace DTIOneLink.Controllers
             // environment (Development, Production) always goes through the
             // OTP step below.
             if (_env.IsEnvironment("Testing"))
+            {
+                SignIn(user);
+                return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
+            }
+
+            // Local-dev-only carve-out — see SkipOtpForLocalDev().
+            if (SkipOtpForLocalDev())
             {
                 SignIn(user);
                 return Redirect(returnUrl ?? RoleHomeUrl(user.Role));

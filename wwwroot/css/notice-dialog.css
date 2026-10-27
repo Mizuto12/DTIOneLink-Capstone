@@ -20,10 +20,19 @@
   overflow-y: auto;
   color: var(--on-surface);
   text-align: center;
+  animation: noticeDialogEnter 0.18s ease;
 }
 .notice-dialog[data-tone="danger"] { --tone: #b42318; --tone-soft: #fee4e2; }
 .notice-dialog::backdrop { background: rgba(15, 23, 42, 0.45); }
 .notice-dialog [hidden] { display: none !important; }
+
+@keyframes noticeDialogEnter {
+  from { transform: scale(0.95); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice-dialog { animation: none; }
+}
 
 .notice-icon {
   display: inline-grid;
@@ -137,6 +146,17 @@
   color: var(--on-primary, #fff);
 }
 .notice-dialog[data-tone="danger"] .btn-primary { background: var(--tone); }
+
+/* Every page's own .btn classes already get a focus-visible ring where
+   that page defines one; this dialog is also used standalone on pages
+   that don't (Tasks, Employee — see the comment above), so it needs its
+   own, matching the same outline/primary pattern used elsewhere (e.g.
+   tasks-create.css's .modal). */
+.notice-dialog button:focus-visible,
+.notice-dialog a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 @media (max-width: 480px) {
   .notice-actions { flex-direction: column-reverse; }

@@ -1,0 +1,43 @@
+@model DTIOneLink.Models.TaskCardViewModel
+@{
+    string PriorityBadgeClass(string? priority) => (priority ?? "").Trim().ToLowerInvariant() switch
+    {
+        "high" => "priority-badge priority-badge--high",
+        "medium" => "priority-badge priority-badge--medium",
+        _ => "priority-badge priority-badge--low"
+    };
+}
+<div class="kanban-card__top">
+    @if (!string.IsNullOrWhiteSpace(Model.DivisionTag))
+    {
+        <span class="kanban-card__tag" title="@Model.DivisionTag">@Model.DivisionTag</span>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.Priority))
+    {
+        <span class="@PriorityBadgeClass(Model.Priority)">@Model.Priority</span>
+    }
+    @if (Model.IsOverdue)
+    {
+        <span class="kanban-tag kanban-tag--overdue">Overdue</span>
+    }
+    else if (Model.IsAtRisk)
+    {
+        <span class="kanban-tag kanban-tag--risk">At risk</span>
+    }
+</div>
+<h5 class="kanban-card__title">@Model.TaskName</h5>
+@if (!string.IsNullOrWhiteSpace(Model.Description))
+{
+    <p class="kanban-card__desc">@Model.Description</p>
+}
+<div class="kanban-card__progress" title="@Model.Progress% done">
+    <div class="kanban-card__bar"><div style="width:@Model.Progress%;"></div></div>
+    <span>@Model.Progress%</span>
+</div>
+<div class="kanban-card__footer">
+    <span class="kanban-card__person">
+        <span class="avatar-badge avatar-badge--sm">@Model.AssigneeInitials</span>
+        <span class="kanban-card__assignee-name">@Model.AssigneeName</span>
+    </span>
+    <span class="kanban-card__due @(Model.IsOverdue ? "is-late" : "")">@Model.DueText</span>
+</div>

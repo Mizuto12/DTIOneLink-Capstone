@@ -7,50 +7,54 @@
     var taskCode = $"TASK-{Model.Id:D4}";
 }
 
-<div style="max-width:720px; margin:0 auto; padding:24px 16px;">
-    <p style="color:var(--secondary,#5a6b8c); margin-bottom:4px;">@taskCode</p>
-    <h1 style="margin-top:0;">@Model.TaskName</h1>
-    <p style="color:var(--secondary,#5a6b8c);">
+@section Styles {
+    <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
+}
+
+<main class="checklist-page">
+    <p class="checklist-page__code">@taskCode</p>
+    <h1 class="checklist-page__title">@Model.TaskName</h1>
+    <p class="modal-sub">
         Each assignee has their own checklist. The moment someone has any items, those items —
         not the progress slider — decide their progress. Up to @DTIOneLink.Services.TaskWorkflow.MaxChecklistItemsPerAssignment items per person.
     </p>
 
     @if (TempData["SuccessMessage"] is string success)
     {
-        <p role="status" style="color:#0f7a3d;">@success</p>
+        <p role="status" class="checklist-page__notice checklist-page__notice--ok">@success</p>
     }
     @if (TempData["ErrorMessage"] is string error)
     {
-        <p role="alert" style="color:#b3261e;">@error</p>
+        <p role="alert" class="checklist-page__notice checklist-page__notice--error">@error</p>
     }
 
     @if (!Model.Assignments.Any())
     {
-        <p>Nobody is assigned to this task yet — assign someone first, then come back here to add their checklist.</p>
+        <p class="modal-sub">Nobody is assigned to this task yet — assign someone first, then come back here to add their checklist.</p>
     }
 
     @foreach (var assignment in Model.Assignments.OrderBy(a => a.User?.FullName))
     {
-        <section style="border:1px solid var(--outline-variant,#dfe3ea); border-radius:12px; padding:16px; margin:16px 0;">
-            <h2 style="margin:0 0 4px; font-size:17px;">@(assignment.User?.FullName ?? "Unknown")</h2>
-            <p style="margin:0 0 12px; color:var(--secondary,#5a6b8c); font-size:14px;">
+        <section class="checklist-page__assignee">
+            <h2 class="checklist-page__assignee-name">@(assignment.User?.FullName ?? "Unknown")</h2>
+            <p class="modal-sub">
                 Progress: @assignment.Progress% · @DTIOneLink.Services.TaskWorkflow.DisplayLabel(assignment.Status, Model.DueDate)
             </p>
 
             @if (assignment.ChecklistItems.Any())
             {
-                <ul style="list-style:none; padding:0; margin:0 0 12px;">
+                <ul class="checklist-page__list">
                     @foreach (var item in assignment.ChecklistItems.OrderBy(i => i.Id))
                     {
-                        <li style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--outline-variant,#eef1f6);">
-                            <span style="flex:1; @(item.IsDone ? "text-decoration:line-through; color:var(--secondary,#5a6b8c);" : "")">
-                                @item.Label <span style="color:var(--secondary,#5a6b8c); font-size:12px;">(weight @item.Weight)</span>
+                        <li class="checklist-page__item @(item.IsDone ? "is-done" : "")">
+                            <span class="checklist-page__item-label">
+                                @item.Label <span class="checklist-page__item-weight">(weight @item.Weight)</span>
                             </span>
-                            <span style="font-size:12px; color:var(--secondary,#5a6b8c);">@(item.IsDone ? "Done" : "Not done")</span>
+                            <span class="checklist-page__item-state">@(item.IsDone ? "Done" : "Not done")</span>
                             <form asp-controller="Tasks" asp-action="RemoveChecklistItem" asp-route-id="@item.Id" method="post"
-                                  onsubmit="return confirm('Remove this checklist item?');" style="margin:0;">
+                                  onsubmit="return confirm('Remove this checklist item?');">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn-cancel" style="padding:2px 10px; font-size:12px;">Remove</button>
+                                <button type="submit" class="btn-cancel checklist-page__remove-btn">Remove</button>
                             </form>
                         </li>
                     }
@@ -58,22 +62,22 @@
             }
             else
             {
-                <p style="color:var(--secondary,#5a6b8c); font-size:14px;">No checklist items yet — progress is still set by the slider.</p>
+                <p class="modal-sub">No checklist items yet — progress is still set by the slider.</p>
             }
 
             @if (assignment.ChecklistItems.Count < DTIOneLink.Services.TaskWorkflow.MaxChecklistItemsPerAssignment)
             {
-                <form asp-controller="Tasks" asp-action="AddChecklistItem" method="post" style="display:flex; gap:8px;">
+                <form asp-controller="Tasks" asp-action="AddChecklistItem" method="post" class="checklist-page__add-form">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="taskAssignmentId" value="@assignment.Id" />
-                    <input type="text" name="label" maxlength="200" required placeholder="e.g. Draft the report" class="pill-input" style="flex:1;" />
-                    <input type="number" name="weight" value="1" min="1" max="10" style="width:64px;" class="pill-input" title="Weight" />
-                    <button type="submit" class="btn-create" style="white-space:nowrap;">Add item</button>
+                    <input type="text" name="label" maxlength="200" required placeholder="e.g. Draft the report" class="pill-input" />
+                    <input type="number" name="weight" value="1" min="1" max="10" class="pill-input checklist-page__weight-input" title="Weight" />
+                    <button type="submit" class="btn-create">Add item</button>
                 </form>
             }
         </section>
     }
 
     <a asp-controller="Tasks" asp-action="@(Model.TaskLevel == DTIOneLink.Services.TaskLevels.Subtask && Model.ParentTaskId.HasValue ? "MainTaskDetails" : "Edit")"
-       asp-route-id="@(Model.ParentTaskId ?? Model.Id)" class="btn-cancel" style="display:inline-block; margin-top:12px;">Back to task</a>
-</div>
+       asp-route-id="@(Model.ParentTaskId ?? Model.Id)" class="btn-cancel checklist-page__back">Back to task</a>
+</main>

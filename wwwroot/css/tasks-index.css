@@ -3,20 +3,15 @@
    All Tailwind converted to plain CSS.
    ========================================================== */
 
+/* Only the two tokens below are actually local to this page (different
+   names than the shared tokens.css's --surface-container-lowest/-low, same
+   values) — everything else this file used to redeclare here was an exact,
+   value-for-value duplicate of tokens.css (loaded first via adminlayout.css
+   on every page this stylesheet is used on), so it's removed rather than
+   silently shadowed. */
 :root {
-    --primary:           #001e65;
-    --on-primary:        #ffffff;
-    --secondary:         #5c5f61;
-    --secondary-fixed:   #e0e3e6;
-    --surface-lowest:    #ffffff;
-    --surface-low:       #eff4ff;
-    --surface-container: #e5eeff;
-    --on-surface:        #0b1c30;
-    --outline-variant:   #c5c5d2;
-    --outline:           #757682;
-    --background:        #f8f9ff;
-    --font-display:      'Hanken Grotesk', sans-serif;
-    --font-ui:           'Inter', sans-serif;
+    --surface-lowest: #ffffff;
+    --surface-low:    #eff4ff;
 }
 
 .material-symbols-outlined {

@@ -265,6 +265,21 @@
     box-shadow: 0 0 0 2px var(--et-primary);
 }
 
+/* The native datetime-local control (Due Date) can't be fully restyled,
+   but its calendar-icon button can be recolored to match the app's
+   primary instead of sitting there in default browser grey/black. */
+input[type="datetime-local"].et-input {
+    color-scheme: light;
+}
+input[type="datetime-local"].et-input::-webkit-calendar-picker-indicator {
+    filter: invert(10%) sepia(53%) saturate(3000%) hue-rotate(215deg) brightness(70%);
+    border-radius: 4px;
+    cursor: pointer;
+}
+input[type="datetime-local"].et-input::-webkit-calendar-picker-indicator:hover {
+    background-color: var(--et-surface-container-low);
+}
+
 /* Task Name carries this task's identity — it reads as the page's own
    heading-weight field, not just another row in the grid. */
 .edit-task .et-input-lg {

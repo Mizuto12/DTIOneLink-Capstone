@@ -4,44 +4,53 @@
    Topbar/sidebar styling stays in adminlayout.css — not duplicated here.
    ========================================================================== */
 
+/* These --dash-* names exist because every rule below already references
+   them (changing ~50+ call sites across this file would be the risky part
+   of a token cleanup) — but each one that has a real equivalent in the
+   shared tokens.css (loaded first via adminlayout.css on every page this
+   file is used on) now reads from it instead of hardcoding its own copy,
+   so the two can't silently drift apart again. The literal after the comma
+   is only the fallback for a page that somehow loads this file without
+   tokens.css. Anything below with no shared equivalent (fixed/tertiary/
+   yellow/radii) stays a literal — there's nothing to deduplicate against. */
 :root {
-  --dash-primary: #001e65;
-  --dash-primary-container: #1d357e;
+  --dash-primary: var(--primary, #001e65);
+  --dash-primary-container: var(--primary-container, #1d357e);
   --dash-primary-fixed: #dce1ff;
-  --dash-primary-fixed-dim: #b6c4ff;
-  --dash-on-primary: #ffffff;
+  --dash-primary-fixed-dim: var(--primary-fixed-dim, #b6c4ff);
+  --dash-on-primary: var(--on-primary, #ffffff);
   --dash-on-primary-fixed-variant: #2b428b;
 
-  --dash-secondary: #5c5f61;
-  --dash-secondary-fixed: #e0e3e6;
+  --dash-secondary: var(--secondary, #5c5f61);
+  --dash-secondary-fixed: var(--secondary-fixed, #e0e3e6);
   --dash-secondary-container: #e0e3e6;
 
   --dash-tertiary-fixed: #6bfe9c;
   --dash-on-tertiary-fixed: #00210c;
   --dash-on-tertiary-fixed-variant: #005228;
 
-  --dash-error: #ba1a1a;
+  --dash-error: var(--error, #ba1a1a);
   --dash-surface-variant: #d3e4fe;
-  --dash-surface-container: #e5eeff;
-  --dash-surface-container-low: #eff4ff;
-  --dash-surface-container-lowest: #ffffff;
-  --dash-outline-variant: #c5c5d2;
-  --dash-on-surface: #0b1c30;
+  --dash-surface-container: var(--surface-container, #e5eeff);
+  --dash-surface-container-low: var(--surface-container-low, #eff4ff);
+  --dash-surface-container-lowest: var(--surface-container-lowest, #ffffff);
+  --dash-outline-variant: var(--outline-variant, #c5c5d2);
+  --dash-on-surface: var(--on-surface, #0b1c30);
   --dash-white: #ffffff;
   --dash-yellow-400: #facc15;
 
   --dash-radius-xl: 0.75rem;
   --dash-radius-full: 9999px;
 
-  --dash-font-display: "Hanken Grotesk", sans-serif;
-  --dash-font-ui: "Inter", sans-serif;
+  --dash-font-display: var(--font-display, "Hanken Grotesk", sans-serif);
+  --dash-font-ui: var(--font-ui, "Inter", sans-serif);
 }
 
 /* ---- Additional tokens (from the Gantt / Kanban ledger markup) -------- */
 :root {
   --dash-on-primary-container: #8ca1f1;
   --dash-on-primary-fixed: #00164f;
-  --dash-on-secondary-container: #626567;
+  --dash-on-secondary-container: var(--on-secondary-container, #626567);
   --dash-error-container: #ffdad6;
   --dash-on-error-container: #93000a;
 }
@@ -931,114 +940,11 @@
   color: var(--dash-secondary);
 }
 
-.kanban-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 12px;
-  border-left: 3px solid transparent;
-  background: var(--dash-white);
-  box-shadow: 0 1px 2px rgba(0, 30, 101, 0.08);
-  cursor: pointer;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-.kanban-card:hover { box-shadow: 0 6px 16px rgba(0, 30, 101, 0.12); transform: translateY(-1px); }
-.kanban-card:focus-visible { outline: 2px solid var(--dash-primary); outline-offset: 2px; }
-.kanban-card.is-overdue { border-left-color: #dc2626; }
-
-.kanban-card__top { display: flex; flex-wrap: wrap; gap: 6px; }
-.kanban-card__top:empty { display: none; }
-
-.kanban-tag {
-  padding: 2px 8px;
-  border-radius: var(--dash-radius-full);
-  font-family: var(--dash-font-ui);
-  font-size: 11px;
-  font-weight: 700;
-}
-.kanban-tag--overdue { background: #fee4e2; color: #b42318; }
-.kanban-tag--risk    { background: #fff1d6; color: #92400e; }
-
-.kanban-card__title {
-  margin: 0;
-  font-family: var(--dash-font-display);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--dash-on-surface);
-}
-
-.kanban-card__desc {
-  margin: 0;
-  font-family: var(--dash-font-ui);
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--dash-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.kanban-card__progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--dash-font-ui);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dash-secondary);
-}
-.kanban-card__bar {
-  flex: 1;
-  height: 6px;
-  overflow: hidden;
-  border-radius: var(--dash-radius-full);
-  background: var(--dash-surface-container);
-}
-.kanban-card__bar > div {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--tone);
-}
-
-.kanban-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-family: var(--dash-font-ui);
-  font-size: 12px;
-}
-
-.kanban-card__person { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.kanban-card__assignee-name {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--dash-secondary);
-}
-.kanban-card__due { flex-shrink: 0; color: var(--dash-secondary); }
-.kanban-card__due.is-late { color: #b42318; font-weight: 700; }
-
-.avatar-badge--sm {
-  width: 26px;
-  height: 26px;
-  flex-shrink: 0;
-  font-size: 10px;
-}
-
-.priority-badge {
-  padding: 2px 8px;
-  border-radius: var(--dash-radius-full);
-  font-family: var(--dash-font-ui);
-  font-size: 11px;
-  font-weight: 700;
-}
-.priority-badge--high   { background: #fee4e2; color: #b42318; }
-.priority-badge--medium { background: #fef3c7; color: #92400e; }
-.priority-badge--low    { background: var(--dash-surface-container); color: var(--dash-on-primary-fixed-variant); }
+/* .kanban-card / .kanban-tag / .kanban-card__* / .avatar-badge--sm /
+   .priority-badge* moved to wwwroot/css/task-card.css — shared with
+   SuperAdmin's board (formerly .sa-kcard, a separate hand-maintained
+   duplicate of this exact component). Loaded via Views/Dashboard/
+   AdminDashboard.cshtml's own Styles section alongside this file. */
 
 /* ---- Right sidebar widgets --------------------------------------------- */
 .widget {

@@ -36,12 +36,20 @@
         </button>
         <div class="filter-dropdown" id="filterDropdown">
           <button class="filter-option active" data-value="All Categories">All Categories</button>
-          <button class="filter-option" data-value="Task History">Task History</button>
-          <button class="filter-option" data-value="Archived">Archived</button>
-          <button class="filter-option" data-value="Disposed">Disposed</button>
-          <button class="filter-option" data-value="Retained">Retained</button>
-          <button class="filter-option" data-value="Active Tasks">Active Tasks</button>
-          <button class="filter-option" data-value="Completed Tasks">Completed Tasks</button>
+          @* Grouped by domain — reports.js reads every .filter-option by class
+             regardless of nesting, so grouping wrappers don't affect it. *@
+          <div class="filter-group" role="group" aria-label="Tasks">
+            <p class="filter-group-label">Tasks</p>
+            <button class="filter-option" data-value="Task History">Task History</button>
+            <button class="filter-option" data-value="Active Tasks">Active Tasks</button>
+            <button class="filter-option" data-value="Completed Tasks">Completed Tasks</button>
+          </div>
+          <div class="filter-group" role="group" aria-label="Records">
+            <p class="filter-group-label">Records</p>
+            <button class="filter-option" data-value="Archived">Archived</button>
+            <button class="filter-option" data-value="Disposed">Disposed</button>
+            <button class="filter-option" data-value="Retained">Retained</button>
+          </div>
         </div>
       </div>
 

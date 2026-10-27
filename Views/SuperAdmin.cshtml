@@ -66,6 +66,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/superadmin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/task-card.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/completion-trend.css" asp-append-version="true" />
 }
 
@@ -136,37 +137,21 @@
                             <div class="sa-col__cards">
                                 @foreach (var i in items)
                                 {
-                                    <a class="sa-kcard @(i.IsOverdue ? "is-overdue" : i.IsAtRisk ? "is-at-risk" : "")" data-division="@i.Division"
-                                       asp-controller="Dashboard" asp-action="Details" asp-route-id="@i.TaskId">
-                                        <div class="sa-kcard__top">
-                                            @if (!string.IsNullOrEmpty(ShortDivision(i.Division)))
-                                            {
-                                                <span class="sa-tag" title="@i.Division">@ShortDivision(i.Division)</span>
-                                            }
-                                            @if (i.IsOverdue)
-                                            {
-                                                <span class="sa-kcard__status sa-kcard__status--overdue">Overdue</span>
-                                            }
-                                            else if (i.IsAtRisk)
-                                            {
-                                                <span class="sa-kcard__status sa-kcard__status--risk">At risk</span>
-                                            }
-                                        </div>
-                                        <p class="sa-kcard__name">@i.TaskName</p>
-                                        <div class="sa-kcard__progress" title="@i.Progress% done">
-                                            <div class="sa-kcard__bar"><div style="width:@(i.Progress)%;"></div></div>
-                                            <span>@i.Progress%</span>
-                                        </div>
-                                        <div class="sa-kcard__foot">
-                                            <span class="sa-person">
-                                                <span class="sa-avatar">@Initials(i.AssigneeName)</span>
-                                                <span class="sa-person__name">@i.AssigneeName</span>
-                                            </span>
-                                            <span class="sa-due @(i.IsOverdue ? "is-late" : "")">
-                                                @(col.Status == TaskWorkflow.Completed ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(i.DueDate) : DueText(i.DueDate))
-                                            </span>
-                                        </div>
-                                    </a>
+                                    var cardModel = new DTIOneLink.Models.TaskCardViewModel
+                                    {
+                                        Url = Url.Action("Details", "Dashboard", new { id = i.TaskId }) ?? "#",
+                                        IsRealLink = true,
+                                        TaskName = i.TaskName,
+                                        DivisionTag = string.IsNullOrEmpty(ShortDivision(i.Division)) ? null : ShortDivision(i.Division),
+                                        DivisionValue = i.Division,
+                                        IsOverdue = i.IsOverdue,
+                                        IsAtRisk = i.IsAtRisk,
+                                        Progress = i.Progress,
+                                        AssigneeInitials = Initials(i.AssigneeName),
+                                        AssigneeName = i.AssigneeName,
+                                        DueText = col.Status == TaskWorkflow.Completed ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(i.DueDate) : DueText(i.DueDate)
+                                    };
+                                    <partial name="_TaskCard" model="cardModel" />
                                 }
                                 <p class="sa-col__empty" hidden="@(items.Any() ? "hidden" : null)">Nothing here</p>
                                 <button type="button" class="sa-show-more" hidden>Show more</button>
@@ -178,36 +163,50 @@
         </div>
 
         <div class="sa-hero__rail">
-            <!-- ── Status distribution ───────────────────────────── -->
+            <!-- ── Status distribution ───────────────────────────────
+                 Collapsed by default, same pattern as Overdue Tasks/Employee
+                 Workload below: its counts already appear in the summary
+                 cards strip at the top of the page, so showing the full
+                 bar+legend breakdown by default was pure repetition of
+                 numbers the viewer already saw once. The preview line keeps
+                 the one number that strip doesn't show (completion rate)
+                 visible at a glance either way. -->
             <section class="sa-section sa-section--rail">
                 <div class="sa-section__head">
                     <h4 class="sa-section__title">Status Distribution</h4>
-                    @if (Model.TotalTasks > 0)
+                    <button type="button" class="sa-collapse-toggle" aria-expanded="false" aria-controls="saStatusBody" data-collapse-label="Status Distribution">
+                        <span class="material-symbols-outlined">expand_more</span>
+                    </button>
+                </div>
+                @if (Model.TotalTasks > 0)
+                {
+                    <div class="sa-section__preview">
+                        <span>Completion rate: <strong>@Model.OverallEfficiencyPercent%</strong> · @Model.InProgressCount in progress · @Model.OverdueCount overdue</span>
+                    </div>
+                }
+                <div id="saStatusBody" hidden>
+                    @if (Model.TotalTasks == 0)
                     {
-                        <span class="sa-pill">Completion rate: <strong>@Model.OverallEfficiencyPercent%</strong></span>
+                        <div class="sa-empty-state">No tasks recorded yet.</div>
+                    }
+                    else
+                    {
+                        <div class="sa-status-bar">
+                            <div class="sa-seg sa-tone-todo" style="width:@(Model.TodoPercent)%;" title="To Do @Model.TodoPercent%"></div>
+                            <div class="sa-seg sa-tone-progress" style="width:@(Model.InProgressPercent)%;" title="In Progress @Model.InProgressPercent%"></div>
+                            <div class="sa-seg sa-tone-review" style="width:@(Model.ForReviewPercent)%;" title="For Review @Model.ForReviewPercent%"></div>
+                            <div class="sa-seg sa-tone-returned" style="width:@(Model.ReturnedForCorrectionPercent)%;" title="Returned @Model.ReturnedForCorrectionPercent%"></div>
+                            <div class="sa-seg sa-tone-completed" style="width:@(Model.CompletedPercent)%;" title="Completed @Model.CompletedPercent%"></div>
+                        </div>
+                        <div class="sa-status-legend sa-status-legend--stacked">
+                            <span><span class="sa-dot sa-tone-todo"></span>To Do <strong>@Model.TodoCount</strong> (@Model.TodoPercent%)</span>
+                            <span><span class="sa-dot sa-tone-progress"></span>In Progress <strong>@Model.InProgressCount</strong> (@Model.InProgressPercent%)</span>
+                            <span><span class="sa-dot sa-tone-review"></span>For Review <strong>@Model.ForReviewCount</strong> (@Model.ForReviewPercent%)</span>
+                            <span><span class="sa-dot sa-tone-returned"></span>Returned <strong>@Model.ReturnedForCorrectionCount</strong> (@Model.ReturnedForCorrectionPercent%)</span>
+                            <span><span class="sa-dot sa-tone-completed"></span>Completed <strong>@Model.CompletedCount</strong> (@Model.CompletedPercent%)</span>
+                        </div>
                     }
                 </div>
-                @if (Model.TotalTasks == 0)
-                {
-                    <div class="sa-empty-state">No tasks recorded yet.</div>
-                }
-                else
-                {
-                    <div class="sa-status-bar">
-                        <div class="sa-seg sa-tone-todo" style="width:@(Model.TodoPercent)%;" title="To Do @Model.TodoPercent%"></div>
-                        <div class="sa-seg sa-tone-progress" style="width:@(Model.InProgressPercent)%;" title="In Progress @Model.InProgressPercent%"></div>
-                        <div class="sa-seg sa-tone-review" style="width:@(Model.ForReviewPercent)%;" title="For Review @Model.ForReviewPercent%"></div>
-                        <div class="sa-seg sa-tone-returned" style="width:@(Model.ReturnedForCorrectionPercent)%;" title="Returned @Model.ReturnedForCorrectionPercent%"></div>
-                        <div class="sa-seg sa-tone-completed" style="width:@(Model.CompletedPercent)%;" title="Completed @Model.CompletedPercent%"></div>
-                    </div>
-                    <div class="sa-status-legend sa-status-legend--stacked">
-                        <span><span class="sa-dot sa-tone-todo"></span>To Do <strong>@Model.TodoCount</strong> (@Model.TodoPercent%)</span>
-                        <span><span class="sa-dot sa-tone-progress"></span>In Progress <strong>@Model.InProgressCount</strong> (@Model.InProgressPercent%)</span>
-                        <span><span class="sa-dot sa-tone-review"></span>For Review <strong>@Model.ForReviewCount</strong> (@Model.ForReviewPercent%)</span>
-                        <span><span class="sa-dot sa-tone-returned"></span>Returned <strong>@Model.ReturnedForCorrectionCount</strong> (@Model.ReturnedForCorrectionPercent%)</span>
-                        <span><span class="sa-dot sa-tone-completed"></span>Completed <strong>@Model.CompletedCount</strong> (@Model.CompletedPercent%)</span>
-                    </div>
-                }
             </section>
 
             <!-- ── Completion trend: weekly approved-submission counts, office-wide.

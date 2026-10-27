@@ -1,0 +1,102 @@
+@using DTIOneLink.Helpers
+@*
+    Shared topbar: menu button, offline-status pill, notification bell, and
+    profile dropdown. Identical across all three authenticated layouts —
+    extracted after a real bug (the "Online" pill staying visible forever)
+    had to be fixed in three copies of this markup. Shares the including
+    layout's Context/ViewContext, so session reads below work the same as
+    if this were written inline.
+*@
+@{
+    var sessFullName = Context.Session.GetString("FullName");
+    var sessEmail    = Context.Session.GetString("UserEmail");
+    var sessDept     = Context.Session.GetString("UserDepartment");
+
+    var displayName  = string.IsNullOrWhiteSpace(sessFullName) ? "USER" : sessFullName.ToUpper();
+    // Same initials as the User Management list (e.g. "Bong Palitao" -> "BP").
+    var userInitials = DisplayHelpers.GetInitials(sessFullName, Context.Session.GetString("LoginUsername"));
+}
+<!-- ══════════════ TOPBAR ══════════════ -->
+<header class="topbar">
+    <div class="topbar-left">
+        @* Phones and tablets: opens the sidebar as a slide-out menu (adminlayout.js). *@
+        <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+    </div>
+
+    <div class="topbar-right">
+        <!-- Offline sync status — updated by offline-sync.js; hidden while online with nothing queued. -->
+        <span class="offline-status-pill is-online" id="offlineStatusPill" hidden>Online</span>
+
+        <!-- Notification bell -->
+        <div class="notif-wrapper">
+            <button class="notif-btn" id="notifBtn" data-user-id="@Context.Session.GetInt32("UserId")" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="notif-badge hidden" id="notifBadge">0</span>
+            </button>
+
+            <div class="notif-panel" id="notifPanel" role="menu" aria-label="Notifications">
+                <div class="notif-panel-header">
+                    <span>Notifications</span>
+                    <button class="notif-mark-all" id="markAllRead" type="button">Mark all read</button>
+                </div>
+                <div class="notif-panel-body" id="notifList" aria-busy="true">
+                    @* Placeholders until adminlayout.js loads the real list. *@
+                    <div class="notif-item is-skeleton" aria-hidden="true">
+                        <span class="skeleton skeleton-circle"></span>
+                        <div class="notif-body"><span class="skeleton"></span><span class="skeleton skeleton-short"></span></div>
+                    </div>
+                    <div class="notif-item is-skeleton" aria-hidden="true">
+                        <span class="skeleton skeleton-circle"></span>
+                        <div class="notif-body"><span class="skeleton"></span><span class="skeleton skeleton-short"></span></div>
+                    </div>
+                    <div class="notif-item is-skeleton" aria-hidden="true">
+                        <span class="skeleton skeleton-circle"></span>
+                        <div class="notif-body"><span class="skeleton"></span><span class="skeleton skeleton-short"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="topbar-divider"></div>
+        <div class="topbar-user" id="profileTrigger">
+            <div class="user-info">
+                <span class="user-name">@displayName</span>
+            </div>
+            <div class="avatar-wrapper">
+                <div class="user-avatar">
+                    <span class="avatar-initials">@userInitials</span>
+                </div>
+                <span class="material-symbols-outlined profile-chevron">expand_more</span>
+            </div>
+        </div>
+
+        <div class="profile-dropdown" id="profileDropdown">
+            <div class="profile-dropdown-header">
+                <div class="user-avatar user-avatar-lg">
+                    <span class="avatar-initials">@userInitials</span>
+                </div>
+                <div>
+                    <div class="profile-dd-name">@displayName</div>
+                    @if (!string.IsNullOrWhiteSpace(sessEmail))
+                    {
+                        <div class="profile-dd-email">@sessEmail</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(sessDept))
+                    {
+                        <div class="profile-dd-dept">@sessDept</div>
+                    }
+                </div>
+            </div>
+            <div class="profile-dropdown-divider"></div>
+            <form asp-controller="Account" asp-action="Logout" method="post" style="margin:4px;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="profile-logout-btn">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span>Sign Out</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</header>

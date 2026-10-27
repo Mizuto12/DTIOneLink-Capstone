@@ -2,37 +2,7 @@
    DTI Laguna OneLink — Admin Shell
    ========================================================== */
 
-:root {
-    --primary:                  #001e65;
-    --primary-container:        #1d357e;
-    --primary-fixed-dim:        #b6c4ff;
-    --on-primary:               #ffffff;
-    --secondary:                #5c5f61;
-    --secondary-fixed:          #e0e3e6;
-    --on-secondary-container:   #626567;
-    --surface:                  #f8f9ff;
-    --surface-container:        #e5eeff;
-    --surface-container-low:    #eff4ff;
-    --surface-container-lowest: #ffffff;
-    --background:               #f8f9ff;
-    --on-background:            #0b1c30;
-    --on-surface:               #0b1c30;
-    --on-surface-variant:       #444651;
-    --error:                    #ba1a1a;
-    --outline-variant:          #c5c5d2;
-    --outline:                  #757682;
-
-    --sidebar-w:    260px;
-    --topbar-h:     80px;
-    --pad-x:        24px;
-    --stack-sm:     8px;
-    --gutter-md:    16px;
-
-    --font-display: 'Hanken Grotesk', sans-serif;
-    --font-ui:      'Inter', sans-serif;
-    --font-anton:   'Anton', sans-serif;
-    --font-sauce:   'Open Sauce Sans', 'Segoe UI', sans-serif;
-}
+@import url("tokens.css");
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 /* The reset above removes the margin browsers use to center a modal <dialog>. */
@@ -248,6 +218,10 @@ body {
 
 .notif-panel.open {
   display: flex;
+  animation: profileSlideIn 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notif-panel.open { animation: none; }
 }
 
 .notif-panel-header {
@@ -464,6 +438,9 @@ body {
 @keyframes profileSlideIn {
     from { opacity: 0; transform: translateY(-8px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .profile-dropdown.open { animation: none; }
 }
 
 .profile-dropdown-header { display: flex; align-items: center; gap: 12px; padding: 12px 12px 16px; }

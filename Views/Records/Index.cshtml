@@ -30,7 +30,7 @@
           <p class="card-desc" id="entry-form-desc">Fill in the details to archive a new document</p>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div class="entry-toggle-badge-group">
         <span class="badge" id="entry-form-badge">NEW RECORD</span>
         <span class="material-symbols-outlined entry-toggle-chevron" aria-hidden="true">expand_more</span>
       </div>
@@ -73,8 +73,12 @@
         <p class="section-label">Classification &amp; Retention</p>
         <div class="form-grid">
           <div class="field">
-            <label for="period">Period Covered</label>
-            <input id="period" name="period" type="text" placeholder="e.g. 2023-2024" required>
+            <label for="period-from">Period Covered</label>
+            <div class="date-range">
+              <input id="period-from" name="periodFrom" type="date" aria-label="Period Covered start date" required>
+              <span class="date-range-sep">to</span>
+              <input id="period-to" name="periodTo" type="date" aria-label="Period Covered end date" required>
+            </div>
           </div>
           <div class="field">
             <label for="filing">Filing System</label>
@@ -115,9 +119,9 @@
             <label for="retention">
               Retention Period
               <button type="button" class="help-hint" aria-label="What does Retention Period mean?" aria-expanded="false"
-                      data-help-text="How long this record must be kept before it's due for disposal, e.g. &quot;5 Years&quot; or &quot;Permanent&quot;. The office will be reminded when this period is ending.">?</button>
+                      data-help-text="The date this record is due for disposal. The office will be reminded as that date approaches.">?</button>
             </label>
-            <input id="retention" name="retention" type="text" placeholder="e.g. 5 Years" required>
+            <input id="retention" name="retention" type="date" required>
           </div>
         </div>
 

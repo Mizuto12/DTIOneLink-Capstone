@@ -154,11 +154,13 @@ function retentionTone(data) {
   return state === 'ended' ? 'retention-over' : state === 'due-soon' ? 'retention-soon' : 'retention-ok';
 }
 
-// Retention's free-text wording can run very long ("5 years after contract
-// of winner had been terminated/settled, others are disposed after 1
-// year") — truncate with an ellipsis and keep the full text on hover
-// (the same pattern truncHtml already uses for Title/Location) instead of
-// letting it blow out the row height.
+// Records logged before the date picker was added can still hold a long
+// free-text duration ("5 years after contract of winner had been
+// terminated/settled, others are disposed after 1 year") — truncate with
+// an ellipsis and keep the full text on hover (the same pattern truncHtml
+// already uses for Title/Location) instead of letting it blow out the row
+// height. New records just show their due date, which is short enough to
+// never truncate in practice.
 function retentionCellHtml(data) {
   const tone = retentionTone(data);
   const icon = tone === 'retention-over' ? 'warning' : tone === 'retention-soon' ? 'schedule' : 'check_circle';
@@ -375,8 +377,21 @@ function beginEdit(recordId) {
   form.elements['code'].value = data.code;
   form.elements['title'].value = data.title;
   form.elements['location'].value = data.location;
-  form.elements['period'].value = data.periodCovered;
-  form.elements['retention'].value = data.retentionPeriod;
+  // Older records can hold free-text Period Covered ("2023-2024") that the
+  // date pickers can't show — only a "yyyy-MM-dd to yyyy-MM-dd" range (what
+  // the pickers themselves produce) is recognized; anything else leaves
+  // both pickers blank, forcing the dates to be set once on edit.
+  const periodMatch = /^(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})$/.exec(data.periodCovered);
+  form.elements['periodFrom'].value = periodMatch ? periodMatch[1] : '';
+  form.elements['periodTo'].value = periodMatch ? periodMatch[2] : '';
+  // retentionPeriod is the due date itself for records logged with the date
+  // picker (yyyy-MM-dd, what the <input type="date"> needs). Older records
+  // still hold a free-text duration there ("5 Years") that the date input
+  // can't show, so fall back to the already-computed due date — editing an
+  // old record now also moves it onto the date-picker scheme.
+  form.elements['retention'].value = /^\d{4}-\d{2}-\d{2}$/.test(data.retentionPeriod)
+    ? data.retentionPeriod
+    : (data.retentionDueDate || '');
   setChoiceField(form.elements['medium'], data.medium);
   setChoiceField(form.elements['filing'], data.filingSystem);
   setChoiceField(form.elements['access'], data.accessControl);
@@ -640,6 +655,14 @@ form.addEventListener('submit', async (e) => {
     form.reportValidity();
     return;
   }
+  const periodFromInput = form.elements['periodFrom'];
+  const periodToInput = form.elements['periodTo'];
+  if (periodToInput.value < periodFromInput.value) {
+    periodToInput.setCustomValidity('The end date must be on or after the start date.');
+    periodToInput.reportValidity();
+    periodToInput.addEventListener('input', () => periodToInput.setCustomValidity(''), { once: true });
+    return;
+  }
 
   const btn = form.querySelector('button[type="submit"]');
   const originalContent = btn.innerHTML;
@@ -655,7 +678,7 @@ form.addEventListener('submit', async (e) => {
     title: formData.get('title').trim(),
     medium: chosenValue(form.elements['medium']),
     location: formData.get('location').trim(),
-    periodCovered: formData.get('period').trim(),
+    periodCovered: `${periodFromInput.value} to ${periodToInput.value}`,
     filingSystem: chosenValue(form.elements['filing']),
     accessControl: chosenValue(form.elements['access']),
     retentionPeriod: formData.get('retention').trim()

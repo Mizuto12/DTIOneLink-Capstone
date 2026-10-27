@@ -253,6 +253,18 @@
 
 .records-page .field input::placeholder { color: #a8adba; }
 
+.records-page .field .date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.records-page .field .date-range input { width: auto; flex: 1 1 0; min-width: 0; }
+.records-page .field .date-range-sep {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  flex: 0 0 auto;
+}
+
 .records-page .field input:focus,
 .records-page .field select:focus {
   border-color: var(--primary);
@@ -308,6 +320,11 @@
   color: var(--on-surface-variant);
   transition: transform 0.15s ease;
   flex-shrink: 0;
+}
+.records-page .entry-toggle-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .records-page .entry-form-body[hidden] { display: none; }
 .records-page .entry-toggle[aria-expanded="true"] .entry-toggle-chevron { transform: rotate(180deg); }
@@ -460,7 +477,9 @@
 .records-page th.access-col    { width: 118px; }
 .records-page th.retention-col { width: 230px; }
 .records-page th.status-col    { width: 180px; }
-.records-page th.actions-col   { width: 96px; }
+/* Room for 3 32px icon buttons + 2x4px gaps (104px) plus the cell's own
+   12px side padding (24px) = 128px. 96px clipped/overlapped them. */
+.records-page th.actions-col   { width: 132px; }
 
 /* Title and Location can run long; this clips with an ellipsis and keeps
    the full text on hover (title attribute) instead of forcing the column
@@ -1023,4 +1042,103 @@
   .records-page .notice-actions .btn-outline { flex: none; width: 100%; }
   .records-page .dialog-actions { flex-direction: column-reverse; }
   .records-page .dialog-actions .btn { justify-content: center; }
+}
+
+/* ---------- File Browser ("Digital locker") ---------- */
+.records-page .file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.records-page .file-card {
+  position: relative;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  background: var(--surface);
+}
+
+.records-page .file-card__lock {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 20px;
+}
+.records-page .file-card__lock.is-locked { color: var(--error); }
+.records-page .file-card__lock:not(.is-locked) { color: var(--tertiary-container); }
+
+.records-page .file-card__code {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+
+.records-page .file-card__title {
+  font-weight: 600;
+  margin: 2px 0 8px;
+  padding-right: 24px;
+}
+
+.records-page .file-card__name {
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.records-page .file-card__meta {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  margin-top: 4px;
+}
+
+.records-page .file-card__download {
+  margin-top: 12px;
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+/* ---------- Record disposition timeline ---------- */
+.records-page .timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 20px;
+  border-left: 2px solid var(--outline-variant);
+}
+
+.records-page .timeline-item {
+  position: relative;
+  padding-bottom: 20px;
+}
+.records-page .timeline-item:last-child { padding-bottom: 0; }
+
+.records-page .timeline-item__dot {
+  position: absolute;
+  left: -25px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.records-page .timeline-item__type {
+  font-weight: 600;
+}
+
+.records-page .timeline-item__meta {
+  color: var(--on-surface-variant);
+  font-size: 13px;
+}
+
+.records-page .timeline-item__detail {
+  font-size: 14px;
+  margin-top: 4px;
+}
+.records-page .timeline-item__detail--muted { color: var(--on-surface-variant); }
+
+.records-page .page-back { margin-top: 20px; }
+
+.records-page .page-eyebrow {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  margin: 0 0 4px;
 }

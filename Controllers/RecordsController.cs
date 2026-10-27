@@ -41,7 +41,6 @@ namespace DTIOneLink.Controllers
         private const int MaxTitleLength = 500;
         private const int MaxLocationLength = 255;
         private const int MaxPeriodCoveredLength = 100;
-        private const int MaxRetentionPeriodLength = 100;
 
         private const string GenericSaveError = "Unable to save the record. Please contact the administrator.";
         private const string GenericLoadError = "Unable to load records. Please contact the administrator.";
@@ -710,7 +709,7 @@ WHERE ").Append(VisibilityClause(user));
         private sealed record RecordInsertResult(RecordInsertStatus Status, RecordRow? Saved, string? ErrorMessage);
 
         private sealed record ValidatedFields(
-            string Code, string Title, string Location, string PeriodCovered, string RetentionPeriod,
+            string Code, string Title, string Location, string PeriodCovered, DateTime RetentionDueDate,
             string Medium, string FilingSystem, string AccessControl);
 
         // Shared by TryInsertRecord and TryUpdateRecord — the same field
@@ -722,16 +721,25 @@ WHERE ").Append(VisibilityClause(user));
             var title = entry.Title?.Trim() ?? "";
             var location = entry.Location?.Trim() ?? "";
             var periodCovered = entry.PeriodCovered?.Trim() ?? "";
-            var retentionPeriod = entry.RetentionPeriod?.Trim() ?? "";
+            var retentionPeriodRaw = entry.RetentionPeriod?.Trim() ?? "";
 
             var textError = CheckText(code, "Code", MaxCodeLength)
                 ?? CheckText(title, "Title of Record", MaxTitleLength)
                 ?? CheckText(location, "Location", MaxLocationLength)
-                ?? CheckText(periodCovered, "Period Covered", MaxPeriodCoveredLength)
-                ?? CheckText(retentionPeriod, "Retention Period", MaxRetentionPeriodLength);
+                ?? CheckText(periodCovered, "Period Covered", MaxPeriodCoveredLength);
             if (textError != null)
             {
                 return (null, textError);
+            }
+
+            // The Retention Period field is now a date picker: the browser
+            // sends "yyyy-MM-dd". TryParse (not TryParseExact) also accepts
+            // whatever date text a re-imported masterlist Excel file carries,
+            // since that file's cell holds exactly what was exported here.
+            if (!DateTime.TryParse(retentionPeriodRaw, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var retentionDueDate))
+            {
+                return (null, "Please choose a valid Retention Due Date.");
             }
 
             var medium = NormalizeChoice(entry.Medium, Media);
@@ -752,7 +760,7 @@ WHERE ").Append(VisibilityClause(user));
                 return (null, "Please choose or type an Access Control.");
             }
 
-            return (new ValidatedFields(code, title, location, periodCovered, retentionPeriod, medium, filingSystem, accessControl), null);
+            return (new ValidatedFields(code, title, location, periodCovered, retentionDueDate.Date, medium, filingSystem, accessControl), null);
         }
 
         // The actual validation-and-insert logic behind Save, extracted so
@@ -766,12 +774,16 @@ WHERE ").Append(VisibilityClause(user));
             {
                 return new RecordInsertResult(RecordInsertStatus.BadRequest, null, validationError);
             }
-            var (code, title, location, periodCovered, retentionPeriod, medium, filingSystem, accessControl) =
-                (validated.Code, validated.Title, validated.Location, validated.PeriodCovered, validated.RetentionPeriod,
+            var (code, title, location, periodCovered, retentionDueDate, medium, filingSystem, accessControl) =
+                (validated.Code, validated.Title, validated.Location, validated.PeriodCovered, validated.RetentionDueDate,
                  validated.Medium, validated.FilingSystem, validated.AccessControl);
 
             var recordDate = PhilippineToday();
-            var retentionDueDate = RetentionPeriodParser.TryComputeDueDate(recordDate, periodCovered, retentionPeriod);
+            // Stored in the (legacy, still NOT NULL) RetentionPeriod text
+            // column so it keeps showing in older code paths that read that
+            // column directly (exports, filters, LegacyRecordsSource) — the
+            // date itself is now the single source of truth, not a duration.
+            var retentionPeriod = retentionDueDate.ToString("yyyy-MM-dd");
             const string recordStatus = "Retention";
 
             try
@@ -824,7 +836,7 @@ WHERE ").Append(VisibilityClause(user));
                         cmd.Parameters.Add("@OwningDepartment", SqlDbType.NVarChar, 50).Value = (object?)user.Department ?? DBNull.Value;
                         cmd.Parameters.Add("@RecordStatus", SqlDbType.NVarChar, 20).Value = recordStatus;
                         cmd.Parameters.Add("@RecordDate", SqlDbType.Date).Value = recordDate;
-                        cmd.Parameters.Add("@RetentionDueDate", SqlDbType.Date).Value = (object?)retentionDueDate ?? DBNull.Value;
+                        cmd.Parameters.Add("@RetentionDueDate", SqlDbType.Date).Value = retentionDueDate;
                     }
 
                     newId = (int)cmd.ExecuteScalar();
@@ -932,9 +944,10 @@ WHERE ").Append(VisibilityClause(user));
             {
                 return BadRequest(new { message = validationError });
             }
-            var (code, title, location, periodCovered, retentionPeriod, medium, filingSystem, accessControl) =
-                (validated.Code, validated.Title, validated.Location, validated.PeriodCovered, validated.RetentionPeriod,
+            var (code, title, location, periodCovered, retentionDueDate, medium, filingSystem, accessControl) =
+                (validated.Code, validated.Title, validated.Location, validated.PeriodCovered, validated.RetentionDueDate,
                  validated.Medium, validated.FilingSystem, validated.AccessControl);
+            var retentionPeriod = retentionDueDate.ToString("yyyy-MM-dd");
 
             try
             {
@@ -946,7 +959,7 @@ WHERE ").Append(VisibilityClause(user));
                 {
                     return NotFound(new { message = "Record not found." });
                 }
-                var (createdByUserId, recordDate, _) = state.Value;
+                var (createdByUserId, _, _) = state.Value;
 
                 if (!user.CanManage && createdByUserId != user.UserId)
                 {
@@ -955,9 +968,6 @@ WHERE ").Append(VisibilityClause(user));
 
                 var hasSystemColumns = HasSystemColumns(conn);
                 var hasApproval = HasApprovalColumns(conn);
-                var retentionDueDate = hasSystemColumns
-                    ? RetentionPeriodParser.TryComputeDueDate(recordDate ?? PhilippineToday(), periodCovered, retentionPeriod)
-                    : (DateTime?)null;
 
                 var setClauses = new List<string>
                 {
@@ -987,7 +997,7 @@ WHERE ").Append(VisibilityClause(user));
                 cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = entry.RecordId;
                 if (hasSystemColumns)
                 {
-                    cmd.Parameters.Add("@RetentionDueDate", SqlDbType.Date).Value = (object?)retentionDueDate ?? DBNull.Value;
+                    cmd.Parameters.Add("@RetentionDueDate", SqlDbType.Date).Value = retentionDueDate;
                 }
 
                 var rows = cmd.ExecuteNonQuery();

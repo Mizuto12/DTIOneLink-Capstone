@@ -12,44 +12,63 @@
         bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024):0.#} MB" : $"{Math.Max(1, bytes / 1024)} KB";
 }
 
-<div style="max-width:960px; margin:0 auto; padding:24px 16px;">
-    <h1 style="margin-top:0;">Record Files</h1>
-    <p style="color:var(--secondary,#5a6b8c);">
-        Every document attached to a record you can see — the same visibility rule as the
-        Records table itself. A locked card means that record's Access Control is Confidential.
-    </p>
+@section Styles {
+    <link rel="stylesheet" href="~/css/records.css" asp-append-version="true">
+}
 
-    @if (!Model.Any())
-    {
-        <p style="color:var(--secondary,#5a6b8c);">No files have been attached to any record you can see yet.</p>
-    }
-    else
-    {
-        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px; margin-top:16px;">
-            @foreach (var item in Model)
-            {
-                <div style="border:1px solid var(--outline-variant,#dfe3ea); border-radius:12px; padding:16px; position:relative;">
-                    <span class="material-symbols-outlined" aria-hidden="true"
-                          style="position:absolute; top:12px; right:12px; color:@(item.IsLocked ? "#b3261e" : "#0f7a3d");"
-                          title="@(item.IsLocked ? "Confidential record" : "Not confidential")">
-                        @(item.IsLocked ? "lock" : "lock_open")
-                    </span>
-                    <div style="font-size:12px; color:var(--secondary,#5a6b8c);">@item.RecordCode</div>
-                    <div style="font-weight:600; margin:2px 0 8px; padding-right:24px;">@item.RecordTitle</div>
-                    <div style="font-size:14px; word-break:break-word;">@item.FileName</div>
-                    <div style="font-size:12px; color:var(--secondary,#5a6b8c); margin-top:4px;">
-                        @FormatSize(item.FileSizeBytes) · @item.UploadedAt.ToString("MMM d, yyyy")
-                        @if (!string.IsNullOrWhiteSpace(item.UploadedByName))
-                        {
-                            <text> · @item.UploadedByName</text>
-                        }
-                    </div>
-                    <a asp-controller="Records" asp-action="DownloadAttachment" asp-route-id="@item.AttachmentId"
-                       class="btn-cancel" style="display:inline-block; margin-top:10px; font-size:13px; padding:4px 12px;">Download</a>
-                </div>
-            }
+<main class="records-page">
+
+    <section class="card">
+        <div class="card-header-left">
+            <div class="icon-badge">
+                <span class="material-symbols-outlined">folder_open</span>
+            </div>
+            <div>
+                <h2 class="card-title">Record Files</h2>
+                <p class="card-desc">
+                    Every document attached to a record you can see — the same visibility rule as the
+                    Records table itself. A locked card means that record's Access Control is Confidential.
+                </p>
+            </div>
         </div>
-    }
+    </section>
 
-    <a href="/Records" class="btn-cancel" style="display:inline-block; margin-top:20px;">Back to Records</a>
-</div>
+    <section class="card">
+        @if (!Model.Any())
+        {
+            <p class="card-desc">No files have been attached to any record you can see yet.</p>
+        }
+        else
+        {
+            <div class="file-grid">
+                @foreach (var item in Model)
+                {
+                    <div class="file-card">
+                        <span class="material-symbols-outlined file-card__lock @(item.IsLocked ? "is-locked" : "")" aria-hidden="true"
+                              title="@(item.IsLocked ? "Confidential record" : "Not confidential")">
+                            @(item.IsLocked ? "lock" : "lock_open")
+                        </span>
+                        <div class="file-card__code">@item.RecordCode</div>
+                        <div class="file-card__title">@item.RecordTitle</div>
+                        <div class="file-card__name">@item.FileName</div>
+                        <div class="file-card__meta">
+                            @FormatSize(item.FileSizeBytes) · @item.UploadedAt.ToString("MMM d, yyyy")
+                            @if (!string.IsNullOrWhiteSpace(item.UploadedByName))
+                            {
+                                <text> · @item.UploadedByName</text>
+                            }
+                        </div>
+                        <a asp-controller="Records" asp-action="DownloadAttachment" asp-route-id="@item.AttachmentId"
+                           class="btn btn-outline file-card__download">
+                            <span class="material-symbols-outlined">download</span> Download
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <a asp-controller="Records" asp-action="Index" class="btn btn-outline page-back">
+        <span class="material-symbols-outlined">arrow_back</span> Back to Records
+    </a>
+</main>

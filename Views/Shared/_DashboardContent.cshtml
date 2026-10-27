@@ -62,13 +62,6 @@
 
     string TitleCase(string? s) => string.IsNullOrWhiteSpace(s) ? "" : char.ToUpper(s.Trim()[0]) + s.Trim().Substring(1).ToLowerInvariant();
 
-    string PriorityBadgeClass(string? priority) => (priority ?? "").Trim().ToLowerInvariant() switch
-    {
-        "high" => "priority-badge priority-badge--high",
-        "medium" => "priority-badge priority-badge--medium",
-        _ => "priority-badge priority-badge--low"
-    };
-
     string Initials(string? fullName)
     {
         if (string.IsNullOrWhiteSpace(fullName)) return "?";
@@ -295,41 +288,21 @@
                                 {
                                     var overdue = IsOverdue(task);
                                     var progress = ProgressOf(task);
-                                    <div class="kanban-card @(overdue ? "is-overdue" : "")" data-href="@Url.Action("Details", "Dashboard", new { id = task.Id })"
-                                         role="link" tabindex="0" aria-label="Open @task.TaskName">
-                                        <div class="kanban-card__top">
-                                            @if (!string.IsNullOrWhiteSpace(task.Priority))
-                                            {
-                                                <span class="@PriorityBadgeClass(task.Priority)">@TitleCase(task.Priority)</span>
-                                            }
-                                            @if (overdue)
-                                            {
-                                                <span class="kanban-tag kanban-tag--overdue">Overdue</span>
-                                            }
-                                            else if (IsAtRisk(task))
-                                            {
-                                                <span class="kanban-tag kanban-tag--risk">At risk</span>
-                                            }
-                                        </div>
-                                        <h5 class="kanban-card__title">@task.TaskName</h5>
-                                        @if (!string.IsNullOrWhiteSpace(task.Description))
-                                        {
-                                            <p class="kanban-card__desc">@task.Description</p>
-                                        }
-                                        <div class="kanban-card__progress" title="@progress% done">
-                                            <div class="kanban-card__bar"><div style="width:@progress%;"></div></div>
-                                            <span>@progress%</span>
-                                        </div>
-                                        <div class="kanban-card__footer">
-                                            <span class="kanban-card__person">
-                                                <span class="avatar-badge avatar-badge--sm">@Initials(AssigneeName(task))</span>
-                                                <span class="kanban-card__assignee-name">@(AssigneeName(task) ?? "Unassigned")</span>
-                                            </span>
-                                            <span class="kanban-card__due @(overdue ? "is-late" : "")">
-                                                @(IsCompleted(task) ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(task.DueDate) : DueText(task.DueDate))
-                                            </span>
-                                        </div>
-                                    </div>
+                                    var cardModel = new DTIOneLink.Models.TaskCardViewModel
+                                    {
+                                        Url = Url.Action("Details", "Dashboard", new { id = task.Id }) ?? "#",
+                                        IsRealLink = false, // dashboard.js treats every Gantt/Kanban row uniformly via [data-href]
+                                        TaskName = task.TaskName,
+                                        Description = task.Description,
+                                        Priority = string.IsNullOrWhiteSpace(task.Priority) ? null : TitleCase(task.Priority),
+                                        IsOverdue = overdue,
+                                        IsAtRisk = IsAtRisk(task),
+                                        Progress = progress,
+                                        AssigneeInitials = Initials(AssigneeName(task)),
+                                        AssigneeName = AssigneeName(task) ?? "Unassigned",
+                                        DueText = IsCompleted(task) ? "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(task.DueDate) : DueText(task.DueDate)
+                                    };
+                                    <partial name="_TaskCard" model="cardModel" />
                                 }
                             </div>
                         </div>

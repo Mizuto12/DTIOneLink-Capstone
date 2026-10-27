@@ -536,3 +536,43 @@
         });
     });
 })();
+
+// ── Row actions: "More" (Resend Link / Temp Password) ─────
+// One row can have several of these; event delegation means no per-row
+// wiring is needed. Opening one closes any other that's open, same
+// single-open-at-a-time behavior as the Completed column's "..." menu
+// elsewhere in the app.
+(function () {
+    document.addEventListener("DOMContentLoaded", function () {
+        function closeAll() {
+            document.querySelectorAll(".um-more-group:not([hidden])").forEach(function (group) {
+                group.hidden = true;
+            });
+            document.querySelectorAll('.um-btn-more[aria-expanded="true"]').forEach(function (btn) {
+                btn.setAttribute("aria-expanded", "false");
+            });
+        }
+
+        document.addEventListener("click", function (e) {
+            var btn = e.target.closest(".um-btn-more");
+            if (btn) {
+                var group = document.getElementById(btn.getAttribute("aria-controls"));
+                if (!group) return;
+                var wasOpen = !group.hidden;
+                closeAll();
+                if (!wasOpen) {
+                    group.hidden = false;
+                    btn.setAttribute("aria-expanded", "true");
+                }
+                return;
+            }
+            if (!e.target.closest(".um-more-group")) {
+                closeAll();
+            }
+        });
+
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeAll();
+        });
+    });
+})();

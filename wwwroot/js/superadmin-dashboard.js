@@ -87,7 +87,7 @@
 
             columns.forEach(function (col) {
                 var matching = [];
-                col.querySelectorAll(".sa-kcard").forEach(function (card) {
+                col.querySelectorAll(".kanban-card").forEach(function (card) {
                     if (!division || card.dataset.division === division) {
                         matching.push(card);
                     } else {

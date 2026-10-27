@@ -3,30 +3,26 @@
    All Tailwind converted to plain CSS.
    ========================================================== */
 
+/* Only tokens local to this page remain here: either a different name than
+   tokens.css's equivalent (--surface-lowest/-low vs its own
+   --surface-container-lowest/-low, same values) or a token tokens.css
+   doesn't define. The exact duplicates this file used to also redeclare
+   (--primary, --on-primary, --secondary, --secondary-fixed,
+   --surface-container, --on-surface, --on-surface-variant, --outline,
+   --outline-variant, --error, --background, --font-display, --font-ui) are
+   removed — tokens.css is already loaded first via adminlayout.css on
+   every page this stylesheet is used on. */
 :root {
-    --primary:              #001e65;
-    --on-primary:           #ffffff;
-    --primary-fixed:        #dce1ff;
-    --on-primary-fixed-var: #2b428b;
-    --secondary:            #5c5f61;
-    --secondary-fixed:      #e0e3e6;
-    --surface-lowest:       #ffffff;
-    --surface-low:          #eff4ff;
-    --surface-container:    #e5eeff;
+    --primary-fixed:          #dce1ff;
+    --on-primary-fixed-var:   #2b428b;
+    --surface-lowest:         #ffffff;
+    --surface-low:            #eff4ff;
     --surface-container-high: #dce9ff;
-    --surface-dim:          #cbdbf5;
-    --on-surface:           #0b1c30;
-    --on-surface-variant:   #444651;
-    --outline:              #757682;
-    --outline-variant:      #c5c5d2;
-    --error:                #ba1a1a;
-    --error-container:      #ffdad6;
-    --on-error-container:   #93000a;
-    --tertiary-fixed:       #6bfe9c;
-    --on-tertiary-container: #0fbe65;
-    --background:           #f8f9ff;
-    --font-display:         'Hanken Grotesk', sans-serif;
-    --font-ui:              'Inter', sans-serif;
+    --surface-dim:            #cbdbf5;
+    --error-container:        #ffdad6;
+    --on-error-container:     #93000a;
+    --tertiary-fixed:         #6bfe9c;
+    --on-tertiary-container:  #0fbe65;
 }
 
 .material-symbols-outlined {
@@ -557,6 +553,9 @@
 }
 
 .um-dot-pulse { animation: pulse 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+    .um-dot-pulse { animation: none; }
+}
 
 /* ── Pagination ──────────────────────────────────────────── */
 /* p-6 bg-surface-container-low/30 border-t border-surface-container
@@ -685,6 +684,52 @@
 }
 .um-btn-change:hover, .um-btn-edit-email:hover { background: var(--surface-container); }
 .um-btn-change .material-symbols-outlined, .um-btn-edit-email .material-symbols-outlined { font-size: 16px; }
+
+/* Resend Link / Temp Password — same look as .um-btn-edit-email, under a
+   separate class on purpose: that class already has a click listener
+   (user-management.js's Edit Email dialog) that these two submit buttons
+   must never trigger. Hidden behind "More" by default (see .um-btn-more
+   below) since they're the two least-common actions on a row and a
+   pending-activation user with standing-change rights could otherwise
+   show 5 buttons at once. */
+.um-btn-secondary-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: 1px solid var(--primary);
+    border-radius: 9999px;
+    background: var(--surface-lowest);
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.um-btn-secondary-action:hover { background: var(--surface-container); }
+.um-btn-secondary-action .material-symbols-outlined { font-size: 16px; }
+
+.um-btn-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: 1px solid var(--outline-variant);
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--on-surface-variant);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.um-btn-more:hover, .um-btn-more[aria-expanded="true"] { background: var(--surface-container); color: var(--on-surface); }
+.um-btn-more .material-symbols-outlined { font-size: 16px; }
+
+.um-more-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.um-more-group[hidden] { display: none; }
 
 .um-dialog {
     width: min(440px, calc(100vw - 32px));
@@ -1054,6 +1099,10 @@
     letter-spacing: 1px;
     user-select: all;
 }
+.um-temp-password-recovery {
+    font-size: 12.5px;
+    color: var(--on-surface-variant);
+}
 
 /* ── Phones: each account row becomes a card ───────────────
    Cells stack; each shows its column name from data-label. */
@@ -1101,8 +1150,10 @@
     .um-actions > *,
     .um-actions form,
     .um-actions .um-btn-status,
-    .um-actions .um-btn-change, .um-actions .um-btn-edit-email { flex: 1 1 140px; justify-content: center; min-height: 44px; }
+    .um-actions .um-btn-change, .um-actions .um-btn-edit-email,
+    .um-actions .um-btn-more, .um-actions .um-btn-secondary-action { flex: 1 1 140px; justify-content: center; min-height: 44px; }
     .um-actions form .um-btn-status { width: 100%; }
+    .um-more-group { flex: 1 1 100%; }
 
     /* Empty / no-match messages keep their normal look. */
     .um-table tbody > tr:not(.um-row) { display: block; }
@@ -1230,7 +1281,9 @@
 .um-actions { flex-wrap: nowrap; gap: 6px; }
 .um-actions .um-btn-change,
 .um-actions .um-btn-edit-email,
-.um-actions .um-btn-status {
+.um-actions .um-btn-status,
+.um-actions .um-btn-more,
+.um-actions .um-btn-secondary-action {
     height: 28px;
     gap: 4px;
     padding: 0 9px;
@@ -1243,27 +1296,36 @@
     white-space: nowrap;
     transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.um-actions .um-btn-change, .um-actions .um-btn-edit-email { color: var(--on-surface-variant); }
+.um-actions .um-btn-change, .um-actions .um-btn-edit-email,
+.um-actions .um-btn-more, .um-actions .um-btn-secondary-action { color: var(--on-surface-variant); }
 .um-actions .um-btn-deactivate { color: #a8473f; border-color: rgba(240, 196, 191, 0.8); }
 .um-actions .um-btn-reactivate { color: #2f7a4e; border-color: rgba(183, 228, 199, 0.9); }
 .um-actions .um-btn-change .material-symbols-outlined,
 .um-actions .um-btn-edit-email .material-symbols-outlined,
-.um-actions .um-btn-status .material-symbols-outlined { font-size: 15px; }
+.um-actions .um-btn-status .material-symbols-outlined,
+.um-actions .um-btn-more .material-symbols-outlined,
+.um-actions .um-btn-secondary-action .material-symbols-outlined { font-size: 15px; }
 
-.um-row:hover .um-btn-change, .um-row:hover .um-btn-edit-email { color: var(--primary); border-color: var(--outline-variant); }
-.um-actions .um-btn-change:hover, .um-actions .um-btn-edit-email:hover { background: #f0f4ff; }
+.um-row:hover .um-btn-change, .um-row:hover .um-btn-edit-email,
+.um-row:hover .um-btn-more { color: var(--primary); border-color: var(--outline-variant); }
+.um-actions .um-btn-change:hover, .um-actions .um-btn-edit-email:hover,
+.um-actions .um-btn-more:hover, .um-actions .um-btn-secondary-action:hover { background: #f0f4ff; }
 .um-actions .um-btn-deactivate:hover { background: #fdf1f0; color: #9c2b23; }
 .um-actions .um-btn-reactivate:hover { background: #eef9f2; color: #0f7a3d; }
 .um-actions .um-btn-change:focus-visible,
 .um-actions .um-btn-edit-email:focus-visible,
-.um-actions .um-btn-status:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.um-actions .um-btn-status:focus-visible,
+.um-actions .um-btn-more:focus-visible,
+.um-actions .um-btn-secondary-action:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Narrower tables: icon-only buttons (the label stays as the tooltip). */
 @media (min-width: 768px) and (max-width: 1599px) {
     .um-btn-txt { display: none; }
     .um-actions .um-btn-change,
         .um-actions .um-btn-edit-email,
-    .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
+    .um-actions .um-btn-status,
+    .um-actions .um-btn-more,
+    .um-actions .um-btn-secondary-action { width: 30px; padding: 0; justify-content: center; }
     .um-col-name     { width: 18%; }
     .um-col-email    { width: 24%; }
     .um-col-division { width: 18%; }
@@ -1298,7 +1360,9 @@
         .um-btn-txt { display: none; }
         .um-actions .um-btn-change,
                 .um-actions .um-btn-edit-email,
-        .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
+        .um-actions .um-btn-status,
+        .um-actions .um-btn-more,
+        .um-actions .um-btn-secondary-action { width: 30px; padding: 0; justify-content: center; }
     }
 }
 @media (min-width: 1800px) {
@@ -1306,7 +1370,9 @@
         .um-btn-txt { display: none; }
         .um-actions .um-btn-change,
                 .um-actions .um-btn-edit-email,
-        .um-actions .um-btn-status { width: 30px; padding: 0; justify-content: center; }
+        .um-actions .um-btn-status,
+        .um-actions .um-btn-more,
+        .um-actions .um-btn-secondary-action { width: 30px; padding: 0; justify-content: center; }
     }
 }
 
