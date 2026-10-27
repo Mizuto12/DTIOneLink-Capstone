@@ -141,12 +141,21 @@ IF COL_LENGTH(N'dbo.Users', N'RememberTokenExpiresUtc') IS NULL
             // AddUserAccountActivation — grandfather existing accounts the
             // same way the EF migration does, so a deploy that hits this
             // fallback path doesn't lock everyone out.
+            //
+            // The ADD and the UPDATE that references the new column must be
+            // separate batches (separate ExecuteSqlRawAsync calls): SQL
+            // Server binds column references for an entire batch — even
+            // inside an IF block that isn't taken — before executing any of
+            // it, against the schema as it stood before the batch started.
+            // Combined in one batch (as this used to be), the UPDATE's
+            // reference to ActivatedAtUtc fails with "Invalid column name"
+            // on the very run that's adding it, which is exactly the run
+            // that needs it to succeed.
             await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH(N'dbo.Users', N'ActivatedAtUtc') IS NULL
-BEGIN
-    ALTER TABLE dbo.Users ADD ActivatedAtUtc datetime2 NULL;
-    UPDATE dbo.Users SET ActivatedAtUtc = CreatedAt WHERE ActivatedAtUtc IS NULL;
-END");
+    ALTER TABLE dbo.Users ADD ActivatedAtUtc datetime2 NULL;");
+            await db.Database.ExecuteSqlRawAsync(@"
+UPDATE dbo.Users SET ActivatedAtUtc = CreatedAt WHERE ActivatedAtUtc IS NULL;");
 
             // AddRecordAttachments
             await db.Database.ExecuteSqlRawAsync(@"
