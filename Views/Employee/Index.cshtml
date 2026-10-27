@@ -33,7 +33,7 @@
     string? PersonOf(DTIOneLink.Models.TaskItem t) => Mine(t)?.User?.FullName ?? t.Assignee?.FullName;
     bool IsOverdue(DTIOneLink.Models.TaskItem t) => TaskWorkflow.IsOverdue(StatusOf(t), t.DueDate);
     bool IsAtRisk(DTIOneLink.Models.TaskItem t) =>
-        TaskWorkflow.DelayRisk(StatusOf(t), ProgressOf(t), t.CreatedAt, t.DueDate) is { AtRisk: true };
+        TaskWorkflow.DelayRisk(StatusOf(t), ProgressOf(t), t.CreatedAt, t.DueDate, t.ReviewDueDate) is { AtRisk: true };
 
     var statusInfo = new Dictionary<string, (string Label, string Tone)>
     {

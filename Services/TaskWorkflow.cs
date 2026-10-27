@@ -14,11 +14,17 @@
 
             // Terminal state has no outgoing edges. ForReview can only be
             // resolved by an Admin decision (see TasksController.Review), never
-            // by the employee directly.
+            // by the employee directly — except InProgress -> Completed,
+            // reached only by EmployeeController.SubmitProof when
+            // TaskItem.RequiresReview is false (bypass review entirely).
+            // Deliberately NOT added from ReturnedForCorrection: once an
+            // Admin has already engaged with a submission once, a
+            // resubmission always goes back through review, regardless of
+            // RequiresReview.
             private static readonly Dictionary<string, string[]> AllowedTransitions = new()
             {
                 [Pending] = new[] { InProgress, ForReview },
-                [InProgress] = new[] { ForReview },
+                [InProgress] = new[] { ForReview, Completed },
                 [ForReview] = new[] { Completed, ReturnedForCorrection },
                 [ReturnedForCorrection] = new[] { ForReview },
                 [Completed] = Array.Empty<string>()
@@ -46,8 +52,24 @@
             public static bool CanSubmitProof(string? status, int progress) =>
                 Normalize(status) == ReturnedForCorrection || progress >= MinProgressToSubmitProof;
 
+            // Decision 9: max checklist items on a single assignment.
+            public const int MaxChecklistItemsPerAssignment = 10;
+
+            // A due date with no time-of-day (every task created before
+            // this feature, and any new one left without a specific time)
+            // means "by the end of that day", not "at its very start" —
+            // otherwise every pre-existing task would flip to overdue the
+            // instant its due day began, a silent shift nothing asked for.
+            public static DateTime EffectiveDueMoment(DateTime dueDate) =>
+                dueDate.TimeOfDay == TimeSpan.Zero ? dueDate.Date.AddDays(1) : dueDate;
+
             public static bool IsOverdue(string? status, DateTime dueDate) =>
-                Normalize(status) != Completed && dueDate.Date < TimeZoneHelper.PhilippineToday;
+                Normalize(status) != Completed && EffectiveDueMoment(dueDate) <= TimeZoneHelper.PhilippineNow;
+
+            // Decision 5: how long a reviewer has to act once proof is
+            // submitted, before DelayRisk's review-stage branch (below)
+            // considers the review itself overdue.
+            public static readonly TimeSpan ReviewWindow = TimeSpan.FromDays(3);
 
             // "Due soon" = due within this many days (today counts as 0).
             public const int DueSoonDays = 3;
@@ -65,11 +87,37 @@
 
             // Delay-risk indicator (rule-based: time used vs. progress made).
             // Returns null when no badge applies: completed, already overdue
-            // (the status itself says so), or waiting for review.
-            public static (bool AtRisk, string Reason)? DelayRisk(string? status, int progress, DateTime createdAt, DateTime dueDate)
+            // by its own due date (the status itself says so), or a ForReview
+            // row from before ReviewDueDate existed (reviewDueDate null).
+            public static (bool AtRisk, string Reason)? DelayRisk(string? status, int progress, DateTime createdAt, DateTime dueDate, DateTime? reviewDueDate)
             {
                 var current = Normalize(status);
-                if (current == Completed || current == ForReview || IsOverdue(status, dueDate))
+                if (current == Completed)
+                {
+                    return null;
+                }
+
+                if (current == ForReview)
+                {
+                    // Judged against the review deadline, not the task's own
+                    // due date — the employee already submitted, so that
+                    // deadline no longer applies to them. Previously this
+                    // branch always returned null, making an overdue-for-
+                    // review task invisible everywhere this is shown.
+                    if (reviewDueDate == null)
+                    {
+                        return null;
+                    }
+
+                    var overdue = DateTime.UtcNow > reviewDueDate.Value; // both UTC — see TaskItem.ReviewDueDate
+                    var reviewDueLocal = TimeZoneHelper.ToPhilippineTime(reviewDueDate.Value);
+                    var reviewReason = overdue
+                        ? $"Review was due {reviewDueLocal:MMM d, h:mm tt} and is still pending."
+                        : $"Awaiting review, due {reviewDueLocal:MMM d, h:mm tt}.";
+                    return (overdue, reviewReason);
+                }
+
+                if (IsOverdue(status, dueDate))
                 {
                     return null;
                 }

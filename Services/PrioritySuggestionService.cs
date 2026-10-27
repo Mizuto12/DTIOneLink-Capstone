@@ -29,7 +29,14 @@ namespace DTIOneLink.Services
 
         public static Suggestion Suggest(DateTime dueDate, string? taskType = null)
         {
-            var daysRemaining = (dueDate.Date - TimeZoneHelper.PhilippineToday).TotalDays;
+            // Time-aware, not just calendar-date-aware: a task due in 20
+            // hours is more urgent than one due in 2 days, even though a
+            // date-only diff would put them in the same bucket. Deliberately
+            // NOT TaskWorkflow.EffectiveDueMoment's "midnight means end of
+            // day" adjustment — that's specifically for the Overdue boolean
+            // threshold; shifting it here would throw off the exact
+            // days-overdue count this suggestion's own reason text names.
+            var daysRemaining = (dueDate - TimeZoneHelper.PhilippineNow).TotalDays;
 
             string tier;
             string urgencyReason;

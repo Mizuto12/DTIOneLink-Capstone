@@ -31,7 +31,8 @@ namespace DTIOneLink.Services
             string OwningDepartment,
             int? ResponsibleAdminUserId, // null for a Whole Office task
             IReadOnlyList<string> SubtaskNames,
-            string? Recurrence);
+            string? Recurrence,
+            bool RequiresReview = true);
 
         // activityNote: what the activity log says about how it was created
         // (e.g. "OPD created this Department Directive." or "Repeated
@@ -51,7 +52,8 @@ namespace DTIOneLink.Services
                 OwningDepartment = spec.OwningDepartment,
                 ResponsibleAdminUserId = spec.ResponsibleAdminUserId,
                 ParentTaskId = null,
-                Recurrence = spec.Recurrence
+                Recurrence = spec.Recurrence,
+                RequiresReview = spec.RequiresReview
             };
 
             _context.TaskItems.Add(mainTask);
@@ -150,7 +152,8 @@ namespace DTIOneLink.Services
                     // this is the security boundary Review checks against.
                     OwningDepartment = mainTask.OwningDepartment,
                     ResponsibleAdminUserId = null,
-                    ParentTaskId = mainTask.Id
+                    ParentTaskId = mainTask.Id,
+                    RequiresReview = mainTask.RequiresReview
                 });
             }
 
@@ -171,7 +174,7 @@ namespace DTIOneLink.Services
         // the directive doesn't have to be re-created just to break out
         // another piece of work. Left unassigned, same as a subtask created
         // at CreateAsync time; the receiving Admin assigns it afterward.
-        public async Task<TaskItem> AddSubtaskAsync(TaskItem mainTask, string subtaskName, int? createdByUserId)
+        public async Task<TaskItem> AddSubtaskAsync(TaskItem mainTask, string subtaskName, int? createdByUserId, bool requiresReview = true)
         {
             var subtask = new TaskItem
             {
@@ -183,7 +186,8 @@ namespace DTIOneLink.Services
                 TaskLevel = TaskLevels.Subtask,
                 OwningDepartment = mainTask.OwningDepartment,
                 ResponsibleAdminUserId = null,
-                ParentTaskId = mainTask.Id
+                ParentTaskId = mainTask.Id,
+                RequiresReview = requiresReview
             };
 
             _context.TaskItems.Add(subtask);

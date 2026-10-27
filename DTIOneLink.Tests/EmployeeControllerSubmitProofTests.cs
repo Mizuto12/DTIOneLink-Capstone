@@ -106,4 +106,89 @@ public class EmployeeControllerSubmitProofTests
         var assignment = context.TaskAssignments.Single();
         Assert.Equal(TaskWorkflow.ForReview, assignment.Status);
     }
+
+    [Fact]
+    public async Task SubmitProof_RequiresReviewFalse_CompletesDirectlyWithoutForReview()
+    {
+        var (context, task, employee) = Seed();
+        task.RequiresReview = false;
+        await context.SaveChangesAsync();
+        var controller = BuildController(context, employee.Id);
+        byte[] pdfHeader = { 0x25, 0x50, 0x44, 0x46, 0x00, 0x00, 0x00, 0x00 };
+
+        var result = await controller.SubmitProof(new ProofSubmissionViewModel
+        {
+            Id = task.Id,
+            ProofFile = MakeFile(pdfHeader, "proof.pdf"),
+            Remarks = "Finished the report",
+        });
+
+        Assert.IsType<RedirectToActionResult>(result);
+        var assignment = context.TaskAssignments.Single();
+        Assert.Equal(TaskWorkflow.Completed, assignment.Status);
+        Assert.Equal(100, assignment.Progress);
+
+        var submission = context.TaskSubmissions.Single();
+        Assert.Equal("approved", submission.Decision);
+        Assert.Null(submission.ValidatedByUserId); // no Admin ever decided this one
+        Assert.NotNull(submission.DecidedAt);
+
+        var reloadedTask = context.TaskItems.Single(t => t.Id == task.Id);
+        Assert.Equal(TaskWorkflow.Completed, reloadedTask.Status);
+    }
+
+    [Fact]
+    public async Task SubmitProof_RequiresReviewFalseButResubmittingAfterReturn_StillGoesToForReview()
+    {
+        // An Admin already engaged with this submission once (that's how it
+        // got returned), so a resubmission always goes back through review
+        // regardless of RequiresReview — TaskWorkflow.AllowedTransitions has
+        // no ReturnedForCorrection -> Completed edge, so this falls through
+        // to the normal ForReview path automatically.
+        var (context, task, employee) = Seed();
+        task.RequiresReview = false;
+        var assignment = context.TaskAssignments.Single();
+        assignment.Status = TaskWorkflow.ReturnedForCorrection;
+        await context.SaveChangesAsync();
+        var controller = BuildController(context, employee.Id);
+        byte[] pdfHeader = { 0x25, 0x50, 0x44, 0x46, 0x00, 0x00, 0x00, 0x00 };
+
+        await controller.SubmitProof(new ProofSubmissionViewModel
+        {
+            Id = task.Id,
+            ProofFile = MakeFile(pdfHeader, "proof.pdf"),
+            Remarks = "Fixed it",
+        });
+
+        var reloadedAssignment = context.TaskAssignments.Single();
+        Assert.Equal(TaskWorkflow.ForReview, reloadedAssignment.Status);
+        var submission = context.TaskSubmissions.Single();
+        Assert.Null(submission.Decision);
+    }
+
+    [Fact]
+    public async Task SubmitProof_EnteringForReview_SetsReviewDueDateFromTheReviewWindow()
+    {
+        var (context, task, employee) = Seed();
+        var controller = BuildController(context, employee.Id);
+        byte[] pdfHeader = { 0x25, 0x50, 0x44, 0x46, 0x00, 0x00, 0x00, 0x00 };
+
+        var before = DateTime.UtcNow;
+        await controller.SubmitProof(new ProofSubmissionViewModel
+        {
+            Id = task.Id,
+            ProofFile = MakeFile(pdfHeader, "proof.pdf"),
+            Remarks = "Finished the report",
+        });
+        var after = DateTime.UtcNow;
+
+        var submission = context.TaskSubmissions.Single();
+        var reloaded = context.TaskItems.Single(t => t.Id == task.Id);
+
+        Assert.NotNull(reloaded.ReviewDueDate);
+        Assert.Equal(submission.SubmittedAt + TaskWorkflow.ReviewWindow, reloaded.ReviewDueDate!.Value);
+        // Sanity check this is actually "now plus the window", not some
+        // stale or default value — bounded by the call's own wall-clock span.
+        Assert.InRange(reloaded.ReviewDueDate!.Value, before + TaskWorkflow.ReviewWindow, after + TaskWorkflow.ReviewWindow);
+    }
 }

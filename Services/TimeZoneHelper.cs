@@ -42,6 +42,11 @@ namespace DTIOneLink.Services
         // yesterday here until 8 AM.
         public static DateTime PhilippineToday => ToPhilippineTime(DateTime.UtcNow).Date;
 
+        // The current moment in the office, full date and time — unlike
+        // PhilippineToday, this is for comparisons that now care about time
+        // of day too (task due-date/time, not just the calendar date).
+        public static DateTime PhilippineNow => ToPhilippineTime(DateTime.UtcNow);
+
         // The UTC moment a Philippine calendar date starts (00:00 in the
         // office), for filtering UTC timestamps by Philippine dates.
         public static DateTime PhilippineDateStartUtc(DateTime philippineDate) =>

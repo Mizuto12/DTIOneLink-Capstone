@@ -21,6 +21,7 @@ namespace DTIOneLink.Data
     public DbSet<OneTimeCode> OneTimeCodes { get; set; }
     public DbSet<EmailOutboxMessage> EmailOutbox { get; set; }
     public DbSet<TimeLog> TimeLogs { get; set; }
+    public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; }
 
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -176,6 +177,14 @@ modelBuilder.Entity<Notification>()
 
     modelBuilder.Entity<TimeLog>()
         .HasIndex(t => new { t.UserId, t.TimeInUtc });
+
+    // Single cascade path (no FK to Users), unlike TaskSubmission above —
+    // deleting a TaskAssignment removes its own checklist items with it.
+    modelBuilder.Entity<TaskChecklistItem>()
+        .HasOne(c => c.TaskAssignment)
+        .WithMany(a => a.ChecklistItems)
+        .HasForeignKey(c => c.TaskAssignmentId)
+        .OnDelete(DeleteBehavior.Cascade);
 }
 }
 }

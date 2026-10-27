@@ -6,6 +6,8 @@
     ViewData["Title"] = "Review Submission";
     var task = Model.Task!;
     var submittedByName = Model.TaskAssignment?.User?.FullName ?? "this person";
+    var previewableExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".pdf", ".jpg", ".jpeg", ".png" };
+    var canPreview = previewableExtensions.Contains(System.IO.Path.GetExtension(Model.ProofFileName));
 }
 
 @section Styles {
@@ -45,6 +47,12 @@
             <div class="task-review">
                 <div class="tr-card">
                     <p class="tr-info-row"><strong>Remarks from employee:</strong> @(string.IsNullOrWhiteSpace(Model.Remarks) ? "(none)" : Model.Remarks)</p>
+                    @if (canPreview)
+                    {
+                        <a asp-controller="Employee" asp-action="PreviewProof" asp-route-submissionId="@Model.Id" class="tr-download" target="_blank" rel="noopener">
+                            Preview submitted proof (@Model.ProofFileName)
+                        </a>
+                    }
                     <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@Model.Id" class="tr-download">
                         Download submitted proof (@Model.ProofFileName)
                     </a>

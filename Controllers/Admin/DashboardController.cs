@@ -183,7 +183,7 @@ namespace DTIOneLink.Controllers
                         DueDate = a.Task.DueDate, Progress = a.Progress,
                         Status = status, CreatedAt = a.Task.CreatedAt,
                         IsOverdue = TaskWorkflow.IsOverdue(status, a.Task.DueDate),
-                        IsAtRisk = TaskWorkflow.DelayRisk(status, a.Progress, a.Task.CreatedAt, a.Task.DueDate) is { AtRisk: true },
+                        IsAtRisk = TaskWorkflow.DelayRisk(status, a.Progress, a.Task.CreatedAt, a.Task.DueDate, a.Task.ReviewDueDate) is { AtRisk: true },
                     };
                 }).ToList();
             static bool IsStatus(DashboardAssignmentSummary item, string status) => item.Status == status;

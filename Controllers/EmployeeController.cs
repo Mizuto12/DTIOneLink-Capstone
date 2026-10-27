@@ -146,6 +146,59 @@ public async Task<IActionResult> UpdateProgress(int id, int progress)
     });
 }
 
+// POST: /Employee/ToggleChecklistItem — check/uncheck one of the current
+// user's own checklist items. Same status-lock rules as the progress
+// slider (ApplyProgressUpdateAsync): frozen once Completed or ForReview.
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ToggleChecklistItem(int id)
+{
+    var userId = HttpContext.Session.GetInt32("UserId");
+    var item = await _context.TaskChecklistItems
+        .Include(c => c.TaskAssignment).ThenInclude(a => a!.Task)
+        .FirstOrDefaultAsync(c => c.Id == id);
+
+    if (item?.TaskAssignment == null || item.TaskAssignment.UserId != userId)
+    {
+        return NotFound();
+    }
+
+    var task = item.TaskAssignment.Task!;
+    var assignmentStatus = TaskWorkflow.Normalize(item.TaskAssignment.Status);
+    if (assignmentStatus is TaskWorkflow.Completed or TaskWorkflow.ForReview)
+    {
+        return BadRequest(new { message = "This task can't be updated right now." });
+    }
+
+    item.IsDone = !item.IsDone;
+    item.DoneAt = item.IsDone ? DateTime.UtcNow : null;
+
+    // Re-load the assignment's full checklist (just the one item above is
+    // tracked, not its siblings) to recompute Progress correctly.
+    await _context.Entry(item.TaskAssignment).Collection(a => a.ChecklistItems).LoadAsync();
+    TaskAssignmentService.RecalculateProgressFromChecklist(item.TaskAssignment);
+
+    // Same "progress off zero implies started" rule ApplyProgressUpdateAsync
+    // applies to the manual slider.
+    if (item.TaskAssignment.Progress > 0 && assignmentStatus == TaskWorkflow.Pending)
+    {
+        item.TaskAssignment.Status = TaskWorkflow.InProgress;
+    }
+
+    _taskAssignments.RecalculateOverallStatus(task);
+    await _taskAssignments.PropagateToParentMainTaskAsync(task);
+    await _context.SaveChangesAsync();
+
+    return Json(new
+    {
+        isDone = item.IsDone,
+        progress = item.TaskAssignment.Progress,
+        status = item.TaskAssignment.Status,
+        taskProgress = task.Progress,
+        taskStatus = task.Status
+    });
+}
+
 // POST: /Employee/Delete — permanently deletes a COMPLETED task, for
 // everyone. Allowed only for someone assigned to the task, and only once the
 // whole task is Completed (every assignee approved). Removes the task with
@@ -242,6 +295,15 @@ private async Task<string?> ApplyProgressUpdateAsync(TaskItem task, TaskAssignme
     if (currentStatus == "for-review")
     {
         return "This task is awaiting review and can't be updated right now.";
+    }
+
+    // Once a checklist governs this assignment's progress, the manual
+    // slider is locked out — check items off instead. Reverts automatically
+    // if every item is later removed (RecalculateProgressFromChecklist is a
+    // no-op with zero items, so manual control resumes on its own).
+    if (assignment.ChecklistItems.Count > 0)
+    {
+        return "This task's progress is tracked by its checklist — check items off instead of using the slider.";
     }
 
     var requested = (requestedStatus ?? currentStatus).Trim().ToLowerInvariant();
@@ -393,7 +455,32 @@ if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
     };
 
     _context.TaskSubmissions.Add(submission);
-    assignment.Status = TaskWorkflow.ForReview;
+
+    // RequiresReview = false lets this assignment complete immediately
+    // instead of waiting on an Admin decision — but only straight from
+    // InProgress (TaskWorkflow.AllowedTransitions). A resubmission after
+    // Returned for Correction always goes through review regardless: an
+    // Admin already engaged with it once, so CanTransition correctly
+    // refuses the bypass here and this falls through to the normal path.
+    var bypassesReview = !task.RequiresReview && TaskWorkflow.CanTransition(status, TaskWorkflow.Completed);
+    if (bypassesReview)
+    {
+        assignment.Status = TaskWorkflow.Completed;
+        assignment.Progress = 100;
+        // No Admin ever decides this one — "approved" keeps it out of every
+        // "pending review" view/query and counts it in completion stats
+        // exactly like a human-approved one would (DashboardController's
+        // completion trend reads Decision == "approved").
+        submission.Decision = "approved";
+        submission.DecidedAt = submission.SubmittedAt;
+    }
+    else
+    {
+        assignment.Status = TaskWorkflow.ForReview;
+        // Decision 5: the reviewer's clock starts now, not the task's own
+        // due date — recomputed fresh on every resubmission after a Return.
+        task.ReviewDueDate = submission.SubmittedAt + TaskWorkflow.ReviewWindow;
+    }
 
     // Requirement 8: this is where "did everyone submit yet" gets
     // re-evaluated — the task only flips to ForReview once every
@@ -409,29 +496,49 @@ if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
     if (userId.HasValue)
     {
         TaskActivityLogger.Log(_context, task.Id, userId.Value, TaskActivityType.ProofSubmitted,
-            status == TaskWorkflow.ReturnedForCorrection
-                ? "Corrected proof resubmitted for review."
-                : "Proof of completion submitted for review.",
+            bypassesReview
+                ? "Proof of completion submitted — this task doesn't require review, so it's now complete."
+                : status == TaskWorkflow.ReturnedForCorrection
+                    ? "Corrected proof resubmitted for review."
+                    : "Proof of completion submitted for review.",
             submission.Id);
         await _context.SaveChangesAsync();
     }
 
-    // Direct Admin Task proofs are reviewed by OPD, not a department Admin,
-    // and the submitter there IS an Admin — so no department alert for those.
-    var submitterName = HttpContext.Session.GetString("FullName") ?? "An employee";
-    if (!TaskTypes.IsAssignedByOpd(task.TaskType))
+    if (bypassesReview)
     {
-        await _notifications.NotifyAdminsProofSubmittedAsync(task.Id, task.TaskName, submitterName, submission.Id);
+        await _notifications.NotifyTaskApprovedAsync(assignment.UserId, task.Id, task.TaskName);
+
+        // Same as TasksController.Review's approve branch: this completion
+        // may have finished the last open subtask of a Department
+        // Directive, even though no Admin ever reviewed it.
+        if (task.ParentTaskId.HasValue)
+        {
+            await _notifications.NotifyOpdDirectiveCompletedAsync(task.ParentTaskId.Value);
+        }
     }
     else
     {
-        // Direct Admin Task: OPD (not a department Admin) reviews this proof.
-        await _notifications.NotifyOpdProofSubmittedAsync(task.Id, task.TaskName, submitterName, submission.Id);
+        // Direct Admin Task proofs are reviewed by OPD, not a department
+        // Admin, and the submitter there IS an Admin — so no department
+        // alert for those.
+        var submitterName = HttpContext.Session.GetString("FullName") ?? "An employee";
+        if (!TaskTypes.IsAssignedByOpd(task.TaskType))
+        {
+            await _notifications.NotifyAdminsProofSubmittedAsync(task.Id, task.TaskName, submitterName, submission.Id);
+        }
+        else
+        {
+            // Direct Admin Task: OPD (not a department Admin) reviews this proof.
+            await _notifications.NotifyOpdProofSubmittedAsync(task.Id, task.TaskName, submitterName, submission.Id);
+        }
     }
 
-    TempData["SuccessMessage"] = status == "returned-for-correction"
-        ? "Corrected submission sent for review."
-        : "Proof of completion submitted. Your task is now awaiting review.";
+    TempData["SuccessMessage"] = bypassesReview
+        ? "Proof of completion submitted. This task doesn't require review, so it's complete."
+        : status == "returned-for-correction"
+            ? "Corrected submission sent for review."
+            : "Proof of completion submitted. Your task is now awaiting review.";
 
     return RedirectToAction(nameof(Details), new { id = task.Id });
 }
@@ -455,6 +562,56 @@ public async Task<IActionResult> DownloadProof(int submissionId)
 
     var bytes = await System.IO.File.ReadAllBytesAsync(fullPath);
     return File(bytes, "application/octet-stream", submission.ProofFileName);
+}
+
+// Inline-viewable types only (what a browser can render by itself, no
+// plugin): PDF and the three image extensions ProofFileValidator allows.
+// DOCX/XLSX are ZIP containers a browser can't display — those fall back
+// to an ordinary download.
+private static readonly Dictionary<string, string> PreviewableContentTypes = new(StringComparer.OrdinalIgnoreCase)
+{
+    [".pdf"] = "application/pdf",
+    [".jpg"] = "image/jpeg",
+    [".jpeg"] = "image/jpeg",
+    [".png"] = "image/png",
+};
+
+// GET: /Employee/PreviewProof/{submissionId} — same file, same
+// authorization as DownloadProof (GetAccessibleSubmissionAsync), but
+// rendered inline (no Content-Disposition: attachment) for a type the
+// browser can actually display. Anything else falls back to the exact
+// same forced-download response DownloadProof gives.
+[HttpGet]
+public async Task<IActionResult> PreviewProof(int submissionId)
+{
+    var submission = await GetAccessibleSubmissionAsync(submissionId);
+    if (submission == null)
+    {
+        return NotFound();
+    }
+
+    var storageRoot = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "ProofUploads");
+    var fullPath = Path.Combine(storageRoot, submission.ProofStoredFileName);
+
+    if (!System.IO.File.Exists(fullPath))
+    {
+        return NotFound();
+    }
+
+    var bytes = await System.IO.File.ReadAllBytesAsync(fullPath);
+    var extension = Path.GetExtension(submission.ProofFileName);
+
+    if (!PreviewableContentTypes.TryGetValue(extension, out var contentType))
+    {
+        // Fallback to download for unsupported file types — same response
+        // DownloadProof gives, just reached from the preview link too.
+        return File(bytes, "application/octet-stream", submission.ProofFileName);
+    }
+
+    // No fileDownloadName: that's what makes File() render inline instead
+    // of forcing a save-as dialog, the same way DownloadProof's third
+    // argument is what forces one.
+    return File(bytes, contentType);
 }
 // Every task-scoped action goes through this instead of querying
 // _context.TaskItems directly. Admin/Supervisor bypass the assignment
@@ -496,6 +653,7 @@ public async Task<IActionResult> DownloadProof(int submissionId)
                 .Include(t => t.CreatedBy)
                 .Include(t => t.ParentTask)
                 .Include(t => t.Assignments).ThenInclude(a => a.User)
+                .Include(t => t.Assignments).ThenInclude(a => a.ChecklistItems)
                 .Include(t => t.Submissions).ThenInclude(s => s.ValidatedBy)
                 .Include(t => t.Activities).ThenInclude(a => a.PerformedBy)
                 .Include(t => t.Activities).ThenInclude(a => a.RelatedSubmission)

@@ -39,7 +39,7 @@ namespace DTIOneLink.Models
 
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]
-        [DataType(DataType.Date)]
+        [DataType(DataType.DateTime)]
         public DateTime DueDate { get; set; }
 
         [Required(ErrorMessage = "Priority is required.")]

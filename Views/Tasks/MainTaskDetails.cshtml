@@ -448,6 +448,10 @@
                 @Html.AntiForgeryToken()
                 <label for="mtdNewSubtask" class="mtd-add-subtask-label">New subtask name</label>
                 <input type="text" id="mtdNewSubtask" name="subtaskName" data-capitalize="title" placeholder="e.g. Submit consolidated report" maxlength="200" required>
+                <label class="mtd-add-subtask-label" style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+                    <input type="checkbox" name="requiresReview" value="true" checked />
+                    Requires review before completion
+                </label>
                 <button type="submit" class="mtd-btn mtd-btn-primary">
                     <span class="material-symbols-outlined" aria-hidden="true">edit_note</span>
                     Add a new subtask

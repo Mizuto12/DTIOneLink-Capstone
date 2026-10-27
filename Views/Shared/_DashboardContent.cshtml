@@ -46,7 +46,7 @@
     bool IsCompleted(DTIOneLink.Models.TaskItem t) => StatusOf(t) == TaskWorkflow.Completed;
     bool IsOverdue(DTIOneLink.Models.TaskItem t) => TaskWorkflow.IsOverdue(StatusOf(t), t.DueDate);
     bool IsAtRisk(DTIOneLink.Models.TaskItem t) =>
-        TaskWorkflow.DelayRisk(StatusOf(t), ProgressOf(t), t.CreatedAt, t.DueDate) is { AtRisk: true };
+        TaskWorkflow.DelayRisk(StatusOf(t), ProgressOf(t), t.CreatedAt, t.DueDate, t.ReviewDueDate) is { AtRisk: true };
 
     // ---- Statuses, in the order work moves (Kanban columns + Gantt colors)
     var statuses = new[]

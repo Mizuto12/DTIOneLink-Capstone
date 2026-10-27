@@ -323,6 +323,59 @@ public class TaskAssignmentServiceTests
     }
 
     [Fact]
+    public void RecalculateProgressFromChecklist_NoItems_LeavesManualProgressUntouched()
+    {
+        // Manual progress stays in full control until the first checklist
+        // item exists — and resumes control once every item is removed.
+        var assignment = new TaskAssignment { Progress = 42 };
+
+        TaskAssignmentService.RecalculateProgressFromChecklist(assignment);
+
+        Assert.Equal(42, assignment.Progress);
+    }
+
+    [Fact]
+    public void RecalculateProgressFromChecklist_SomeItemsDone_WeightedPercentage()
+    {
+        var assignment = new TaskAssignment { Progress = 0 };
+        assignment.ChecklistItems.Add(new TaskChecklistItem { Weight = 1, IsDone = true });
+        assignment.ChecklistItems.Add(new TaskChecklistItem { Weight = 3, IsDone = false });
+
+        TaskAssignmentService.RecalculateProgressFromChecklist(assignment);
+
+        // 1 of 4 total weight done = 25%.
+        Assert.Equal(25, assignment.Progress);
+    }
+
+    [Fact]
+    public void RecalculateProgressFromChecklist_AllItemsDone_IsFullProgress()
+    {
+        var assignment = new TaskAssignment { Progress = 0 };
+        assignment.ChecklistItems.Add(new TaskChecklistItem { Weight = 2, IsDone = true });
+        assignment.ChecklistItems.Add(new TaskChecklistItem { Weight = 5, IsDone = true });
+
+        TaskAssignmentService.RecalculateProgressFromChecklist(assignment);
+
+        Assert.Equal(100, assignment.Progress);
+    }
+
+    [Fact]
+    public void RecalculateMainTaskFromSubtasks_SubtasksWithNoChecklistItems_SameResultAsBefore()
+    {
+        // Regression check: this rollup reads only subtasks' Status/Progress
+        // — the checklist feature must not change its result for the
+        // overwhelming common case of a task with zero checklist items.
+        var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 40 });
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0 });
+
+        new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask);
+
+        Assert.Equal(TaskWorkflow.InProgress, mainTask.Status);
+        Assert.Equal(20, mainTask.Progress);
+    }
+
+    [Fact]
     public async Task PropagateToParentMainTaskAsync_StandaloneTask_IsNoOp()
     {
         using var db = InMemoryDbContextFactory.Create();

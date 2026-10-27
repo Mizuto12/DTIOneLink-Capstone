@@ -151,8 +151,8 @@
                     <!-- Due Date -->
                     <div class="et-field">
                         <label asp-for="DueDate" class="et-label">Due Date</label>
-                        <input asp-for="DueDate" type="date" class="et-input"
-                               max="@(canPassOpdDueDate ? null : opdDueDate?.ToString("yyyy-MM-dd"))" />
+                        <input asp-for="DueDate" type="datetime-local" class="et-input"
+                               max="@(canPassOpdDueDate ? null : opdDueDate?.ToString("yyyy-MM-ddTHH:mm"))" />
                         @if (opdDueDate.HasValue && canPassOpdDueDate)
                         {
                             <span class="et-ca-note">This task is due soon or overdue, so you may set a date after the OPD's deadline (@DTIOneLink.Helpers.DisplayHelpers.FormalDate(opdDueDate.Value)). The OPD will be notified.</span>
@@ -237,6 +237,7 @@
                 <label class="et-label" id="assigneeLabel">Assignees</label>
                 @if (assignmentSummaries.Any())
                 {
+                    <a asp-controller="Tasks" asp-action="Checklist" asp-route-id="@Model.Id" class="et-ca-reassign" style="display:inline-block; margin-bottom:8px;">Manage checklists</a>
                     @* Current assignees can't be removed, only reassigned: the person
                        taking over continues from their progress, and the previous
                        person no longer sees the task. *@

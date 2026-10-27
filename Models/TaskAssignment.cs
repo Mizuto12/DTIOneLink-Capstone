@@ -52,5 +52,10 @@ namespace DTIOneLink.Models
         // ForReview/Completed aggregation rule — every assignee counts
         // equally for those.
         public bool IsPrimaryAssignee { get; set; }
+
+        // Present only once an Admin has added at least one item (see
+        // TasksController.AddChecklistItem) — until then this stays empty
+        // and Progress is set manually, same as before this feature existed.
+        public List<TaskChecklistItem> ChecklistItems { get; set; } = new();
     }
 }

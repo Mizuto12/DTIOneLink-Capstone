@@ -425,7 +425,8 @@ namespace DTIOneLink.Controllers
                     model.ResponsibleAdminUserId,
                     // Only a Department Directive has subtasks, whatever the client sent.
                     isDirect || isWholeOffice ? new List<string>() : (model.SubtaskNames ?? new List<string>()),
-                    recurrence),
+                    recurrence,
+                    model.RequiresReview),
                 createdByUserId,
                 isWholeOffice ? "OPD gave this task to the whole office."
                     : isDirect ? "OPD created this Direct Admin Task." : "OPD created this Department Directive.");
@@ -1465,7 +1466,7 @@ public IActionResult SuggestPriority(DateTime dueDate, string? taskType = null)
 // same rule as Create.
 [HttpPost]
 [ValidateAntiForgeryToken]
-public async Task<IActionResult> AddSubtask(int id, string subtaskName)
+public async Task<IActionResult> AddSubtask(int id, string subtaskName, bool requiresReview = true)
 {
     if (!IsOfficeWideTaskManager())
     {
@@ -1492,10 +1493,126 @@ public async Task<IActionResult> AddSubtask(int id, string subtaskName)
     }
 
     var createdByUserId = HttpContext.Session.GetInt32("UserId");
-    await _opdTasks.AddSubtaskAsync(mainTask, subtaskName.Trim(), createdByUserId);
+    await _opdTasks.AddSubtaskAsync(mainTask, subtaskName.Trim(), createdByUserId, requiresReview);
 
     TempData["SuccessMessage"] = "Subtask added.";
     return RedirectToAction(nameof(MainTaskDetails), new { id });
+}
+
+// GET: /Tasks/Checklist/5 — per-assignee checklist management. Each
+// assignee gets their own checklist (TaskChecklistItem.TaskAssignmentId),
+// same granularity as their own Progress — a shared task's assignees never
+// see or affect each other's checklist.
+[HttpGet]
+public async Task<IActionResult> Checklist(int id)
+{
+    if (!CanAccessTaskManagement())
+    {
+        return StatusCode(403);
+    }
+
+    var task = await _context.TaskItems
+        .Include(t => t.Assignments).ThenInclude(a => a.User)
+        .Include(t => t.Assignments).ThenInclude(a => a.ChecklistItems)
+        .Include(t => t.ParentTask)
+        .AsSplitQuery()
+        .FirstOrDefaultAsync(t => t.Id == id);
+    if (task == null || !IsWithinTaskScope(task))
+    {
+        return NotFound();
+    }
+
+    return View(task);
+}
+
+// POST: /Tasks/AddChecklistItem — adds one item to one assignee's
+// checklist. The moment an assignment has any items, they (not the manual
+// progress slider) decide its Progress — RecalculateProgressFromChecklist
+// is a no-op until then.
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> AddChecklistItem(int taskAssignmentId, string label, int weight = 1)
+{
+    if (!CanAccessTaskManagement())
+    {
+        return StatusCode(403);
+    }
+
+    var assignment = await _context.TaskAssignments
+        .Include(a => a.Task).ThenInclude(t => t!.ParentTask)
+        .Include(a => a.ChecklistItems)
+        .FirstOrDefaultAsync(a => a.Id == taskAssignmentId);
+    if (assignment?.Task == null || !IsWithinTaskScope(assignment.Task))
+    {
+        return NotFound();
+    }
+
+    if (string.IsNullOrWhiteSpace(label))
+    {
+        TempData["ErrorMessage"] = "Type a label for the checklist item.";
+        return RedirectToAction(nameof(Checklist), new { id = assignment.TaskId });
+    }
+
+    if (assignment.ChecklistItems.Count >= TaskWorkflow.MaxChecklistItemsPerAssignment)
+    {
+        TempData["ErrorMessage"] = $"A checklist can have at most {TaskWorkflow.MaxChecklistItemsPerAssignment} items.";
+        return RedirectToAction(nameof(Checklist), new { id = assignment.TaskId });
+    }
+
+    _context.TaskChecklistItems.Add(new TaskChecklistItem
+    {
+        TaskAssignmentId = assignment.Id,
+        Label = label.Trim(),
+        Weight = Math.Max(1, weight)
+    });
+
+    var userId = HttpContext.Session.GetInt32("UserId");
+    if (userId.HasValue)
+    {
+        TaskActivityLogger.Log(_context, assignment.TaskId, userId.Value, "updated",
+            $"Added a checklist item for {assignment.User?.FullName ?? "an assignee"}: \"{label.Trim()}\".");
+    }
+
+    await _context.SaveChangesAsync();
+    TempData["SuccessMessage"] = "Checklist item added.";
+    return RedirectToAction(nameof(Checklist), new { id = assignment.TaskId });
+}
+
+// POST: /Tasks/RemoveChecklistItem — if this empties the assignment's
+// checklist, RecalculateProgressFromChecklist becomes a no-op again on the
+// next write, so manual progress control resumes on its own; this action
+// itself doesn't touch Progress (no checklist change has occurred until a
+// remaining item is toggled, so there's nothing to recompute yet).
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> RemoveChecklistItem(int id)
+{
+    if (!CanAccessTaskManagement())
+    {
+        return StatusCode(403);
+    }
+
+    var item = await _context.TaskChecklistItems
+        .Include(c => c.TaskAssignment).ThenInclude(a => a!.Task).ThenInclude(t => t!.ParentTask)
+        .FirstOrDefaultAsync(c => c.Id == id);
+    if (item?.TaskAssignment?.Task == null || !IsWithinTaskScope(item.TaskAssignment.Task))
+    {
+        return NotFound();
+    }
+
+    var taskId = item.TaskAssignment.TaskId;
+    _context.TaskChecklistItems.Remove(item);
+
+    var userId = HttpContext.Session.GetInt32("UserId");
+    if (userId.HasValue)
+    {
+        TaskActivityLogger.Log(_context, taskId, userId.Value, "updated",
+            $"Removed a checklist item: \"{item.Label}\".");
+    }
+
+    await _context.SaveChangesAsync();
+    TempData["SuccessMessage"] = "Checklist item removed.";
+    return RedirectToAction(nameof(Checklist), new { id = taskId });
 }
 
 // POST: /Tasks/Delete/5 — OPD only, same symmetry as Create/AddSubtask

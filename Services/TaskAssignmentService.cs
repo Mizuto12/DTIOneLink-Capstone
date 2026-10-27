@@ -164,6 +164,26 @@ namespace DTIOneLink.Services
             }
         }
 
+        // Writes TaskAssignment.Progress from its own checklist items'
+        // IsDone/Weight — the moment an assignment has any checklist items,
+        // they (not the manual progress slider) decide its Progress. A no-op
+        // when the assignment has zero checklist items, so manual progress
+        // stays in full control until the first item is added — and keeps
+        // working again if every item is later removed. Does NOT touch
+        // Status or call RecalculateOverallStatus itself; callers do that
+        // afterward, same as every other assignment mutation in this class.
+        public static void RecalculateProgressFromChecklist(TaskAssignment assignment)
+        {
+            if (assignment.ChecklistItems.Count == 0)
+            {
+                return;
+            }
+
+            var totalWeight = assignment.ChecklistItems.Sum(c => c.Weight);
+            var doneWeight = assignment.ChecklistItems.Where(c => c.IsDone).Sum(c => c.Weight);
+            assignment.Progress = totalWeight <= 0 ? 0 : (int)Math.Round(100.0 * doneWeight / totalWeight);
+        }
+
         // Recomputes TaskItem.Status/Progress/AssigneeId from task.Assignments
         // (must be loaded). Call this after ANY assignment mutation —
         // Employee/Update, Employee/SubmitProof, Tasks/Review decision, or

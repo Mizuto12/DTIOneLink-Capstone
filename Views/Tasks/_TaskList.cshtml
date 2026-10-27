@@ -227,7 +227,7 @@
                             </td>
                             <td class="td-status" data-label="Status">
                                 <span class="status-badge @statusBadgeClass">@displayLabel</span>
-                                @if (DTIOneLink.Services.TaskWorkflow.DelayRisk(task.Status, task.Progress, task.CreatedAt, task.DueDate) is { } risk)
+                                @if (DTIOneLink.Services.TaskWorkflow.DelayRisk(task.Status, task.Progress, task.CreatedAt, task.DueDate, task.ReviewDueDate) is { } risk)
                                 {
                                     <span class="risk-badge @(risk.AtRisk ? "risk-at-risk" : "risk-on-track")" title="@risk.Reason">
                                         <span class="material-symbols-outlined">@(risk.AtRisk ? "warning" : "check_circle")</span>

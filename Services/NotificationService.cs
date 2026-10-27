@@ -377,6 +377,31 @@ namespace DTIOneLink.Services
                 emailMessage: message
             );
         }
+        // Review-stage overdue: judged against ReviewDueDate (when a
+        // reviewer must decide by), not the task's own due date — the
+        // employee already submitted, so that deadline no longer applies to
+        // them. Admin/reviewer-facing only, same dedup type as
+        // NotifyTaskOverdueAsync (only one "this task is overdue" notice
+        // should exist per recipient per task at a time, whichever clock it
+        // came from).
+        public async Task NotifyReviewOverdueAsync(int recipientUserId, int taskId, string taskTitle, DateTime reviewDueDate)
+        {
+            if (await ExistsAsync(recipientUserId, taskId, NotificationType.Overdue)) return;
+
+            var when = TimeZoneHelper.ToPhilippineTime(reviewDueDate);
+            var message = $"Review overdue: \"{taskTitle}\" was submitted for review and should have been decided by {when:MMM d, h:mm tt}";
+
+            await CreateAsync(
+                recipientUserId: recipientUserId,
+                type: NotificationType.Overdue,
+                message: message,
+                relatedTaskId: taskId,
+                link: $"/Tasks/Edit/{taskId}",
+                emailSubject: "A task is overdue for review",
+                emailMessage: message
+            );
+        }
+
         // The previous assignee can no longer open the task (Details returns
         // NotFound for non-assignees), so this links to their task list instead.
         public async Task NotifyTaskReassignedAwayAsync(int previousUserId, int taskId, string taskTitle, string newAssigneeName)

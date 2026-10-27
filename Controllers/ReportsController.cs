@@ -101,6 +101,7 @@ namespace DTIOneLink.Controllers
                     t.Progress,
                     t.CreatedAt,
                     t.DueDate,
+                    t.ReviewDueDate,
                     t.TaskLevel,
                     t.OwningDepartment,
                     AssigneeNames = t.Assignments.Where(a => a.User != null).Select(a => a.User!.FullName).ToList(),
@@ -141,7 +142,7 @@ namespace DTIOneLink.Controllers
                 else
                 {
                     // Delay-risk indicator, same rule as Workflow Monitoring.
-                    var risk = TaskWorkflow.DelayRisk(t.Status, t.Progress, t.CreatedAt, t.DueDate);
+                    var risk = TaskWorkflow.DelayRisk(t.Status, t.Progress, t.CreatedAt, t.DueDate, t.ReviewDueDate);
                     if (risk is { AtRisk: true })
                     {
                         badge = "At risk";

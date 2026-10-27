@@ -49,7 +49,7 @@ namespace DTIOneLink.Models
 
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]
-        [DataType(DataType.Date)]
+        [DataType(DataType.DateTime)]
         public DateTime DueDate { get; set; } = DTIOneLink.Services.TimeZoneHelper.PhilippineToday;
 
         [Required(ErrorMessage = "Priority is required.")]
@@ -64,5 +64,10 @@ namespace DTIOneLink.Models
         [Display(Name = "Task Description")]
         [StringLength(2000)]
         public string Description { get; set; } = string.Empty;
+
+        // Decision 6: set by the creator here, at creation, only — never
+        // editable afterward (not present on TaskEditViewModel).
+        [Display(Name = "Requires review before completion")]
+        public bool RequiresReview { get; set; } = true;
     }
 }

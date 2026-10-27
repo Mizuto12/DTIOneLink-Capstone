@@ -83,15 +83,55 @@ public class TaskWorkflowTests
     }
 
     [Fact]
-    public void DelayRisk_NullForCompletedForReviewAndOverdue()
+    public void DelayRisk_NullForCompletedAndAlreadyOverdue()
     {
         var future = TimeZoneHelper.PhilippineToday.AddDays(10);
         var past = TimeZoneHelper.PhilippineToday.AddDays(-1);
         var created = DateTime.UtcNow.AddDays(-5);
 
-        Assert.Null(TaskWorkflow.DelayRisk(TaskWorkflow.Completed, 100, created, future));
-        Assert.Null(TaskWorkflow.DelayRisk(TaskWorkflow.ForReview, 80, created, future));
-        Assert.Null(TaskWorkflow.DelayRisk(TaskWorkflow.InProgress, 10, created, past)); // already overdue
+        Assert.Null(TaskWorkflow.DelayRisk(TaskWorkflow.Completed, 100, created, future, null));
+        Assert.Null(TaskWorkflow.DelayRisk(TaskWorkflow.InProgress, 10, created, past, null)); // already overdue
+    }
+
+    [Fact]
+    public void DelayRisk_ForReviewWithNoReviewDueDate_IsNull()
+    {
+        // A ForReview row from before ReviewDueDate existed (or any other
+        // way it never got set) — fail safe rather than guess.
+        var future = TimeZoneHelper.PhilippineToday.AddDays(10);
+        var created = DateTime.UtcNow.AddDays(-5);
+
+        Assert.Null(TaskWorkflow.DelayRisk(TaskWorkflow.ForReview, 80, created, future, reviewDueDate: null));
+    }
+
+    [Fact]
+    public void DelayRisk_ForReviewPastItsReviewDueDate_IsFlaggedAtRisk()
+    {
+        // The previously-invisible gap this feature closes: a submission
+        // sitting past its review window must show up as at-risk, judged
+        // against ReviewDueDate — not the task's own (possibly still far
+        // off) due date.
+        var created = DateTime.UtcNow.AddDays(-5);
+        var dueDate = TimeZoneHelper.PhilippineToday.AddDays(30); // irrelevant once ForReview
+        var reviewDueDate = DateTime.UtcNow.AddDays(-1); // review window already passed
+
+        var result = TaskWorkflow.DelayRisk(TaskWorkflow.ForReview, 100, created, dueDate, reviewDueDate);
+
+        Assert.NotNull(result);
+        Assert.True(result!.Value.AtRisk);
+    }
+
+    [Fact]
+    public void DelayRisk_ForReviewStillWithinItsReviewWindow_IsNotAtRisk()
+    {
+        var created = DateTime.UtcNow.AddDays(-5);
+        var dueDate = TimeZoneHelper.PhilippineToday.AddDays(30);
+        var reviewDueDate = DateTime.UtcNow.AddDays(2); // review window still open
+
+        var result = TaskWorkflow.DelayRisk(TaskWorkflow.ForReview, 100, created, dueDate, reviewDueDate);
+
+        Assert.NotNull(result);
+        Assert.False(result!.Value.AtRisk);
     }
 
     [Fact]
@@ -100,7 +140,7 @@ public class TaskWorkflowTests
         var created = DateTime.UtcNow.AddDays(-5);
         var dueSoon = TimeZoneHelper.PhilippineToday.AddDays(1); // within DueSoonDays
 
-        var result = TaskWorkflow.DelayRisk(TaskWorkflow.InProgress, progress: 10, created, dueSoon);
+        var result = TaskWorkflow.DelayRisk(TaskWorkflow.InProgress, progress: 10, created, dueSoon, null);
 
         Assert.NotNull(result);
         Assert.True(result!.Value.AtRisk);
@@ -112,10 +152,32 @@ public class TaskWorkflowTests
         var created = DateTime.UtcNow.AddDays(-2);
         var farOut = TimeZoneHelper.PhilippineToday.AddDays(30);
 
-        var result = TaskWorkflow.DelayRisk(TaskWorkflow.InProgress, progress: 90, created, farOut);
+        var result = TaskWorkflow.DelayRisk(TaskWorkflow.InProgress, progress: 90, created, farOut, null);
 
         Assert.NotNull(result);
         Assert.False(result!.Value.AtRisk);
+    }
+
+    [Theory]
+    [InlineData(0)]   // exactly midnight: treated as "by end of day"
+    [InlineData(13)]  // 1 PM: has a real time-of-day
+    [InlineData(23)]  // 11 PM: has a real time-of-day
+    public void EffectiveDueMoment_MidnightMeansEndOfDay_OtherwiseUnchanged(int hour)
+    {
+        var due = TimeZoneHelper.PhilippineToday.AddHours(hour);
+        var expected = hour == 0 ? due.AddDays(1) : due;
+
+        Assert.Equal(expected, TaskWorkflow.EffectiveDueMoment(due));
+    }
+
+    [Fact]
+    public void IsOverdue_DueAtASpecificTimeToday_BecomesOverdueOnlyAfterThatTime()
+    {
+        var anHourAgo = TimeZoneHelper.PhilippineNow.AddHours(-1);
+        var inAnHour = TimeZoneHelper.PhilippineNow.AddHours(1);
+
+        Assert.True(TaskWorkflow.IsOverdue(TaskWorkflow.InProgress, anHourAgo));
+        Assert.False(TaskWorkflow.IsOverdue(TaskWorkflow.InProgress, inAnHour));
     }
 
     [Theory]

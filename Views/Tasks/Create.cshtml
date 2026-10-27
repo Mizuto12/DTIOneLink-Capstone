@@ -147,7 +147,7 @@
                     <div class="field-group">
                         <label class="field-label" for="dueDate">DUE DATE <span class="required-star">*</span></label>
                         <div class="select-wrap">
-                            <input class="pill-input" id="dueDate" asp-for="DueDate" type="date" />
+                            <input class="pill-input" id="dueDate" asp-for="DueDate" type="datetime-local" />
                             <span class="material-symbols-outlined select-icon">calendar_today</span>
                         </div>
                         <span asp-validation-for="DueDate" class="field-error"></span>
@@ -197,6 +197,19 @@
                     <span asp-validation-for="Priority" class="field-error"></span>
                 </div>
 
+                <!-- Requires Review -->
+                <div class="field-row">
+                    <div class="field-group">
+                        <label class="field-label" style="display:flex; align-items:center; gap:8px; font-weight:normal;">
+                            <input type="checkbox" asp-for="RequiresReview" />
+                            Requires review before completion
+                        </label>
+                        <p class="modal-sub" style="margin-top:4px;">
+                            Unchecked: submitting proof completes the task directly — no Admin decision needed.
+                            Can't be changed after the task is created.
+                        </p>
+                    </div>
+                </div>
 
             </form>
         </div>

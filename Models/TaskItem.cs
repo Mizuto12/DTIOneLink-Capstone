@@ -18,9 +18,15 @@ namespace DTIOneLink.Models
 
         public User? Assignee { get; set; }
 
+        // Date AND time now (previously date-only) — stored as Philippine
+        // local time, same convention as before, just with a real
+        // time-of-day instead of always midnight. See
+        // TaskWorkflow.EffectiveDueMoment for how a pre-existing midnight
+        // value (every task created before this) is still treated as "due
+        // by the end of that day", not "due at its very start".
         [Required(ErrorMessage = "Due date is required.")]
         [Display(Name = "Due Date")]
-        [DataType(DataType.Date)]
+        [DataType(DataType.DateTime)]
         public DateTime DueDate { get; set; } = TimeZoneHelper.PhilippineToday;
 
         [Required(ErrorMessage = "Priority is required.")]
@@ -84,6 +90,14 @@ namespace DTIOneLink.Models
 
         public string Status { get; set; } = "pending";
 
+        // Decision 6: set by the task's creator at creation time only —
+        // never editable afterward. false lets EmployeeController.SubmitProof
+        // complete the assignment directly, skipping the ForReview/Admin-
+        // decision step entirely (TaskWorkflow.AllowedTransitions still
+        // requires InProgress specifically; a resubmission after Returned
+        // for Correction always goes through review, regardless of this flag).
+        public bool RequiresReview { get; set; } = true;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
          [Display(Name = "Created By")]
         [ForeignKey(nameof(CreatedBy))]
@@ -96,6 +110,17 @@ namespace DTIOneLink.Models
         // copy, the setting moves to that copy. Null = does not repeat.
         [MaxLength(20)]
         public string? Recurrence { get; set; }
+
+        // Set (and overwritten) whenever a submission moves this task's
+        // rollup status to ForReview — EmployeeController.SubmitProof sets
+        // it to SubmittedAt + TaskWorkflow.ReviewWindow. Stored/compared in
+        // UTC (like SubmittedAt), unlike DueDate's Philippine-local
+        // convention: it's a fixed-duration window from an exact instant,
+        // not a calendar-date concept. Only meaningful while Status is
+        // ForReview — TaskWorkflow.DelayRisk only reads it in that branch,
+        // so a stale leftover value from a previous review cycle is never
+        // acted on once the status has moved on.
+        public DateTime? ReviewDueDate { get; set; }
 
         public List<TaskAssignment> Assignments { get; set; } = new();
         public List<TaskSubmission> Submissions { get; set; } = new();

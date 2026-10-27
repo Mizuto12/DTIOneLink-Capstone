@@ -8,6 +8,7 @@
 
     var task = Model;
     var taskCode = $"TASK-{task.Id:D4}";
+    var previewableExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".pdf", ".jpg", ".jpeg", ".png" };
 
     var status = (task.Status ?? "pending").Trim().ToLowerInvariant();
     var isOverdue = DTIOneLink.Services.TaskWorkflow.IsOverdue(status, task.DueDate);
@@ -223,6 +224,30 @@
                     </div>
                 </section>
 
+                @if (myAssignment != null && myAssignment.ChecklistItems.Any())
+                {
+                    <section class="td-description">
+                        <h3>Checklist</h3>
+                        <p class="td-progress-hero-hint">Your progress above is set by this checklist, not the slider.</p>
+                        <ul style="list-style:none; padding:0; margin:8px 0;">
+                            @foreach (var item in myAssignment.ChecklistItems.OrderBy(i => i.Id))
+                            {
+                                <li style="display:flex; align-items:center; gap:8px; padding:6px 0;">
+                                    <form asp-controller="Employee" asp-action="ToggleChecklistItem" method="post"
+                                          data-checklist-toggle-form style="margin:0; display:flex; align-items:center; gap:8px;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <input type="checkbox" checked="@(item.IsDone ? "checked" : null)"
+                                               @(canEditProgress ? "" : "disabled")
+                                               onchange="this.form.submit()" />
+                                        <span style="@(item.IsDone ? "text-decoration:line-through; color:var(--secondary,#5a6b8c);" : "")">@item.Label</span>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
+
                 <section class="td-description">
                     <h3>Description</h3>
                     @if (string.IsNullOrWhiteSpace(task.Description))
@@ -428,6 +453,13 @@
                                     <p class="td-activity-details">@entry.Details</p>
                                     @if (entry.Download != null)
                                     {
+                                        var downloadExt = System.IO.Path.GetExtension(entry.Download.ProofFileName);
+                                        if (previewableExtensions.Contains(downloadExt))
+                                        {
+                                            <a asp-controller="Employee" asp-action="PreviewProof" asp-route-submissionId="@entry.Download.Id" class="td-timeline-download" target="_blank" rel="noopener">
+                                                Preview @entry.Download.ProofFileName
+                                            </a>
+                                        }
                                         <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@entry.Download.Id" class="td-timeline-download">
                                             @entry.Download.ProofFileName
                                         </a>
