@@ -112,6 +112,20 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
             TempData["ErrorMessage"] = "Email cannot contain spaces or emoji.";
             return RedirectToAction(nameof(Index));
         }
+        // Email also goes into Username unchanged (below), and the column
+        // is capped at nvarchar(450) — an over-length value would otherwise
+        // throw an uncaught SqlException (truncation) instead of this clean
+        // error. 256 matches EditEmail's own limit, well under the DB cap.
+        if (email.Length > 256)
+        {
+            TempData["ErrorMessage"] = "Email is too long (256 characters max).";
+            return RedirectToAction(nameof(Index));
+        }
+        if (fullName.Length > 200)
+        {
+            TempData["ErrorMessage"] = "Full name is too long (200 characters max).";
+            return RedirectToAction(nameof(Index));
+        }
 
         var actorRole = HttpContext.Session.GetString("UserRole");
         var actorIsSuperAdmin = string.Equals(actorRole, "SuperAdmin", StringComparison.OrdinalIgnoreCase);

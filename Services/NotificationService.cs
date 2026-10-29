@@ -9,13 +9,15 @@ namespace DTIOneLink.Services
     {
         private readonly AppDbContext _db;
         private readonly string? _baseUrl;
+        private readonly ILogger<NotificationService> _logger;
 
-        public NotificationService(AppDbContext db, IConfiguration configuration)
+        public NotificationService(AppDbContext db, IConfiguration configuration, ILogger<NotificationService> logger)
         {
             _db = db;
             // Full address of the site (e.g. https://example.com), used only
             // to turn notification links into clickable links in emails.
             _baseUrl = configuration["App:BaseUrl"];
+            _logger = logger;
         }
 
         // emailSubject: also email this notice (only some notices are emailed,
@@ -43,31 +45,47 @@ namespace DTIOneLink.Services
                 Link = link
             };
 
-            _db.Notifications.Add(notif);
-
-            if (emailSubject != null)
+            // A notification is a side effect of whatever the caller is
+            // really doing (saving a task, approving a record, ...) — by
+            // the time this runs, that real operation has typically already
+            // committed. A failure here (a transient DB error, an email
+            // template issue) must never surface to the browser as if the
+            // real operation failed too, which could prompt a confused
+            // retry. Logged, not rethrown; the caller gets the in-memory
+            // Notification object back either way.
+            try
             {
-                var recipient = await _db.Users.AsNoTracking()
-                    .Where(u => u.Id == recipientUserId && u.IsActive && u.EmailConfirmed && u.Email != "")
-                    .Select(u => new { u.Email, u.FullName })
-                    .FirstOrDefaultAsync();
+                _db.Notifications.Add(notif);
 
-                if (recipient != null)
+                if (emailSubject != null)
                 {
-                    var email = EmailTemplates.Notification(
-                        recipient.Email, recipient.FullName, emailSubject, emailMessage ?? message, link, _baseUrl);
-                    _db.EmailOutbox.Add(new EmailOutboxMessage
+                    var recipient = await _db.Users.AsNoTracking()
+                        .Where(u => u.Id == recipientUserId && u.IsActive && u.EmailConfirmed && u.Email != "")
+                        .Select(u => new { u.Email, u.FullName })
+                        .FirstOrDefaultAsync();
+
+                    if (recipient != null)
                     {
-                        ToEmail = email.ToEmail,
-                        ToName = email.ToName,
-                        Subject = email.Subject,
-                        TextBody = email.TextBody,
-                        HtmlBody = email.HtmlBody
-                    });
+                        var email = EmailTemplates.Notification(
+                            recipient.Email, recipient.FullName, emailSubject, emailMessage ?? message, link, _baseUrl);
+                        _db.EmailOutbox.Add(new EmailOutboxMessage
+                        {
+                            ToEmail = email.ToEmail,
+                            ToName = email.ToName,
+                            Subject = email.Subject,
+                            TextBody = email.TextBody,
+                            HtmlBody = email.HtmlBody
+                        });
+                    }
                 }
+
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not create notification (type {Type}, recipient {RecipientUserId}).", type, recipientUserId);
             }
 
-            await _db.SaveChangesAsync();
             return notif;
         }
 
@@ -98,41 +116,52 @@ namespace DTIOneLink.Services
                 .Distinct()
                 .ToList();
 
-            var recipients = emailCandidateIds.Count == 0
-                ? new Dictionary<int, (string Email, string FullName)>()
-                : await _db.Users.AsNoTracking()
-                    .Where(u => emailCandidateIds.Contains(u.Id) && u.IsActive && u.EmailConfirmed && u.Email != "")
-                    .Select(u => new { u.Id, u.Email, u.FullName })
-                    .ToDictionaryAsync(u => u.Id, u => (u.Email, u.FullName));
-
-            foreach (var spec in specs)
+            // Same reasoning as CreateAsync: this is a side effect of
+            // whatever the caller is really doing, which has typically
+            // already committed by the time this runs. Logged, not
+            // rethrown.
+            try
             {
-                _db.Notifications.Add(new Notification
-                {
-                    RecipientUserId = spec.RecipientUserId,
-                    Type = spec.Type,
-                    Message = spec.Message.Length > 500 ? spec.Message.Substring(0, 497) + "..." : spec.Message,
-                    RelatedTaskId = spec.RelatedTaskId,
-                    RelatedRecordId = spec.RelatedRecordId,
-                    Link = spec.Link
-                });
+                var recipients = emailCandidateIds.Count == 0
+                    ? new Dictionary<int, (string Email, string FullName)>()
+                    : await _db.Users.AsNoTracking()
+                        .Where(u => emailCandidateIds.Contains(u.Id) && u.IsActive && u.EmailConfirmed && u.Email != "")
+                        .Select(u => new { u.Id, u.Email, u.FullName })
+                        .ToDictionaryAsync(u => u.Id, u => (u.Email, u.FullName));
 
-                if (spec.EmailSubject != null && recipients.TryGetValue(spec.RecipientUserId, out var recipient))
+                foreach (var spec in specs)
                 {
-                    var email = EmailTemplates.Notification(
-                        recipient.Email, recipient.FullName, spec.EmailSubject, spec.EmailMessage ?? spec.Message, spec.Link, _baseUrl);
-                    _db.EmailOutbox.Add(new EmailOutboxMessage
+                    _db.Notifications.Add(new Notification
                     {
-                        ToEmail = email.ToEmail,
-                        ToName = email.ToName,
-                        Subject = email.Subject,
-                        TextBody = email.TextBody,
-                        HtmlBody = email.HtmlBody
+                        RecipientUserId = spec.RecipientUserId,
+                        Type = spec.Type,
+                        Message = spec.Message.Length > 500 ? spec.Message.Substring(0, 497) + "..." : spec.Message,
+                        RelatedTaskId = spec.RelatedTaskId,
+                        RelatedRecordId = spec.RelatedRecordId,
+                        Link = spec.Link
                     });
-                }
-            }
 
-            await _db.SaveChangesAsync();
+                    if (spec.EmailSubject != null && recipients.TryGetValue(spec.RecipientUserId, out var recipient))
+                    {
+                        var email = EmailTemplates.Notification(
+                            recipient.Email, recipient.FullName, spec.EmailSubject, spec.EmailMessage ?? spec.Message, spec.Link, _baseUrl);
+                        _db.EmailOutbox.Add(new EmailOutboxMessage
+                        {
+                            ToEmail = email.ToEmail,
+                            ToName = email.ToName,
+                            Subject = email.Subject,
+                            TextBody = email.TextBody,
+                            HtmlBody = email.HtmlBody
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not create {Count} notification(s).", specs.Count);
+            }
         }
 
         // Latest 30 only — enforced here, not left to the controller to remember.

@@ -42,7 +42,7 @@ public class TasksControllerScopingTests
         }
 
         var config = new ConfigurationBuilder().Build();
-        var notifications = new NotificationService(context, config);
+        var notifications = new NotificationService(context, config, NullLogger<NotificationService>.Instance);
         var taskAssignments = new TaskAssignmentService(context);
         var opdTasks = new OpdTaskService(context, taskAssignments, notifications);
 
@@ -106,7 +106,7 @@ public class TasksControllerScopingTests
         if (department != null) httpContext.Session.SetString("UserDepartment", department);
 
         var config = new ConfigurationBuilder().Build();
-        var notifications = new NotificationService(context, config);
+        var notifications = new NotificationService(context, config, NullLogger<NotificationService>.Instance);
         var taskAssignments = new TaskAssignmentService(context);
         var opdTasks = new OpdTaskService(context, taskAssignments, notifications);
 

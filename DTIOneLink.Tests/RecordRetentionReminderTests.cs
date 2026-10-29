@@ -16,7 +16,7 @@ public class RecordRetentionReminderTests
     {
         var config = new ConfigurationBuilder().Build(); // no ConnectionStrings:DefaultConnection
         var db = DTIOneLink.Tests.TestDoubles.InMemoryDbContextFactory.Create();
-        var notifications = new NotificationService(db, config);
+        var notifications = new NotificationService(db, config, NullLogger<NotificationService>.Instance);
         var reminder = new RecordRetentionReminder(config, notifications, NullLogger<RecordRetentionReminder>.Instance);
 
         var count = await reminder.SendDueRemindersAsync(ownerUserId: null);
@@ -31,7 +31,7 @@ public class RecordRetentionReminderTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = "   " })
             .Build();
         var db = DTIOneLink.Tests.TestDoubles.InMemoryDbContextFactory.Create();
-        var notifications = new NotificationService(db, config);
+        var notifications = new NotificationService(db, config, NullLogger<NotificationService>.Instance);
         var reminder = new RecordRetentionReminder(config, notifications, NullLogger<RecordRetentionReminder>.Instance);
 
         var count = await reminder.SendDueRemindersAsync(ownerUserId: 1);

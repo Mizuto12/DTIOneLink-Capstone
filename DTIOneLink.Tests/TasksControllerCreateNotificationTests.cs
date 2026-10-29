@@ -47,7 +47,7 @@ public class TasksControllerCreateNotificationTests
         httpContext.Session.SetInt32("UserId", 99);
 
         var config = new ConfigurationBuilder().Build();
-        var notifications = new NotificationService(context, config);
+        var notifications = new NotificationService(context, config, NullLogger<NotificationService>.Instance);
         var taskAssignments = new TaskAssignmentService(context);
         var opdTasks = new OpdTaskService(context, taskAssignments, notifications);
 

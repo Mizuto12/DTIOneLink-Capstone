@@ -212,14 +212,14 @@ namespace DTIOneLink.Controllers
             // OTP step below.
             if (_env.IsEnvironment("Testing"))
             {
-                SignIn(user);
+                await SignInAsync(user);
                 return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
             }
 
             // Local-dev-only carve-out — see SkipOtpForLocalDev().
             if (SkipOtpForLocalDev())
             {
-                SignIn(user);
+                await SignInAsync(user);
                 return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
             }
 
@@ -228,7 +228,7 @@ namespace DTIOneLink.Controllers
             // still checked every time either way.
             if (_sessions.HasTrustedDevice(HttpContext, user))
             {
-                SignIn(user);
+                await SignInAsync(user);
                 return Redirect(returnUrl ?? RoleHomeUrl(user.Role));
             }
 
@@ -315,7 +315,7 @@ namespace DTIOneLink.Controllers
             // Read before SignIn clears the session.
             var returnUrl = HttpContext.Session.GetString(PendingLoginReturnUrlKey);
 
-            SignIn(user);
+            await SignInAsync(user);
             if (model.RememberDevice)
             {
                 await _sessions.IssueTrustedDeviceCookieAsync(HttpContext, user);
@@ -385,7 +385,7 @@ namespace DTIOneLink.Controllers
         {
             var user = await GetPendingUserAsync();
             if (user == null) return RedirectToAction(nameof(Login));
-            if (user.EmailConfirmed || !user.MustChangePassword) return ContinuePendingSignIn(user);
+            if (user.EmailConfirmed || !user.MustChangePassword) return await ContinuePendingSignInAsync(user);
 
             var hasLiveCode = await _db.OneTimeCodes.AnyAsync(c =>
                 c.UserId == user.Id && c.Purpose == OneTimeCodePurpose.ConfirmEmail &&
@@ -410,7 +410,7 @@ namespace DTIOneLink.Controllers
         {
             var user = await GetPendingUserAsync();
             if (user == null) return RedirectToAction(nameof(Login));
-            if (user.EmailConfirmed || !user.MustChangePassword) return ContinuePendingSignIn(user);
+            if (user.EmailConfirmed || !user.MustChangePassword) return await ContinuePendingSignInAsync(user);
 
             if (!ModelState.IsValid)
             {
@@ -427,7 +427,7 @@ namespace DTIOneLink.Controllers
             await _db.SaveChangesAsync();
             _logger.LogInformation("User {UserId} confirmed their email.", user.Id);
 
-            return ContinuePendingSignIn(user);
+            return await ContinuePendingSignInAsync(user);
         }
 
         // POST: /Account/ResendVerifyEmail
@@ -438,7 +438,7 @@ namespace DTIOneLink.Controllers
         {
             var user = await GetPendingUserAsync();
             if (user == null) return RedirectToAction(nameof(Login));
-            if (user.EmailConfirmed || !user.MustChangePassword) return ContinuePendingSignIn(user);
+            if (user.EmailConfirmed || !user.MustChangePassword) return await ContinuePendingSignInAsync(user);
 
             var issued = await _codes.IssueAsync(user, OneTimeCodePurpose.ConfirmEmail);
             TempData["CodeNotice"] = issued.Status == CodeIssueStatus.Sent
@@ -455,7 +455,7 @@ namespace DTIOneLink.Controllers
         {
             var user = await GetPendingUserAsync();
             if (user == null) return RedirectToAction(nameof(Login));
-            if (!user.EmailConfirmed || !user.MustChangePassword) return ContinuePendingSignIn(user);
+            if (!user.EmailConfirmed || !user.MustChangePassword) return await ContinuePendingSignInAsync(user);
 
             return SetPasswordView(user, isReset: false, new SetPasswordViewModel());
         }
@@ -468,7 +468,7 @@ namespace DTIOneLink.Controllers
         {
             var user = await GetPendingUserAsync();
             if (user == null) return RedirectToAction(nameof(Login));
-            if (!user.EmailConfirmed || !user.MustChangePassword) return ContinuePendingSignIn(user);
+            if (!user.EmailConfirmed || !user.MustChangePassword) return await ContinuePendingSignInAsync(user);
 
             if (ModelState.IsValid && NewPasswordProblem(user, model.NewPassword) is string problem)
             {
@@ -482,7 +482,7 @@ namespace DTIOneLink.Controllers
             await SavePasswordAsync(user, model.NewPassword);
             _logger.LogInformation("User {UserId} replaced their default/temporary password.", user.Id);
 
-            return ContinuePendingSignIn(user);
+            return await ContinuePendingSignInAsync(user);
         }
 
         // ═══════════════════════════ Forgot Password ═══════════════════════════
@@ -832,7 +832,7 @@ namespace DTIOneLink.Controllers
 
         // ═══════════════════════════════ Helpers ═══════════════════════════════
 
-        private void SignIn(User user)
+        private async Task SignInAsync(User user)
         {
             // RecordsController, ReportsController, and their shared views
             // all read these same session keys to decide access and layout.
@@ -841,8 +841,8 @@ namespace DTIOneLink.Controllers
             // Shown in User Management ("Last signed in ..."). One direct
             // UPDATE, so it never saves other pending changes by accident.
             var now = DateTime.UtcNow;
-            _db.Users.Where(u => u.Id == user.Id)
-                .ExecuteUpdate(s => s
+            await _db.Users.Where(u => u.Id == user.Id)
+                .ExecuteUpdateAsync(s => s
                     .SetProperty(u => u.LastLoginAtUtc, now)
                     .SetProperty(u => u.LastSeenAtUtc, now));
 
@@ -853,14 +853,14 @@ namespace DTIOneLink.Controllers
             // so this is the backstop; the session store itself no longer
             // disappearing mid-use (see Program.cs, AddDistributedSqlServerCache)
             // is the actual fix for why these piled up in the first place.
-            _db.TimeLogs
+            await _db.TimeLogs
                 .Where(t => t.UserId == user.Id && t.TimeOutUtc == null)
-                .ExecuteUpdate(s => s.SetProperty(t => t.TimeOutUtc, now));
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.TimeOutUtc, now));
 
             // One row per sign-in session, for the user's own Time Logs page.
             // Logout fills in TimeOutUtc on whichever row this leaves open.
             _db.TimeLogs.Add(new TimeLog { UserId = user.Id, TimeInUtc = now });
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
 
             _logger.LogInformation("User {UserId} signed in.", user.Id);
         }
@@ -900,7 +900,7 @@ namespace DTIOneLink.Controllers
         }
 
         // Next unfinished step, or the finished sign-in.
-        private IActionResult ContinuePendingSignIn(User user)
+        private async Task<IActionResult> ContinuePendingSignInAsync(User user)
         {
             if (user.MustChangePassword)
             {
@@ -908,7 +908,7 @@ namespace DTIOneLink.Controllers
             }
 
             var returnUrl = HttpContext.Session.GetString(PendingReturnUrlKey);
-            SignIn(user);
+            await SignInAsync(user);
             return Redirect(returnUrl != null && Url.IsLocalUrl(returnUrl) ? returnUrl : RoleHomeUrl(user.Role));
         }
 

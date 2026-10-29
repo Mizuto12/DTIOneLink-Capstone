@@ -3,6 +3,7 @@ using DTIOneLink.Services;
 using DTIOneLink.Tests.TestDoubles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DTIOneLink.Tests;
 
@@ -13,7 +14,7 @@ public class NotificationServiceTests
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["App:BaseUrl"] = baseUrl })
             .Build();
-        return new NotificationService(db, config);
+        return new NotificationService(db, config, NullLogger<NotificationService>.Instance);
     }
 
     private static User ActiveConfirmedUser(int id) => new()

@@ -33,7 +33,7 @@ public class EmployeeControllerScopingTests
         var controller = new EmployeeController(
             context,
             new TaskAssignmentService(context),
-            new NotificationService(context, config),
+            new NotificationService(context, config, NullLogger<NotificationService>.Instance),
             NullLogger<EmployeeController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
@@ -209,7 +209,7 @@ public class EmployeeControllerScopingTests
         httpContext.Session.SetInt32("UserId", 999);
 
         var config = new ConfigurationBuilder().Build();
-        var controller = new EmployeeController(context, new TaskAssignmentService(context), new NotificationService(context, config), NullLogger<EmployeeController>.Instance)
+        var controller = new EmployeeController(context, new TaskAssignmentService(context), new NotificationService(context, config, NullLogger<NotificationService>.Instance), NullLogger<EmployeeController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
         };

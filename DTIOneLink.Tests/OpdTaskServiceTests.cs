@@ -3,6 +3,7 @@ using DTIOneLink.Services;
 using DTIOneLink.Tests.TestDoubles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DTIOneLink.Tests;
 
@@ -11,7 +12,7 @@ public class OpdTaskServiceTests
     private static OpdTaskService BuildService(DTIOneLink.Data.AppDbContext db)
     {
         var config = new ConfigurationBuilder().Build();
-        var notifications = new NotificationService(db, config);
+        var notifications = new NotificationService(db, config, NullLogger<NotificationService>.Instance);
         var assignments = new TaskAssignmentService(db);
         return new OpdTaskService(db, assignments, notifications);
     }

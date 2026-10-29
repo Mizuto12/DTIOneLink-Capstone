@@ -88,7 +88,7 @@ public class CrossDepartmentResponsibleAdminTests
         }
 
         var config = new ConfigurationBuilder().Build();
-        var notifications = new NotificationService(context, config);
+        var notifications = new NotificationService(context, config, NullLogger<NotificationService>.Instance);
         var taskAssignments = new TaskAssignmentService(context);
         var opdTasks = new OpdTaskService(context, taskAssignments, notifications);
 

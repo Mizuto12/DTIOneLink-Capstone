@@ -77,7 +77,7 @@ public class EmployeeControllerProofPreviewTests
         return new EmployeeController(
             context,
             new TaskAssignmentService(context),
-            new NotificationService(context, config),
+            new NotificationService(context, config, NullLogger<NotificationService>.Instance),
             NullLogger<EmployeeController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
