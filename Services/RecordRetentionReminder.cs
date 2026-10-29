@@ -191,6 +191,21 @@ DELETE FROM dbo.Notifications WHERE RelatedRecordId = @Id AND Type = @Type;", co
         // remains available for those.
         private async Task PromoteDueRecordsToDisposalAsync(SqlConnection conn, DateTime notifyThrough, CancellationToken cancellationToken)
         {
+            // The raw SQL below hardcodes the one transition it performs
+            // (Retention -> Disposal) rather than calling
+            // RecordDisposalWorkflow.CanTransition directly — a bulk UPDATE
+            // can't easily consult a per-row C# check the way
+            // RecordsController.SetDisposalStatus does for a single record.
+            // This assertion is the next best thing: if that workflow's
+            // allowed-transitions map is ever changed so this is no longer
+            // a legal transition, this throws loudly on the next run
+            // instead of this SQL silently keeping doing it anyway.
+            if (!RecordDisposalWorkflow.CanTransition(RecordDisposalWorkflow.Retention, RecordDisposalWorkflow.Disposal))
+            {
+                throw new InvalidOperationException(
+                    "RecordDisposalWorkflow no longer allows Retention -> Disposal, but PromoteDueRecordsToDisposalAsync still hardcodes that transition in SQL — update this method to match.");
+            }
+
             await using var update = new SqlCommand(@"
 UPDATE dbo.Records
 SET RecordStatus = N'Disposal'

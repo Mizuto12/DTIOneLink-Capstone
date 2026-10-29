@@ -193,6 +193,16 @@ namespace DTIOneLink.Services
             _context.TaskItems.Add(subtask);
             await _context.SaveChangesAsync();
 
+            // A fresh subtask starts Pending — if the directive had already
+            // reached Completed/ForReview (every subtask that existed before
+            // this one was done or submitted), it needs to drop back to
+            // reflect the new unstarted work now under it. Without this, the
+            // Main Task kept whatever status it had before this subtask
+            // existed, so a directive could still show "Completed" while an
+            // unstarted subtask sat underneath it.
+            await _taskAssignments.RecalculateMainTaskAsync(mainTask.Id);
+            await _context.SaveChangesAsync();
+
             if (createdByUserId.HasValue)
             {
                 TaskActivityLogger.Log(_context, mainTask.Id, createdByUserId.Value, "updated", $"Added a new subtask: {subtaskName}.");

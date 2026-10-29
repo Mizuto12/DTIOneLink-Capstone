@@ -95,4 +95,37 @@ public class TasksControllerAddSubtaskTests
         Assert.Single(subtasks);
         Assert.Equal("New Subtask", subtasks[0].TaskName);
     }
+
+    // 2026-10-29 audit finding: adding a subtask to an already-Completed
+    // directive never recalculated the parent's status, so the directive
+    // kept showing "Completed" with a brand-new, unstarted subtask sitting
+    // underneath it.
+    [Fact]
+    public async Task AddSubtask_ToACompletedDirective_RecalculatesParentStatusAwayFromCompleted()
+    {
+        var (context, directive) = SeedDirective();
+        var existingSubtask = new TaskItem
+        {
+            TaskName = "Existing Subtask",
+            Description = "d",
+            TaskLevel = TaskLevels.Subtask,
+            TaskType = directive.TaskType,
+            OwningDepartment = directive.OwningDepartment,
+            ParentTaskId = directive.Id,
+            DueDate = directive.DueDate,
+            Status = TaskWorkflow.Completed,
+            Progress = 100,
+        };
+        context.TaskItems.Add(existingSubtask);
+        directive.Status = TaskWorkflow.Completed;
+        directive.Progress = 100;
+        context.SaveChanges();
+
+        var controller = BuildController(context, "SuperAdmin", null);
+        var result = await controller.AddSubtask(directive.Id, "New Subtask");
+
+        Assert.IsType<RedirectToActionResult>(result);
+        var reloadedDirective = await context.TaskItems.FindAsync(directive.Id);
+        Assert.NotEqual(TaskWorkflow.Completed, reloadedDirective!.Status);
+    }
 }

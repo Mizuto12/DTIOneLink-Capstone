@@ -385,6 +385,23 @@ namespace DTIOneLink.Controllers
                 ModelState.AddModelError(nameof(model.TaskType), "Select a task type.");
             }
 
+            // Was only "[Required]" on the string — any non-empty value was
+            // accepted and persisted, unlike every sibling field here
+            // (TaskType, OwningDepartment, Recurrence above), which all
+            // have their own allow-list check.
+            if (!TaskPriorities.IsValid(model.Priority))
+            {
+                ModelState.AddModelError(nameof(model.Priority), "Select a valid priority.");
+            }
+
+            // Nothing previously checked this at all — a task could be
+            // created already overdue, which the UI would immediately
+            // badge as "Overdue" with no actual work having been skipped.
+            if (model.DueDate.Date < TimeZoneHelper.PhilippineToday)
+            {
+                ModelState.AddModelError(nameof(model.DueDate), "The due date can't be in the past.");
+            }
+
             var isWholeOffice = model.TaskType == TaskTypes.WholeOffice;
             if (isWholeOffice)
             {
@@ -785,6 +802,21 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         {
             ModelState.AddModelError(nameof(model.AssigneeIds), "Select at least one person for this task.");
         }
+
+        // Completed is a terminal state everywhere else in the app
+        // (TaskWorkflow.AllowedTransitions[Completed] is empty, and every
+        // direct status write goes through CanTransition) — but adding a
+        // new assignee here used to bypass that entirely: the new row
+        // starts Pending, and RecalculateOverallStatus (below) recomputes
+        // the task's overall status purely from the assignment list, with
+        // no awareness that it had already finished. The task would
+        // silently flip back to "In Progress" with no transition check and
+        // no audit trail entry explaining why.
+        if (addIds.Count > 0 && task.Status == TaskWorkflow.Completed)
+        {
+            ModelState.AddModelError(nameof(model.AssigneeIds),
+                "This task is already completed, so a new person can't be added to it.");
+        }
     }
 
     // Same rule as the GET action. Re-checked here rather than trusted from
@@ -807,6 +839,24 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     {
         ModelState.AddModelError(nameof(model.DueDate),
             $"The due date can't be later than the OPD's deadline ({task.ParentTask.DueDate:MMM d, yyyy}).");
+    }
+
+    // Nothing previously checked this at all. Only when the date actually
+    // changes — same "only checked when it changes" rule as the OPD-deadline
+    // check above — so an older task whose due date is already in the past
+    // can still be saved as-is without being forced to also fix the date.
+    if (model.DueDate.Date != task.DueDate.Date && model.DueDate.Date < TimeZoneHelper.PhilippineToday)
+    {
+        ModelState.AddModelError(nameof(model.DueDate), "The due date can't be in the past.");
+    }
+
+    // Priority is only ever written below when !isAssignmentOnly (an
+    // assignment-only edit never touches it), so there's nothing to
+    // validate when it won't be used — same reasoning as the GET action's
+    // "these fields are never written" comment above.
+    if (!isAssignmentOnly && !TaskPriorities.IsValid(model.Priority))
+    {
+        ModelState.AddModelError(nameof(model.Priority), "Select a valid priority.");
     }
 
     if (!ModelState.IsValid)

@@ -742,6 +742,18 @@ WHERE ").Append(VisibilityClause(user));
                 return (null, "Please choose a valid Retention Due Date.");
             }
 
+            // Only the format was checked above — any parseable date, including
+            // year 1900 or year 9999, was accepted. Bounded to the same +/-100
+            // years RetentionPeriodParser.MaxYears already uses for the legacy
+            // "N years" duration grammar, so both paths agree on what counts as
+            // a plausible retention span either way.
+            var today = PhilippineToday();
+            if (retentionDueDate.Date < today.AddYears(-RetentionPeriodParser.MaxYears)
+                || retentionDueDate.Date > today.AddYears(RetentionPeriodParser.MaxYears))
+            {
+                return (null, $"The Retention Due Date must be within {RetentionPeriodParser.MaxYears} years of today.");
+            }
+
             var medium = NormalizeChoice(entry.Medium, Media);
             if (medium == null)
             {

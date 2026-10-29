@@ -528,6 +528,17 @@ if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
         TempData["ErrorMessage"] = "This task's status just changed (maybe it was reviewed, or you updated it from another tab). Please refresh and try again.";
         return RedirectToAction(nameof(Details), new { id = task.Id });
     }
+    catch (DbUpdateException)
+    {
+        // Any OTHER save failure (a transient SQL error, a timeout) — not
+        // just the concurrency case above. Same cleanup reasoning:
+        // RecordsController.UploadAttachment already catches broadly here
+        // for exactly this pattern (a file written to disk with no DB row
+        // left to find it by if the insert never lands).
+        try { System.IO.File.Delete(fullPath); } catch { /* best-effort */ }
+        TempData["ErrorMessage"] = "Could not submit your proof right now. Please try again.";
+        return RedirectToAction(nameof(Details), new { id = task.Id });
+    }
 
     if (userId.HasValue)
     {
