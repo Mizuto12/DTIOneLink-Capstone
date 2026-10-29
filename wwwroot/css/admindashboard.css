@@ -490,7 +490,13 @@
   background-color: var(--dash-primary-container);
 }
 
-.badge {
+/* Scoped under .dashboard — this app-wide bare ".badge" collided with
+   tasks-index.css's own ".badge" (the priority-badge base), both loaded
+   together on AdminDashboard.cshtml. Nothing currently renders a plain
+   class="badge" on this page (checked: the real priority badges here use
+   "priority-badge", not this), but an unscoped rule left it a landmine
+   for the next thing that does. */
+.dashboard .badge {
   font-family: var(--dash-font-ui);
   font-size: 10px;
   font-weight: 700;
@@ -500,22 +506,22 @@
   display: inline-block;
 }
 
-.badge--high {
+.dashboard .badge--high {
   background-color: var(--dash-error);
   color: var(--dash-white);
 }
 
-.badge--medium {
+.dashboard .badge--medium {
   background-color: var(--dash-yellow-400);
   color: var(--dash-primary);
 }
 
-.badge--complete {
+.dashboard .badge--complete {
   background-color: var(--dash-tertiary-fixed);
   color: var(--dash-on-tertiary-fixed);
 }
 
-.badge--ongoing {
+.dashboard .badge--ongoing {
   background-color: var(--dash-surface-variant);
   color: var(--dash-on-primary-fixed-variant);
 }

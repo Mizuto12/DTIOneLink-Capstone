@@ -7,6 +7,13 @@
             ? "~/Views/Admin/AdminLayout.cshtml"
             : "~/Views/Employee/EmployeeLayout.cshtml";
     ViewData["Title"] = "Record History";
+
+    // Same slug rule as records.js's status pill on the list page
+    // (lowercase, spaces to hyphens), so this page picks up the exact
+    // same .status-{slug} color records.css already defines — this used
+    // to render as a flat, uncolored badge instead.
+    var statusSlug = System.Text.RegularExpressions.Regex.Replace(
+        (Model.CurrentStatus ?? "Retention").Trim().ToLowerInvariant(), @"\s+", "-");
 }
 
 @section Styles {
@@ -18,7 +25,7 @@
     <section class="card">
         <p class="page-eyebrow">@Model.Code</p>
         <h2 class="card-title">@Model.Title</h2>
-        <p class="card-desc">Current status: <span class="badge">@Model.CurrentStatus</span></p>
+        <p class="card-desc">Current status: <span class="status-pill status-@statusSlug">@Model.CurrentStatus</span></p>
     </section>
 
     <section class="card">

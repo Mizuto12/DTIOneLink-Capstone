@@ -396,6 +396,12 @@
 .status-progress { background: #dbeafe; color: #1e40af; }
 .status-complete { background: #dcfce7; color: #166534; }
 .status-pending  { background: #f1f5f9; color: #475569; }
+/* Was falling through to .status-pending (the same gray as plain "To
+   Do") — a returned task needing the employee's attention again looked
+   visually identical to one nobody had touched yet. Matches the amber
+   already used for this same status on the Employee side
+   (employeetask.css's .status-pill.returned). */
+.status-returned { background: #ffefd2; color: #8a5000; }
 .status-badge.status-overdue { background-color: #ffdad6; color: #ba1a1a; }
 
 /* ── Empty state ─────────────────────────────────────────── */
