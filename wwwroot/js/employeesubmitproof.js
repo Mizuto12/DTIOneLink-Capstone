@@ -16,14 +16,41 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.setAttribute('open', '');
     }
 
+    // This page is a real, separately-navigable URL (not a true client-side
+    // modal) rendering a dialog over an inert copy of Details — opening it
+    // always adds its own history entry. Every way of leaving it used to
+    // navigate FORWARD to a fresh Details entry instead of consuming the
+    // one already behind it, so the stack only ever grew: Details ->
+    // SubmitProof -> Details(new). One Back press from there landed back
+    // on this same SubmitProof page instead of wherever the user actually
+    // came from. history.back() instead collapses it the way a real close
+    // should. Falls back to a plain navigation only when there's nothing
+    // of ours to go back to (direct link, new tab, bookmark) — history.back()
+    // in that case could leave the app entirely.
     function closeModal() {
         if (!modal) return;
         var box = modal.querySelector('.modal');
         if (box) box.classList.add('closing');
         setTimeout(function () {
-            window.location.href = modal.dataset.closeUrl || '/Employee';
+            var cameFromThisApp = document.referrer &&
+                document.referrer.indexOf(window.location.origin + '/') === 0;
+            if (cameFromThisApp && window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = modal.dataset.closeUrl || '/Employee';
+            }
         }, 150);
     }
+
+    var closeBtn = document.getElementById('tpCloseBtn');
+    var cancelBtn = document.getElementById('tpCancelBtn');
+    [closeBtn, cancelBtn].forEach(function (btn) {
+        if (!btn) return;
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            closeModal();
+        });
+    });
 
     if (!form) {
         return;
@@ -96,7 +123,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 // silently discarding the error and bouncing the user back
                 // to Details with nothing actually submitted.
                 if (res.redirected) {
-                    window.location.href = res.url;
+                    // replace(), not href=: this overwrites the SubmitProof
+                    // entry in place with the post-submit Details page
+                    // instead of stacking a new entry on top of it — see
+                    // closeModal()'s comment for why that matters for Back.
+                    window.location.replace(res.url);
                     return;
                 }
                 return res.text().then(function (html) {

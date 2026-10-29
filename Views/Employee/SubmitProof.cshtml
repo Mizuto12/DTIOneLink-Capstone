@@ -29,7 +29,7 @@
                 <h2 class="modal-title" id="tpModalTitle">Submit Proof — @taskCode</h2>
                 <p class="modal-sub">@task.TaskName</p>
             </div>
-            <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="modal-close" aria-label="Close">
+            <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="modal-close" id="tpCloseBtn" aria-label="Close">
                 <span class="material-symbols-outlined">close</span>
             </a>
         </div>
@@ -73,7 +73,7 @@
 
         <!-- Footer -->
         <div class="modal-footer">
-            <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="btn-cancel">Cancel</a>
+            <a asp-controller="Employee" asp-action="Details" asp-route-id="@task.Id" class="btn-cancel" id="tpCancelBtn">Cancel</a>
             <button type="submit" class="btn-create" id="tpSubmitBtn" form="tpForm">
                 <span class="material-symbols-outlined">upload</span>
                 Submit for Review
