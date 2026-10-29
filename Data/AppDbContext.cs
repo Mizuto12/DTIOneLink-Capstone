@@ -35,6 +35,16 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
         u.Property(x => x.MustChangePassword).HasDefaultValue(false);
         u.Property(x => x.FailedLoginCount).HasDefaultValue(0);
         u.Property(x => x.SecurityStamp).HasDefaultValue(string.Empty);
+
+        // Was missing entirely (found during the 2026-10-28 audit): two
+        // near-simultaneous UserManagementController.Create calls for the
+        // same email could both pass the pre-check SELECT and both insert,
+        // since nothing in the database stopped them. The catch for SQL
+        // Server's duplicate-key error (2601/2627) already existed in
+        // Create but was dead code with no unique index to ever throw it.
+        // SQL Server's default collation is already case-insensitive, so
+        // this matches the existing manual check's behavior exactly.
+        u.HasIndex(x => x.Email).IsUnique();
     });
 
     modelBuilder.Entity<OneTimeCode>(c =>

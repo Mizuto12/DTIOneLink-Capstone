@@ -138,9 +138,13 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
         using var conn = db.GetConnection();
         await conn.OpenAsync();
 
-        // The Users table has no unique rule (older data already has
-        // duplicates), so check here before adding. Comparison is
-        // case-insensitive (database collation).
+        // Users.Email also has a real unique index now (see AppDbContext's
+        // OnModelCreating / migration AddUsersEmailUniqueIndex) — the
+        // catch below handles that as the actual last word on uniqueness
+        // under concurrent requests. This check runs first anyway, so a
+        // normal (non-racing) duplicate attempt gets the friendlier,
+        // field-specific error message instead of a generic one. Both
+        // comparisons are case-insensitive (database collation).
         const string duplicateSql = @"
             SELECT TOP 1 FullName, Email, 'email' AS Kind FROM dbo.Users
              WHERE Email = @Email OR Username = @Email

@@ -298,6 +298,32 @@ BEGIN
     );
     CREATE INDEX IX_TaskChecklistItems_TaskAssignmentId ON dbo.TaskChecklistItems (TaskAssignmentId);
 END");
+
+            // AddUsersEmailUniqueIndex — closes a duplicate-account race in
+            // UserManagementController.Create (found during the 2026-10-28
+            // audit): nothing stopped two near-simultaneous Create calls for
+            // the same email both passing the pre-check and both inserting.
+            // Narrows Email to nvarchar(450) first (required to index it —
+            // SQL Server can't index a MAX column); safe here since nothing
+            // in the app ever writes an email anywhere near that long.
+            // Deliberately placed LAST in this file: unlike every patch
+            // above, this one can genuinely fail on a database that already
+            // has duplicate emails (confirmed none exist in production as
+            // of 2026-10-29, but SchemaRepair runs on every failed-migration
+            // boot, and a thrown exception here must never block the other,
+            // more critical patches above it from applying first.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Users_Email' AND object_id = OBJECT_ID(N'dbo.Users'))
+BEGIN
+    DECLARE @df sysname;
+    SELECT @df = d.name FROM sys.default_constraints d
+        JOIN sys.columns c ON d.parent_column_id = c.column_id AND d.parent_object_id = c.object_id
+        WHERE d.parent_object_id = OBJECT_ID(N'dbo.Users') AND c.name = N'Email';
+    IF @df IS NOT NULL EXEC('ALTER TABLE dbo.Users DROP CONSTRAINT [' + @df + ']');
+
+    ALTER TABLE dbo.Users ALTER COLUMN Email nvarchar(450) NOT NULL;
+    CREATE UNIQUE INDEX IX_Users_Email ON dbo.Users (Email);
+END");
         }
     }
 }
