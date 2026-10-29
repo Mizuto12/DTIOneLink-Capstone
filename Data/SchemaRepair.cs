@@ -299,6 +299,22 @@ BEGIN
     CREATE INDEX IX_TaskChecklistItems_TaskAssignmentId ON dbo.TaskChecklistItems (TaskAssignmentId);
 END");
 
+            // AddTaskAssignmentAndSubmissionRowVersion — optimistic-
+            // concurrency tokens closing a double-submission/double-review
+            // race (found during the 2026-10-28 audit): two requests
+            // racing on the same TaskAssignment/TaskSubmission (a Review
+            // decision landing mid-SubmitProof, two reviewers, two tabs)
+            // could otherwise both pass their own status checks and both
+            // save, one silently clobbering the other. A plain stamped
+            // varbinary column (not a native ROWVERSION — see
+            // TaskAssignment.RowVersion's comment for why), so existing
+            // rows just get an empty default, same as the migration.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.TaskAssignments', N'RowVersion') IS NULL
+    ALTER TABLE dbo.TaskAssignments ADD RowVersion varbinary(max) NOT NULL DEFAULT 0x;
+IF COL_LENGTH(N'dbo.TaskSubmissions', N'RowVersion') IS NULL
+    ALTER TABLE dbo.TaskSubmissions ADD RowVersion varbinary(max) NOT NULL DEFAULT 0x;");
+
             // AddUsersEmailUniqueIndex — closes a duplicate-account race in
             // UserManagementController.Create (found during the 2026-10-28
             // audit): nothing stopped two near-simultaneous Create calls for

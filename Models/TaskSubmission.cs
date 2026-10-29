@@ -47,5 +47,13 @@ namespace DTIOneLink.Models
         [ForeignKey(nameof(ValidatedBy))]
         public int? ValidatedByUserId { get; set; }
         public User? ValidatedBy { get; set; }
+
+        // Optimistic concurrency token — see TaskAssignment.RowVersion for
+        // what this is and why it's a plain stamped column, not a native
+        // ROWVERSION. Catches two Review decisions racing on the same
+        // submission (the Decision != null guard only catches a
+        // sequential double-click, not two requests that both read
+        // Decision == null before either saved).
+        public byte[] RowVersion { get; set; } = Guid.NewGuid().ToByteArray();
     }
 }

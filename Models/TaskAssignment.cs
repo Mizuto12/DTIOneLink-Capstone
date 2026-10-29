@@ -57,5 +57,22 @@ namespace DTIOneLink.Models
         // TasksController.AddChecklistItem) — until then this stays empty
         // and Progress is set manually, same as before this feature existed.
         public List<TaskChecklistItem> ChecklistItems { get; set; } = new();
+
+        // Optimistic concurrency token. Status/Progress on this row can be
+        // written from several independent places — Review's approve/
+        // return, SubmitProof, UpdateProgress, ToggleChecklistItem — and
+        // without this, two of them racing (two tabs, a review landing
+        // mid-submit) could otherwise both pass their own status checks
+        // and both save, one silently clobbering the other. Reassigned to
+        // a fresh value by the code that writes Status/Progress, right
+        // before each save; EF throws DbUpdateConcurrencyException if the
+        // row's stored value no longer matches what was loaded.
+        //
+        // Deliberately NOT a SQL Server ROWVERSION/[Timestamp] column:
+        // that type has no equivalent the test suite's SQLite provider can
+        // auto-populate on insert, which made every write in every test
+        // fail a NOT NULL constraint. A plain varbinary column that the
+        // application stamps works identically on both providers.
+        public byte[] RowVersion { get; set; } = Guid.NewGuid().ToByteArray();
     }
 }

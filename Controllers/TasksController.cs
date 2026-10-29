@@ -1392,12 +1392,14 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
     submission.AdminRemarks = model.AdminRemarks;
     submission.DecidedAt = DateTime.UtcNow;
     submission.ValidatedByUserId = validatorId;
+    submission.RowVersion = Guid.NewGuid().ToByteArray();
 
     assignment.Status = nextAssignmentStatus;
     if (nextAssignmentStatus == TaskWorkflow.Completed)
     {
         assignment.Progress = 100; // Completed implies fully progressed, for display consistency
     }
+    assignment.RowVersion = Guid.NewGuid().ToByteArray();
 
     // Requirement 8: recompute the task-level aggregate — this is what
     // actually decides whether the overall task moves to ForReview/Completed
@@ -1417,7 +1419,20 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
             submission.Id);
     }
 
-    await _context.SaveChangesAsync();
+    try
+    {
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // Two Review decisions on the same submission (two tabs, two
+        // reviewers) racing: submission.Decision != null above only
+        // catches a SEQUENTIAL double-click, not two requests that both
+        // read Decision == null before either saved. The RowVersion
+        // tokens on TaskAssignment/TaskSubmission catch that case here.
+        TempData["ErrorMessage"] = "This submission was just reviewed (maybe from another tab or by someone else). Please refresh and try again.";
+        return RedirectToAction(nameof(Index));
+    }
 
     if (nextAssignmentStatus == TaskWorkflow.Completed)
     {

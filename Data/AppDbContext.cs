@@ -149,6 +149,13 @@ modelBuilder.Entity<Notification>()
         .HasIndex(a => new { a.TaskId, a.UserId })
         .IsUnique();
 
+    // See TaskAssignment.RowVersion's own comment: a plain stamped
+    // concurrency token, not a database-generated ROWVERSION, so it works
+    // identically on SQL Server and the test suite's SQLite provider.
+    modelBuilder.Entity<TaskAssignment>()
+        .Property(a => a.RowVersion)
+        .IsConcurrencyToken();
+
     modelBuilder.Entity<TaskAssignment>()
         .HasOne(a => a.User)
         .WithMany()
@@ -175,6 +182,10 @@ modelBuilder.Entity<Notification>()
         .WithMany()
         .HasForeignKey(s => s.TaskAssignmentId)
         .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<TaskSubmission>()
+        .Property(s => s.RowVersion)
+        .IsConcurrencyToken();
 
     // Restrict (not the default Cascade) so a user with time logs can still
     // be handled the same way every other Users FK above is — the log is a

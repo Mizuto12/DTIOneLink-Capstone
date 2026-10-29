@@ -3,6 +3,7 @@ using DTIOneLink.Data;
 using DTIOneLink.Models;
 using DTIOneLink.Services;
 using DTIOneLink.Tests.TestDoubles;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
@@ -112,5 +113,81 @@ public class TasksControllerReviewTests
         Assert.IsType<RedirectToActionResult>(result);
         var reloaded = await context.TaskAssignments.FindAsync(submission.TaskAssignmentId);
         Assert.Equal(TaskWorkflow.Completed, reloaded!.Status);
+    }
+
+    // Reproduces the race the RowVersion concurrency tokens were added for
+    // (2026-10-28 audit, finding F10): two Review decisions on the same
+    // submission, each loaded before the other saved. The
+    // submission.Decision != null guard only catches a sequential
+    // double-click — it can't catch this, since both reads happen before
+    // either write. Two separate DbContext instances sharing one
+    // in-memory database stand in for two concurrent requests.
+    [Fact]
+    public async Task Review_TwoDecisionsRacingOnTheSameSubmission_SecondOneIsRefused()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        DbContextOptions<AppDbContext> Options() =>
+            new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(dbName)
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+                .Options;
+
+        int submissionId;
+        using (var seedContext = new AppDbContext(Options()))
+        {
+            var employee = new User { Username = "emp", PasswordHash = "x", FullName = "Employee One", Role = "Employee", Department = "BDD" };
+            seedContext.Users.Add(employee);
+            seedContext.SaveChanges();
+
+            var task = new TaskItem
+            {
+                TaskName = "Direct Admin Task",
+                Description = "d",
+                TaskLevel = TaskLevels.Main,
+                TaskType = TaskTypes.DirectAdmin,
+                OwningDepartment = "BDD",
+                DueDate = DateTime.UtcNow.AddDays(5),
+            };
+            seedContext.TaskItems.Add(task);
+            seedContext.SaveChanges();
+
+            var assignment = new TaskAssignment { TaskId = task.Id, UserId = employee.Id, Status = TaskWorkflow.ForReview, Progress = 100 };
+            seedContext.TaskAssignments.Add(assignment);
+            seedContext.SaveChanges();
+
+            var submission = new TaskSubmission
+            {
+                TaskId = task.Id,
+                TaskAssignmentId = assignment.Id,
+                ProofFileName = "proof.pdf",
+                ProofStoredFileName = "stored.pdf",
+                Remarks = "Done",
+            };
+            seedContext.TaskSubmissions.Add(submission);
+            seedContext.SaveChanges();
+            submissionId = submission.Id;
+        }
+
+        // Two independent contexts, each loading its own copy of the same
+        // rows — exactly what two simultaneous requests would each do.
+        using var contextA = new AppDbContext(Options());
+        using var contextB = new AppDbContext(Options());
+        var controllerA = BuildController(contextA, "SuperAdmin");
+        var controllerB = BuildController(contextB, "SuperAdmin");
+
+        var resultA = await controllerA.Review(new TaskSubmissionDecisionViewModel { SubmissionId = submissionId, Decision = "approve" });
+        Assert.IsType<RedirectToActionResult>(resultA); // the first one through wins cleanly
+
+        var resultB = await controllerB.Review(new TaskSubmissionDecisionViewModel { SubmissionId = submissionId, Decision = "approve" });
+
+        // Refused, not a second silent "success" — and refused via the
+        // normal redirect-with-TempData-error path, not an unhandled 500.
+        Assert.IsType<RedirectToActionResult>(resultB);
+        Assert.True(controllerB.TempData.ContainsKey("ErrorMessage"));
+
+        // The row actually reflects only the first decision.
+        using var verifyContext = new AppDbContext(Options());
+        var finalSubmission = await verifyContext.TaskSubmissions.FindAsync(submissionId);
+        Assert.Equal("approved", finalSubmission!.Decision);
     }
 }

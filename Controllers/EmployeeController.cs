@@ -184,10 +184,19 @@ public async Task<IActionResult> ToggleChecklistItem(int id)
     {
         item.TaskAssignment.Status = TaskWorkflow.InProgress;
     }
+    item.TaskAssignment.RowVersion = Guid.NewGuid().ToByteArray();
 
     _taskAssignments.RecalculateOverallStatus(task);
     await _taskAssignments.PropagateToParentMainTaskAsync(task);
-    await _context.SaveChangesAsync();
+
+    try
+    {
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return BadRequest(new { message = "This task's status just changed (maybe it was reviewed, or you updated it from another tab). Please refresh and try again." });
+    }
 
     return Json(new
     {
@@ -332,6 +341,7 @@ private async Task<string?> ApplyProgressUpdateAsync(TaskItem task, TaskAssignme
 
     assignment.Progress = progress;
     assignment.Status = nextStatus;
+    assignment.RowVersion = Guid.NewGuid().ToByteArray();
     // AssigneeId, DueDate, Priority, TaskName, Description, CreatedAt:
     // untouched, because nothing above ever assigns to them. Other
     // assignees' TaskAssignment rows are untouched too — this only ever
@@ -343,7 +353,17 @@ private async Task<string?> ApplyProgressUpdateAsync(TaskItem task, TaskAssignme
     // up so the Main Task's own Status/Progress stays current too.
     await _taskAssignments.PropagateToParentMainTaskAsync(task);
 
-    await _context.SaveChangesAsync();
+    try
+    {
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // Same reasoning as SubmitProof's own concurrency guard: this
+        // assignment changed (a Review decision, another tab) between
+        // load and save.
+        return "This task's status just changed (maybe it was reviewed, or you updated it from another tab). Please refresh and try again.";
+    }
     return null;
 }
 // GET: /Employee/SubmitProof/5
@@ -455,6 +475,7 @@ if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
     };
 
     _context.TaskSubmissions.Add(submission);
+    assignment.RowVersion = Guid.NewGuid().ToByteArray();
 
     // RequiresReview = false lets this assignment complete immediately
     // instead of waiting on an Admin decision — but only straight from
@@ -491,7 +512,22 @@ if (!TaskWorkflow.CanSubmitProof(status, assignment.Progress))
     // up so the Main Task's own Status/Progress stays current too.
     await _taskAssignments.PropagateToParentMainTaskAsync(task);
 
-    await _context.SaveChangesAsync(); // submission.Id is only assigned after this save
+    try
+    {
+        await _context.SaveChangesAsync(); // submission.Id is only assigned after this save
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // Someone else (a Review decision, another device) changed this
+        // same assignment between when the page loaded and this submit —
+        // without this check, both writes would silently apply in
+        // whichever order they land, one clobbering the other. The proof
+        // file already written to disk has no DB row pointing to it now,
+        // same cleanup as UploadAttachment's own failure path.
+        try { System.IO.File.Delete(fullPath); } catch { /* best-effort */ }
+        TempData["ErrorMessage"] = "This task's status just changed (maybe it was reviewed, or you updated it from another tab). Please refresh and try again.";
+        return RedirectToAction(nameof(Details), new { id = task.Id });
+    }
 
     if (userId.HasValue)
     {
