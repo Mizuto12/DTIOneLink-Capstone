@@ -811,10 +811,11 @@ if (importMasterlistBtn && importMasterlistInput) {
 
       const skippedSteps = (result.skipped || []).map(s => `Row ${s.row}: ${s.reason}`);
       await showNotice({
-        tone: result.skipped && result.skipped.length ? 'warning' : 'success',
-        icon: result.skipped && result.skipped.length ? 'warning' : 'check_circle',
+        tone: result.truncated || (result.skipped && result.skipped.length) ? 'warning' : 'success',
+        icon: result.truncated || (result.skipped && result.skipped.length) ? 'warning' : 'check_circle',
         title: 'Import complete',
-        message: `Imported ${result.imported.length} record${result.imported.length === 1 ? '' : 's'}.` +
+        message: (result.truncated ? `${result.message} ` : '') +
+          `Imported ${result.imported.length} record${result.imported.length === 1 ? '' : 's'}.` +
           (skippedSteps.length ? ` ${skippedSteps.length} row${skippedSteps.length === 1 ? '' : 's'} were skipped:` : ''),
         steps: skippedSteps
       });

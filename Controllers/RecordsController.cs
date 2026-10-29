@@ -1712,6 +1712,12 @@ ORDER BY a.UploadedAt DESC", conn);
         // row that would be rejected by hand is rejected the same way here.
         private const long MaxImportFileBytes = 10 * 1024 * 1024; // 10 MB, same figure already used for proof uploads
         private const int MaxHeaderScanRows = 20;
+        // A malformed or foreign Excel file (missing the "Prepared by:"
+        // marker this loop stops on) could otherwise run unbounded, opening
+        // one new SqlConnection per row (TryInsertRecord's own pattern)
+        // indefinitely. Comfortably above any real masterlist this office
+        // produces.
+        private const int MaxImportRows = 2000;
         private static readonly string[] ExpectedHeaders =
         {
             "CODE", "TITLE OF RECORD", "MEDIUM", "LOCATION", "PERIOD COVERED",
@@ -1774,6 +1780,8 @@ ORDER BY a.UploadedAt DESC", conn);
                 var imported = new List<object>();
                 var skipped = new List<object>();
                 var row = headerRow + 1;
+                var dataRowCount = 0;
+                var truncated = false;
                 while (true)
                 {
                     var codeCell = worksheet.Cell(row, 1).GetString().Trim();
@@ -1781,6 +1789,13 @@ ORDER BY a.UploadedAt DESC", conn);
                     {
                         break;
                     }
+
+                    if (dataRowCount >= MaxImportRows)
+                    {
+                        truncated = true;
+                        break;
+                    }
+                    dataRowCount++;
 
                     var entry = new RecordEntry
                     {
@@ -1807,7 +1822,15 @@ ORDER BY a.UploadedAt DESC", conn);
                     row++;
                 }
 
-                return Json(new { imported, skipped });
+                return Json(new
+                {
+                    imported,
+                    skipped,
+                    truncated,
+                    message = truncated
+                        ? $"Stopped after {MaxImportRows} rows — this file has more data rows than expected for a real masterlist. Imported and skipped rows up to that point are listed above."
+                        : (string?)null
+                });
             }
             catch (Exception ex)
             {
