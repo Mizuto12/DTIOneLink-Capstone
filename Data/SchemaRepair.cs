@@ -202,6 +202,17 @@ BEGIN
     CREATE INDEX IX_RecordDispositionEvents_RecordId ON dbo.RecordDispositionEvents (RecordId, OccurredAt);
 END");
 
+            // AddTaskRecurrence — this one was missing from this file
+            // entirely (found during the 2026-10-28 full-system audit): on
+            // a database whose migration history doesn't include it, every
+            // query against TaskItems (EF includes every mapped scalar
+            // property in its generated SQL) fails with "Invalid column
+            // name 'Recurrence'" — the same failure class as the
+            // ActivatedAtUtc incident, but on the app's primary entity.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.TaskItems', N'Recurrence') IS NULL
+    ALTER TABLE dbo.TaskItems ADD Recurrence nvarchar(20) NULL;");
+
             // AddTaskReviewDueDate
             await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH(N'dbo.TaskItems', N'ReviewDueDate') IS NULL

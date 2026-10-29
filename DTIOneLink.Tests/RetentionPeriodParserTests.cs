@@ -47,4 +47,30 @@ public class RetentionPeriodParserTests
 
         Assert.Equal(new DateTime(2027, 1, 15), result);
     }
+
+    // The Retention field is now a date picker: RecordsController stores
+    // the chosen date itself as "yyyy-MM-dd" in RetentionPeriod. The
+    // recalculation job (RecordRetentionReminder.RecalculateDueDatesAsync)
+    // re-parses that stored text on every hourly run, so the parser must
+    // recognize its own output as the due date, not a duration — otherwise
+    // every record's RetentionDueDate gets silently wiped to null an hour
+    // after it's created or edited.
+    [Theory]
+    [InlineData("2030-01-15", "2030-01-15")]
+    [InlineData(" 2030-01-15 ", "2030-01-15")]
+    public void TryComputeDueDate_IsoDateString_ReturnsThatDateDirectly(string retentionPeriod, string expectedDate)
+    {
+        Assert.Equal(DateTime.Parse(expectedDate), RetentionPeriodParser.TryComputeDueDate(RecordDate, retentionPeriod));
+    }
+
+    [Fact]
+    public void TryComputeDueDate_IsoDateString_IgnoresPeriodCovered()
+    {
+        // An ISO date is already the absolute due date chosen on the form —
+        // unlike the legacy duration grammar, it must NOT be re-anchored to
+        // Period Covered's end date.
+        var result = RetentionPeriodParser.TryComputeDueDate(RecordDate, "April 13, 2023 to April 30, 2025", "2030-01-15");
+
+        Assert.Equal(new DateTime(2030, 1, 15), result);
+    }
 }
