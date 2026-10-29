@@ -108,18 +108,30 @@ WHERE r.RecordStatus IN (N'Retention', N'Disposal')
                 }
             }
 
+            var sentCount = 0;
             foreach (var record in dueRecords)
             {
-                await _notifications.NotifyRecordDisposalDueAsync(
-                    record.OwnerUserId, record.RecordId, record.Code, record.Title, record.RetentionDueDate, today);
+                // One record's notification failing (e.g. a transient DB
+                // error) must not stop every other record due a reminder in
+                // this same run from getting theirs.
+                try
+                {
+                    await _notifications.NotifyRecordDisposalDueAsync(
+                        record.OwnerUserId, record.RecordId, record.Code, record.Title, record.RetentionDueDate, today);
+                    sentCount++;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "Could not send a disposal reminder for record {RecordId}.", record.RecordId);
+                }
             }
 
-            if (dueRecords.Count > 0)
+            if (sentCount > 0)
             {
-                _logger.LogInformation("Sent {Count} record disposal reminder(s).", dueRecords.Count);
+                _logger.LogInformation("Sent {Count} record disposal reminder(s).", sentCount);
             }
 
-            return dueRecords.Count;
+            return sentCount;
         }
 
         // Recomputes RetentionDueDate for Retention records and saves any that

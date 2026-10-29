@@ -95,90 +95,107 @@ namespace DTIOneLink.Services
 
             foreach (var directive in openDirectives)
             {
-                var directiveRecipientsBase = departmentAdmins
-                    .Where(a => string.Equals(a.Department, directive.OwningDepartment, StringComparison.OrdinalIgnoreCase))
-                    .Select(a => a.Id)
-                    .Concat(NotificationService.ResolveOpdRecipients(directive, superAdminIds))
-                    .Distinct();
-
-                // Already submitted for review — judged against the review
-                // deadline, not this directive's own due date, which no
-                // longer applies once work is in the reviewer's hands.
-                if (TaskWorkflow.Normalize(directive.Status) == TaskWorkflow.ForReview)
+                // One directive's failure (e.g. a transient notification
+                // error) must not stop every other directive/assignee due a
+                // reminder in this same hourly run from getting theirs.
+                try
                 {
-                    if (directive.ReviewDueDate.HasValue && DateTime.UtcNow > directive.ReviewDueDate.Value)
+                    var directiveRecipientsBase = departmentAdmins
+                        .Where(a => string.Equals(a.Department, directive.OwningDepartment, StringComparison.OrdinalIgnoreCase))
+                        .Select(a => a.Id)
+                        .Concat(NotificationService.ResolveOpdRecipients(directive, superAdminIds))
+                        .Distinct();
+
+                    // Already submitted for review — judged against the review
+                    // deadline, not this directive's own due date, which no
+                    // longer applies once work is in the reviewer's hands.
+                    if (TaskWorkflow.Normalize(directive.Status) == TaskWorkflow.ForReview)
                     {
-                        foreach (var adminId in directiveRecipientsBase)
+                        if (directive.ReviewDueDate.HasValue && DateTime.UtcNow > directive.ReviewDueDate.Value)
                         {
-                            await notifications.NotifyReviewOverdueAsync(adminId, directive.Id, directive.TaskName, directive.ReviewDueDate.Value);
+                            foreach (var adminId in directiveRecipientsBase)
+                            {
+                                await notifications.NotifyReviewOverdueAsync(adminId, directive.Id, directive.TaskName, directive.ReviewDueDate.Value);
+                            }
                         }
+                        continue;
                     }
-                    continue;
+
+                    if (!TaskWorkflow.IsOverdue(directive.Status, directive.DueDate)) continue;
+
+                    foreach (var adminId in directiveRecipientsBase)
+                    {
+                        await notifications.NotifyTaskOverdueAsync(adminId, directive.Id, directive.TaskName, directive.DueDate, isAdminCopy: true);
+                    }
                 }
-
-                if (!TaskWorkflow.IsOverdue(directive.Status, directive.DueDate)) continue;
-
-                foreach (var adminId in directiveRecipientsBase)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    await notifications.NotifyTaskOverdueAsync(adminId, directive.Id, directive.TaskName, directive.DueDate, isAdminCopy: true);
+                    _logger.LogError(ex, "TaskReminderService: could not process directive {TaskId}", directive.Id);
                 }
             }
 
             foreach (var assignment in incompleteAssignments)
             {
-                var task = assignment.Task!;
-
-                // Already submitted — same reasoning as the directive loop
-                // above: the review deadline is the right clock now, not the
-                // task's own due date, and the employee has nothing left to
-                // do, so this is admin/reviewer-facing only.
-                if (TaskWorkflow.Normalize(assignment.Status) == TaskWorkflow.ForReview)
+                try
                 {
-                    if (task.ReviewDueDate.HasValue && DateTime.UtcNow > task.ReviewDueDate.Value
-                        && notifiedAdminForTask.Add(task.Id))
-                    {
-                        var reviewDepartment = NotificationService.ResolveEffectiveDepartment(task, assignment.User?.Department);
-                        var reviewRecipients = departmentAdmins
-                            .Where(a => reviewDepartment != null &&
-                                        string.Equals(a.Department, reviewDepartment, StringComparison.OrdinalIgnoreCase))
-                            .Select(a => a.Id)
-                            .Concat(NotificationService.ResolveOpdRecipients(task, superAdminIds))
-                            .Distinct();
+                    var task = assignment.Task!;
 
-                        foreach (var adminId in reviewRecipients)
+                    // Already submitted — same reasoning as the directive loop
+                    // above: the review deadline is the right clock now, not the
+                    // task's own due date, and the employee has nothing left to
+                    // do, so this is admin/reviewer-facing only.
+                    if (TaskWorkflow.Normalize(assignment.Status) == TaskWorkflow.ForReview)
+                    {
+                        if (task.ReviewDueDate.HasValue && DateTime.UtcNow > task.ReviewDueDate.Value
+                            && notifiedAdminForTask.Add(task.Id))
                         {
-                            await notifications.NotifyReviewOverdueAsync(adminId, task.Id, task.TaskName, task.ReviewDueDate.Value);
+                            var reviewDepartment = NotificationService.ResolveEffectiveDepartment(task, assignment.User?.Department);
+                            var reviewRecipients = departmentAdmins
+                                .Where(a => reviewDepartment != null &&
+                                            string.Equals(a.Department, reviewDepartment, StringComparison.OrdinalIgnoreCase))
+                                .Select(a => a.Id)
+                                .Concat(NotificationService.ResolveOpdRecipients(task, superAdminIds))
+                                .Distinct();
+
+                            foreach (var adminId in reviewRecipients)
+                            {
+                                await notifications.NotifyReviewOverdueAsync(adminId, task.Id, task.TaskName, task.ReviewDueDate.Value);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Reuses TaskWorkflow.IsOverdue (same calculation already used for
+                    // display everywhere else) rather than reimplementing the date logic.
+                    if (TaskWorkflow.IsOverdue(assignment.Status, task.DueDate))
+                    {
+                        await notifications.NotifyTaskOverdueAsync(assignment.UserId, task.Id, task.TaskName, task.DueDate);
+
+                        if (notifiedAdminForTask.Add(task.Id))
+                        {
+                            var taskDepartment = NotificationService.ResolveEffectiveDepartment(task, assignment.User?.Department);
+
+                            var adminRecipients = departmentAdmins
+                                .Where(a => taskDepartment != null &&
+                                            string.Equals(a.Department, taskDepartment, StringComparison.OrdinalIgnoreCase))
+                                .Select(a => a.Id)
+                                .Concat(NotificationService.ResolveOpdRecipients(task, superAdminIds))
+                                .Distinct();
+
+                            foreach (var adminId in adminRecipients)
+                            {
+                                await notifications.NotifyTaskOverdueAsync(adminId, task.Id, task.TaskName, task.DueDate, isAdminCopy: true);
+                            }
                         }
                     }
-                    continue;
-                }
-
-                // Reuses TaskWorkflow.IsOverdue (same calculation already used for
-                // display everywhere else) rather than reimplementing the date logic.
-                if (TaskWorkflow.IsOverdue(assignment.Status, task.DueDate))
-                {
-                    await notifications.NotifyTaskOverdueAsync(assignment.UserId, task.Id, task.TaskName, task.DueDate);
-
-                    if (notifiedAdminForTask.Add(task.Id))
+                    else if (task.DueDate.Date <= dueSoonCutoff)
                     {
-                        var taskDepartment = NotificationService.ResolveEffectiveDepartment(task, assignment.User?.Department);
-
-                        var adminRecipients = departmentAdmins
-                            .Where(a => taskDepartment != null &&
-                                        string.Equals(a.Department, taskDepartment, StringComparison.OrdinalIgnoreCase))
-                            .Select(a => a.Id)
-                            .Concat(NotificationService.ResolveOpdRecipients(task, superAdminIds))
-                            .Distinct();
-
-                        foreach (var adminId in adminRecipients)
-                        {
-                            await notifications.NotifyTaskOverdueAsync(adminId, task.Id, task.TaskName, task.DueDate, isAdminCopy: true);
-                        }
+                        await notifications.NotifyTaskDueSoonAsync(assignment.UserId, task.Id, task.TaskName, task.DueDate);
                     }
                 }
-                else if (task.DueDate.Date <= dueSoonCutoff)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    await notifications.NotifyTaskDueSoonAsync(assignment.UserId, task.Id, task.TaskName, task.DueDate);
+                    _logger.LogError(ex, "TaskReminderService: could not process assignment {AssignmentId} (task {TaskId})", assignment.Id, assignment.TaskId);
                 }
             }
         }

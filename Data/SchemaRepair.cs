@@ -97,6 +97,38 @@ BEGIN
     CREATE INDEX IX_TimeLogs_UserId_TimeInUtc ON dbo.TimeLogs (UserId, TimeInUtc);
 END");
 
+            // RelaxRecordsChoiceConstraints — also missing from this file
+            // (found during the 2026-10-28 audit). The original CHECK
+            // constraints only allowed the old dropdown values
+            // (Physical/Digital etc.); the Records form has long since
+            // moved to DTI's actual masterlist choices. On a database still
+            // holding the old constraints, every record save with a
+            // current-era choice fails with SQL error 547. Only touches a
+            // constraint that still has the old wording, so it's a no-op
+            // once the real migration (or this patch) has already run.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'dbo.Records', N'U') IS NOT NULL
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Records_Medium' AND definition LIKE N'%Digital%')
+    BEGIN
+        ALTER TABLE dbo.Records DROP CONSTRAINT CK_Records_Medium;
+        ALTER TABLE dbo.Records WITH CHECK ADD CONSTRAINT CK_Records_Medium
+            CHECK (LEN(LTRIM(RTRIM(Medium))) > 0);
+    END
+    IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Records_Filing' AND definition LIKE N'%Alphabetical%')
+    BEGIN
+        ALTER TABLE dbo.Records DROP CONSTRAINT CK_Records_Filing;
+        ALTER TABLE dbo.Records WITH CHECK ADD CONSTRAINT CK_Records_Filing
+            CHECK (LEN(LTRIM(RTRIM(FilingSystem))) > 0);
+    END
+    IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Records_Access' AND definition LIKE N'%Confidential%')
+    BEGIN
+        ALTER TABLE dbo.Records DROP CONSTRAINT CK_Records_Access;
+        ALTER TABLE dbo.Records WITH CHECK ADD CONSTRAINT CK_Records_Access
+            CHECK (LEN(LTRIM(RTRIM(AccessControl))) > 0);
+    END
+END");
+
             // AddRecordMasterlists
             await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID(N'dbo.RecordMasterlists', N'U') IS NULL
@@ -156,6 +188,33 @@ IF COL_LENGTH(N'dbo.Users', N'ActivatedAtUtc') IS NULL
     ALTER TABLE dbo.Users ADD ActivatedAtUtc datetime2 NULL;");
             await db.Database.ExecuteSqlRawAsync(@"
 UPDATE dbo.Users SET ActivatedAtUtc = CreatedAt WHERE ActivatedAtUtc IS NULL;");
+
+            // RenameRecordStatusValues — also missing from this file (found
+            // during the 2026-10-28 audit). RecordsController's current
+            // code only ever writes/filters on the new vocabulary
+            // ('Retention'/'Disposal'); on a database that never ran this
+            // rename, any row still holding the old literal values
+            // ('Active'/'ForDisposal') doesn't error, it just silently
+            // stops matching every status filter and becomes invisible.
+            // The UPDATE only touches rows still holding an old value, so
+            // it's a no-op once they've been renamed.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.Records', N'RecordStatus') IS NOT NULL
+    UPDATE dbo.Records
+    SET RecordStatus = CASE RecordStatus
+        WHEN N'Active'      THEN N'Retention'
+        WHEN N'ForDisposal' THEN N'Disposal'
+        ELSE RecordStatus
+    END
+    WHERE RecordStatus IN (N'Active', N'ForDisposal');");
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'dbo.DF_Records_RecordStatus', N'D') IS NOT NULL
+    ALTER TABLE dbo.Records DROP CONSTRAINT DF_Records_RecordStatus;");
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH(N'dbo.Records', N'RecordStatus') IS NOT NULL
+   AND OBJECT_ID(N'dbo.DF_Records_RecordStatus', N'D') IS NULL
+    ALTER TABLE dbo.Records ADD CONSTRAINT DF_Records_RecordStatus
+        DEFAULT N'Retention' FOR RecordStatus;");
 
             // AddRecordAttachments
             await db.Database.ExecuteSqlRawAsync(@"

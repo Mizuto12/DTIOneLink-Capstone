@@ -1058,12 +1058,51 @@ WHERE ").Append(VisibilityClause(user));
                     return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only delete a record you logged yourself." });
                 }
 
-                using var cmd = new SqlCommand("DELETE FROM Records WHERE RecordId = @Id", conn);
-                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
-                var rows = cmd.ExecuteNonQuery();
-                if (rows == 0)
+                // RecordAttachments cascades from Records (ON DELETE CASCADE),
+                // so the DELETE below removes those rows too — but that
+                // happens entirely inside SQL Server and never touches the
+                // files on disk. Read their stored names first so there's
+                // still something to delete them by afterward; otherwise
+                // every attachment on a deleted record is orphaned on disk
+                // forever with no DB row left to find it by.
+                var attachmentFileNames = new List<string>();
+                using (var cmd = new SqlCommand("SELECT StoredFileName FROM RecordAttachments WHERE RecordId = @Id", conn))
                 {
-                    return NotFound(new { message = "Record not found." });
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        attachmentFileNames.Add(reader.GetString(0));
+                    }
+                }
+
+                using (var cmd = new SqlCommand("DELETE FROM Records WHERE RecordId = @Id", conn))
+                {
+                    cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                    var rows = cmd.ExecuteNonQuery();
+                    if (rows == 0)
+                    {
+                        return NotFound(new { message = "Record not found." });
+                    }
+                }
+
+                // Best-effort, same as DeleteAttachment: the DB state is
+                // already correct either way, a stray file left behind is
+                // wasted disk space, not data loss.
+                foreach (var storedFileName in attachmentFileNames)
+                {
+                    try
+                    {
+                        var fullPath = Path.Combine(AttachmentStorageRoot, storedFileName);
+                        if (System.IO.File.Exists(fullPath))
+                        {
+                            System.IO.File.Delete(fullPath);
+                        }
+                    }
+                    catch (Exception fileEx)
+                    {
+                        _logger.LogWarning(fileEx, "Could not delete attachment file {StoredFileName} for deleted record {RecordId}.", storedFileName, id);
+                    }
                 }
 
                 return Json(new { ok = true });
@@ -1452,16 +1491,29 @@ ORDER BY e.OccurredAt ASC, e.Id ASC", conn))
                     await file.CopyToAsync(stream);
                 }
 
-                using var cmd = new SqlCommand(@"
+                try
+                {
+                    using var cmd = new SqlCommand(@"
 INSERT INTO RecordAttachments (RecordId, FileName, StoredFileName, ContentType, FileSizeBytes, UploadedByUserId, UploadedAt)
 VALUES (@RecordId, @FileName, @StoredFileName, @ContentType, @FileSizeBytes, @UploadedByUserId, SYSUTCDATETIME())", conn);
-                cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = recordId;
-                cmd.Parameters.Add("@FileName", SqlDbType.NVarChar, 260).Value = Path.GetFileName(file.FileName);
-                cmd.Parameters.Add("@StoredFileName", SqlDbType.NVarChar, 100).Value = storedFileName;
-                cmd.Parameters.Add("@ContentType", SqlDbType.NVarChar, 100).Value = (object?)file.ContentType ?? DBNull.Value;
-                cmd.Parameters.Add("@FileSizeBytes", SqlDbType.BigInt).Value = file.Length;
-                cmd.Parameters.Add("@UploadedByUserId", SqlDbType.Int).Value = user.UserId;
-                await cmd.ExecuteNonQueryAsync();
+                    cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = recordId;
+                    cmd.Parameters.Add("@FileName", SqlDbType.NVarChar, 260).Value = Path.GetFileName(file.FileName);
+                    cmd.Parameters.Add("@StoredFileName", SqlDbType.NVarChar, 100).Value = storedFileName;
+                    cmd.Parameters.Add("@ContentType", SqlDbType.NVarChar, 100).Value = (object?)file.ContentType ?? DBNull.Value;
+                    cmd.Parameters.Add("@FileSizeBytes", SqlDbType.BigInt).Value = file.Length;
+                    cmd.Parameters.Add("@UploadedByUserId", SqlDbType.Int).Value = user.UserId;
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // The DB row is what makes this file reachable at all —
+                    // without it the file would just sit here forever, never
+                    // listed, never downloadable, never cleaned up. Remove
+                    // it rather than leave an orphan, then let the outer
+                    // catch log and report the real failure.
+                    try { System.IO.File.Delete(fullPath); } catch { /* best-effort */ }
+                    throw;
+                }
 
                 return Json(new { ok = true });
             }
