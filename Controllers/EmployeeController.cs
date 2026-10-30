@@ -243,66 +243,14 @@ public async Task<IActionResult> DeleteAllCompleted()
 // own assignment (plus the derived task/main-task rollups).
 private async Task<string?> ApplyProgressUpdateAsync(TaskItem task, TaskAssignment assignment, int progress, string? requestedStatus)
 {
-    var currentStatus = (assignment.Status ?? "pending").Trim().ToLowerInvariant();
-
-    if (currentStatus == "completed")
+    // Core lock rules and status transition live in TaskAssignmentService
+    // now, shared with TasksController.UpdateAssignmentProgress (T10) —
+    // this wrapper only owns the save/concurrency handling, same as before.
+    var error = await _taskAssignments.ApplyProgressChangeAsync(task, assignment, progress, requestedStatus);
+    if (error != null)
     {
-        return "This task is already completed and can no longer be updated.";
+        return error;
     }
-
-    // Locked while awaiting Admin review — progress/status are frozen until
-    // a decision comes back (Completed or Returned for Correction).
-    if (currentStatus == "for-review")
-    {
-        return "This task is awaiting review and can't be updated right now.";
-    }
-
-    // Once a checklist governs this assignment's progress, the manual
-    // slider is locked out — check items off instead. Reverts automatically
-    // if every item is later removed (RecalculateProgressFromChecklist is a
-    // no-op with zero items, so manual control resumes on its own).
-    if (assignment.ChecklistItems.Count > 0)
-    {
-        return "This task's progress is tracked by its checklist — check items off instead of using the slider.";
-    }
-
-    var requested = (requestedStatus ?? currentStatus).Trim().ToLowerInvariant();
-    var nextStatus = currentStatus;
-
-    // The only manual transition allowed from here: Pending -> In Progress.
-    if (currentStatus == TaskWorkflow.Pending && requested == TaskWorkflow.InProgress)
-    {
-        nextStatus = TaskWorkflow.InProgress;
-    }
-
-    // Moving progress off zero implies work has started, even if the
-    // checkbox wasn't also ticked.
-    if (progress > 0 && nextStatus == TaskWorkflow.Pending)
-    {
-        nextStatus = TaskWorkflow.InProgress;
-    }
-
-    // Defense in depth: reject a tampered RequestedStatus that doesn't match
-    // a legal transition, even though the UI never offers one. Reaching
-    // Completed happens only via TasksController.Review, never from here.
-    if (!TaskWorkflow.CanTransition(currentStatus, nextStatus) || nextStatus == TaskWorkflow.Completed)
-    {
-        return "That status change isn't allowed.";
-    }
-
-    assignment.Progress = progress;
-    assignment.Status = nextStatus;
-    assignment.RowVersion = Guid.NewGuid().ToByteArray();
-    // AssigneeId, DueDate, Priority, TaskName, Description, CreatedAt:
-    // untouched, because nothing above ever assigns to them. Other
-    // assignees' TaskAssignment rows are untouched too — this only ever
-    // writes to the current user's own assignment.
-
-    _taskAssignments.RecalculateOverallStatus(task);
-
-    // If this task is itself a subtask of an OPD Main Task, roll the change
-    // up so the Main Task's own Status/Progress stays current too.
-    await _taskAssignments.PropagateToParentMainTaskAsync(task);
 
     try
     {

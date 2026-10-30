@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initCopyTaskCode();
     initBackButton();
     initProgressSlider();
+    initAdminProgressEditor();
     initDeleteConfirm();
     initActivityFade();
 });
@@ -272,6 +273,139 @@ function initProgressSlider() {
     range.addEventListener('change', function () {
         clearTimeout(saveTimer);
         saveTimer = setTimeout(save, 400);
+    });
+}
+
+/**
+ * Admin/SuperAdmin progress correction (T10) — a sibling control to
+ * initProgressSlider's assignee-facing one, shown instead of it when the
+ * viewer is an authorized elevated user looking at someone else's task.
+ * Explicit Save button rather than auto-save-on-drag: an intentional
+ * override, not a casual adjustment. Posts to TasksController.
+ * UpdateAssignmentProgress, not EmployeeController.UpdateProgress.
+ */
+function initAdminProgressEditor() {
+    var editor = document.getElementById('tdAdminProgressEditor');
+    if (!editor) {
+        return;
+    }
+
+    var input = document.getElementById('tdAdminProgressInput');
+    var saveBtn = document.getElementById('tdAdminProgressSaveBtn');
+    var hint = document.getElementById('tdAdminProgressHint');
+    var taskAssignmentId = editor.getAttribute('data-task-assignment-id');
+    var isOverdue = editor.getAttribute('data-overdue') === 'true';
+
+    var ringArc = document.getElementById('tdProgressRingArc');
+    var ringValue = document.getElementById('tdProgressRingValue');
+    var metaProgress = document.getElementById('tdMetaProgress');
+    var metaStatus = document.getElementById('tdMetaStatus');
+    var badgeText = document.getElementById('tdStatusBadgeText');
+    var badge = document.getElementById('tdStatusBadge');
+    var RING_CIRCUMFERENCE = 364.425;
+
+    var statusLabels = {
+        'pending': 'To Do',
+        'in-progress': 'In Progress',
+        'for-review': 'For Review',
+        'returned-for-correction': 'Returned for Correction',
+        'completed': 'Completed'
+    };
+    var statusClasses = {
+        'pending': 'todo',
+        'in-progress': 'in-progress',
+        'for-review': 'for-review',
+        'returned-for-correction': 'returned',
+        'completed': 'completed'
+    };
+
+    function setHint(text, state) {
+        if (!hint) {
+            return;
+        }
+        hint.textContent = text;
+        hint.classList.toggle('is-saved', state === 'saved');
+        hint.classList.toggle('is-error', state === 'error');
+    }
+
+    function getCsrfToken() {
+        var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        return tokenInput ? tokenInput.value : '';
+    }
+
+    function applyTaskStatus(status) {
+        // An overdue task keeps showing "Overdue" — that overlay is computed
+        // from the due date, not from the stored status.
+        if (isOverdue || !statusLabels[status]) {
+            return;
+        }
+        if (metaStatus) {
+            metaStatus.textContent = statusLabels[status];
+        }
+        if (badgeText) {
+            badgeText.textContent = statusLabels[status];
+        }
+        if (badge) {
+            Object.keys(statusClasses).forEach(function (key) {
+                badge.classList.remove(statusClasses[key]);
+            });
+            badge.classList.add(statusClasses[status]);
+        }
+    }
+
+    saveBtn.addEventListener('click', function () {
+        if (saveBtn.disabled) {
+            return; // guards against a double-click firing two saves
+        }
+
+        var value = Number(input.value);
+        if (!Number.isInteger(value) || value < 0 || value > 100) {
+            setHint('Enter a whole number between 0 and 100.', 'error');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        setHint('Saving…', null);
+
+        var body = new URLSearchParams();
+        body.append('taskAssignmentId', taskAssignmentId);
+        body.append('progress', String(value));
+        body.append('__RequestVerificationToken', getCsrfToken());
+
+        fetch('/Tasks/UpdateAssignmentProgress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+            .then(function (res) {
+                return res.json().catch(function () { return null; }).then(function (data) {
+                    if (!res.ok) {
+                        var message = data && data.message ? data.message : 'Unable to save. Please try again.';
+                        throw new Error(message);
+                    }
+                    return data;
+                });
+            })
+            .then(function (data) {
+                input.value = String(data.progress);
+                if (ringValue) {
+                    ringValue.textContent = data.progress + '%';
+                }
+                if (ringArc) {
+                    ringArc.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - data.progress / 100));
+                }
+                if (metaProgress) {
+                    metaProgress.textContent = data.taskProgress + '%';
+                }
+                applyTaskStatus(data.taskStatus);
+                setHint('Saved — progress is now ' + data.progress + '%.', 'saved');
+            })
+            .catch(function (err) {
+                setHint(err.message, 'error');
+            })
+            .finally(function () {
+                saveBtn.disabled = false;
+            });
     });
 }
 

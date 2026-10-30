@@ -1755,6 +1755,76 @@ public async Task<IActionResult> RemoveChecklistItem(int id)
     return RedirectToAction(nameof(Checklist), new { id = taskId });
 }
 
+// POST: /Tasks/UpdateAssignmentProgress — panelist item T10: lets an
+// authorized Admin/SuperAdmin correct an assignee's progress from the
+// general Task Details page (Views/Employee/_TaskDetails.cshtml, shown for
+// an elevated viewer who isn't the assignee), not just at the moment of a
+// Review decision (TasksController.Review's own Progress field, scoped to
+// Return only, is unaffected by this — a separate, narrower capability).
+// Same lock rules as the assignee's own slider (TaskAssignmentService.
+// ApplyProgressChangeAsync): editable on Pending/In Progress/Returned for
+// Correction, frozen on Completed/ForReview — an Admin correcting a task
+// that's actively awaiting review belongs in the Review decision, not here.
+// JSON response (not TempData/redirect) so the page can update in place,
+// matching EmployeeController.UpdateProgress's own pattern for the same UI
+// concept.
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UpdateAssignmentProgress(int taskAssignmentId, int progress)
+{
+    if (!CanAccessTaskManagement())
+    {
+        return StatusCode(403);
+    }
+
+    if (progress < 0 || progress > 100)
+    {
+        return BadRequest(new { message = "Progress must be between 0 and 100." });
+    }
+
+    var assignment = await _context.TaskAssignments
+        .Include(a => a.Task).ThenInclude(t => t!.ParentTask)
+        .Include(a => a.ChecklistItems)
+        .Include(a => a.User)
+        .FirstOrDefaultAsync(a => a.Id == taskAssignmentId);
+    if (assignment?.Task == null || !IsWithinTaskScope(assignment.Task))
+    {
+        return NotFound(new { message = "That assignment could not be found." });
+    }
+
+    var previousProgress = assignment.Progress;
+    var error = await _taskAssignments.ApplyProgressChangeAsync(assignment.Task, assignment, progress, requestedStatus: null);
+    if (error != null)
+    {
+        return BadRequest(new { message = error });
+    }
+
+    var userId = HttpContext.Session.GetInt32("UserId");
+    if (userId.HasValue)
+    {
+        var adminName = HttpContext.Session.GetString("FullName") ?? "An administrator";
+        TaskActivityLogger.Log(_context, assignment.TaskId, userId.Value, TaskActivityType.ProgressUpdated,
+            $"{adminName} adjusted {assignment.User?.FullName ?? "the assignee"}'s progress from {previousProgress}% to {progress}%.");
+    }
+
+    try
+    {
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return BadRequest(new { message = "This task just changed (maybe it was reviewed, or updated from another tab). Please refresh and try again." });
+    }
+
+    return Json(new
+    {
+        progress = assignment.Progress,
+        status = assignment.Status,
+        taskProgress = assignment.Task.Progress,
+        taskStatus = assignment.Task.Status
+    });
+}
+
 // POST: /Tasks/Delete/5 — OPD only, same symmetry as Create/AddSubtask
 // (only the OPD creates a Main Task or its subtasks, so only the OPD
 // removes them). Permanently deletes a Main Task — a Direct Admin Task,

@@ -164,6 +164,79 @@ namespace DTIOneLink.Services
             }
         }
 
+        // Shared progress-write path for both the assignee's own slider
+        // (EmployeeController.UpdateProgress) and an authorized Admin/
+        // SuperAdmin's correction of someone else's assignment
+        // (TasksController.UpdateAssignmentProgress — panelist item T10).
+        // Same lock rules either way: frozen once Completed or ForReview
+        // (an Admin correction belongs in the Review decision for a
+        // submission that's actively awaiting review, not here), and once a
+        // checklist governs the assignment. The only automatic status
+        // transition is Pending -> InProgress; this never reaches Completed
+        // on its own — that only ever happens via TasksController.Review's
+        // Approve decision. Does NOT call SaveChangesAsync — the caller
+        // owns the save (and its own concurrency/audit-log handling).
+        public async Task<string?> ApplyProgressChangeAsync(TaskItem task, TaskAssignment assignment, int progress, string? requestedStatus)
+        {
+            var currentStatus = (assignment.Status ?? "pending").Trim().ToLowerInvariant();
+
+            if (currentStatus == TaskWorkflow.Completed)
+            {
+                return "This task is already completed and can no longer be updated.";
+            }
+
+            // Locked while awaiting Admin review — progress/status are frozen
+            // until a decision comes back (Completed or Returned for
+            // Correction). An Admin wanting to correct it mid-review uses the
+            // Review decision's own Progress field instead.
+            if (currentStatus == TaskWorkflow.ForReview)
+            {
+                return "This task is awaiting review and can't be updated right now.";
+            }
+
+            // Once a checklist governs this assignment's progress, manual
+            // edits are locked out — check items off instead. Reverts
+            // automatically if every item is later removed.
+            if (assignment.ChecklistItems.Count > 0)
+            {
+                return "This task's progress is tracked by its checklist — check items off instead.";
+            }
+
+            var requested = (requestedStatus ?? currentStatus).Trim().ToLowerInvariant();
+            var nextStatus = currentStatus;
+
+            // The only manual transition allowed from here: Pending -> In Progress.
+            if (currentStatus == TaskWorkflow.Pending && requested == TaskWorkflow.InProgress)
+            {
+                nextStatus = TaskWorkflow.InProgress;
+            }
+
+            // Moving progress off zero implies work has started, even if the
+            // checkbox wasn't also ticked.
+            if (progress > 0 && nextStatus == TaskWorkflow.Pending)
+            {
+                nextStatus = TaskWorkflow.InProgress;
+            }
+
+            // Defense in depth: reject a tampered RequestedStatus that doesn't
+            // match a legal transition. Reaching Completed happens only via
+            // TasksController.Review, never from here — not even for an
+            // Admin setting progress to 100 (T10's own restriction).
+            if (!TaskWorkflow.CanTransition(currentStatus, nextStatus) || nextStatus == TaskWorkflow.Completed)
+            {
+                return "That status change isn't allowed.";
+            }
+
+            assignment.Progress = progress;
+            assignment.Status = nextStatus;
+            assignment.RowVersion = Guid.NewGuid().ToByteArray();
+
+            RecalculateOverallStatus(task);
+            await PropagateToParentMainTaskAsync(task);
+
+            return null;
+        }
+
         // Writes TaskAssignment.Progress from its own checklist items'
         // IsDone/Weight — the moment an assignment has any checklist items,
         // they (not the manual progress slider) decide its Progress. A no-op
