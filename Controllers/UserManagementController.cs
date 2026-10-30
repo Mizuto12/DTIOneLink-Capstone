@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DTIOneLink.Filters;
 using DTIOneLink.Models;
 using DTIOneLink.Security;
@@ -29,6 +30,17 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
     // unaffected.
     private static bool IsAsciiPrintableNoWhitespace(string value) =>
         value.Length > 0 && value.All(c => c is >= '!' and <= '~');
+
+    // [EmailAddress] alone is too lenient — .NET's implementation accepts
+    // things like "a@b" with no dot or real TLD. This requires an actual
+    // local part, a domain with at least one label, and a letters-only TLD
+    // of 2-24 characters, matching what "username@gmail.com" looks like.
+    // Bounded quantifiers + a short timeout avoid ReDoS on pathological input.
+    private static readonly Regex StrictEmailPattern = new(
+        @"^[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,63}[A-Za-z0-9])?@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?\.)+[A-Za-z]{2,24}$",
+        RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
+
+    private static bool IsValidEmailFormat(string value) => StrictEmailPattern.IsMatch(value);
 
     public async Task<IActionResult> Index()
     {
@@ -110,6 +122,11 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
         if (!IsAsciiPrintableNoWhitespace(email))
         {
             TempData["ErrorMessage"] = "Email cannot contain spaces or emoji.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (!IsValidEmailFormat(email))
+        {
+            TempData["ErrorMessage"] = "Please enter a valid email address (e.g. name@domain.com).";
             return RedirectToAction(nameof(Index));
         }
         // Email also goes into Username unchanged (below), and the column
@@ -662,7 +679,7 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
             return RedirectToAction(nameof(Index));
         }
         if (newEmail.Length == 0 || newEmail.Length > 256 || !IsAsciiPrintableNoWhitespace(newEmail)
-            || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(newEmail))
+            || !IsValidEmailFormat(newEmail))
         {
             TempData["DirectoryError"] = "Please enter a valid email address — no spaces or emoji.";
             return RedirectToAction(nameof(Index));
