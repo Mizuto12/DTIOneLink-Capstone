@@ -5,7 +5,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
         var form = document.getElementById("loginForm");
-        var usernameInput = document.querySelector("[name='Username']");
+        var emailInput = document.querySelector("[name='Email']");
         var passwordInput = document.querySelector("[name='Password']");
         var loginButton = document.querySelector(".btn-login");
         var togglePasswordBtn = document.getElementById("togglePassword");
@@ -14,7 +14,7 @@
             form.addEventListener("submit", function (e) {
                 var hasError = false;
 
-                hasError = !validateRequired(usernameInput) || hasError;
+                hasError = !validateRequired(emailInput) || hasError;
                 hasError = !validateRequired(passwordInput) || hasError;
 
                 if (hasError) {
@@ -29,7 +29,7 @@
             });
         }
 
-        [usernameInput, passwordInput].forEach(function (input) {
+        [emailInput, passwordInput].forEach(function (input) {
             if (!input) return;
             input.addEventListener("input", function () {
                 input.classList.remove("input-error");

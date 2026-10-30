@@ -40,12 +40,13 @@ namespace DTIOneLink.Services
         // created per run and it is never already overdue.
         public static DateTime NextDueDate(DateTime previousDueDate, string frequency, DateTime today)
         {
+            var timeOfDay = previousDueDate.TimeOfDay;
             var steps = 1;
-            var next = Advance(previousDueDate.Date, frequency, steps);
+            var next = Advance(previousDueDate.Date, frequency, steps) + timeOfDay;
             while (next <= today)
             {
                 steps++;
-                next = Advance(previousDueDate.Date, frequency, steps);
+                next = Advance(previousDueDate.Date, frequency, steps) + timeOfDay;
             }
             return next;
         }
