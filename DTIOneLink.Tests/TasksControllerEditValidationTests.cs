@@ -137,4 +137,61 @@ public class TasksControllerEditValidationTests
         var reloadedTask = await context.TaskItems.FindAsync(task.Id);
         Assert.Equal("medium", reloadedTask!.Priority);
     }
+
+    // Validation-audit coverage (2026-10-30): same gap as Create — a
+    // TaskName/Description made only of symbols/punctuation passed
+    // [Required]+[StringLength] unnoticed on Edit too.
+    [Theory]
+    [InlineData("...")]
+    [InlineData("---")]
+    public async Task Edit_TaskNameIsSymbolsOnly_IsRejectedAndNothingChanges(string taskName)
+    {
+        var (context, task, _) = SeedCompletedTask();
+        task.Status = TaskWorkflow.InProgress;
+        context.SaveChanges();
+        var controller = BuildController(context);
+
+        var model = new TaskEditViewModel
+        {
+            Id = task.Id,
+            TaskName = taskName,
+            Description = task.Description,
+            DueDate = task.DueDate,
+            Priority = task.Priority,
+        };
+
+        var result = await controller.Edit(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        var reloadedTask = await context.TaskItems.FindAsync(task.Id);
+        Assert.Equal("Finished Task", reloadedTask!.TaskName);
+    }
+
+    [Theory]
+    [InlineData("...")]
+    [InlineData("---")]
+    public async Task Edit_DescriptionIsSymbolsOnly_IsRejectedAndNothingChanges(string description)
+    {
+        var (context, task, _) = SeedCompletedTask();
+        task.Status = TaskWorkflow.InProgress;
+        context.SaveChanges();
+        var controller = BuildController(context);
+
+        var model = new TaskEditViewModel
+        {
+            Id = task.Id,
+            TaskName = task.TaskName,
+            Description = description,
+            DueDate = task.DueDate,
+            Priority = task.Priority,
+        };
+
+        var result = await controller.Edit(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        var reloadedTask = await context.TaskItems.FindAsync(task.Id);
+        Assert.Equal("d", reloadedTask!.Description);
+    }
 }

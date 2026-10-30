@@ -168,4 +168,60 @@ public class TasksControllerCreateValidationTests
         Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(2, await context.TaskItems.CountAsync(t => t.TaskLevel == TaskLevels.Subtask));
     }
+
+    // Validation-audit coverage (2026-10-30): [Required]+[StringLength]
+    // alone let a TaskName/Description made only of symbols or punctuation
+    // through (e.g. "...", "---") — same gap already fixed for User
+    // Management's FullName.
+    [Theory]
+    [InlineData("...")]
+    [InlineData("---")]
+    [InlineData("   .   ")]
+    public async Task Create_TaskNameIsSymbolsOnly_IsRejectedAndNothingSaved(string taskName)
+    {
+        var (context, admin) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = ValidModel(admin);
+        model.TaskName = taskName;
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync());
+    }
+
+    [Theory]
+    [InlineData("...")]
+    [InlineData("---")]
+    public async Task Create_DescriptionIsSymbolsOnly_IsRejectedAndNothingSaved(string description)
+    {
+        var (context, admin) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = ValidModel(admin);
+        model.Description = description;
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Create_TaskNameIsNumericOnly_PassesTheGuard()
+    {
+        // Letters OR digits count as real content here (unlike FullName,
+        // which required a letter specifically) — a numeric-only task name
+        // like "2026" is legitimate.
+        var (context, admin) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = ValidModel(admin);
+        model.TaskName = "2026";
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.True(await context.TaskItems.AnyAsync(t => t.TaskName == "2026"));
+    }
 }

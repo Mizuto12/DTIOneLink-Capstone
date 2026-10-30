@@ -77,6 +77,15 @@
 
                     <div class="tr-field">
                         <label class="tr-label">
+                            Progress
+                            <span class="tr-hint">@(submittedByName)'s self-reported percentage — correct it if it doesn't match the submitted proof. Only applied if returned; Approve always marks it 100%.</span>
+                        </label>
+                        <input type="number" name="Progress" id="trProgress" class="tr-progress-input"
+                               min="0" max="100" value="@(Model.TaskAssignment?.Progress ?? Model.Task?.Progress ?? 0)" />
+                    </div>
+
+                    <div class="tr-field">
+                        <label class="tr-label">
                             Admin remarks <span class="tr-required">*</span>
                             <span class="tr-hint">required if returning — shown to employee</span>
                         </label>

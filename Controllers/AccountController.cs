@@ -183,11 +183,6 @@ namespace DTIOneLink.Controllers
             {
                 user.PasswordHash = _passwordHasher.HashPassword(user, model.Password);
             }
-            // Covers accounts created before MustChangePassword existed.
-            if (string.Equals(model.Password, AccountDefaults.DefaultPassword, StringComparison.Ordinal))
-            {
-                user.MustChangePassword = true;
-            }
             if (string.IsNullOrEmpty(user.SecurityStamp))
             {
                 user.SecurityStamp = NewSecurityStamp();
@@ -1023,8 +1018,6 @@ namespace DTIOneLink.Controllers
                 return "Password cannot contain spaces or emoji — letters, digits, and standard symbols only.";
             if (newPassword.Length < AccountDefaults.MinPasswordLength)
                 return $"New password must be at least {AccountDefaults.MinPasswordLength} characters.";
-            if (string.Equals(newPassword, AccountDefaults.DefaultPassword, StringComparison.OrdinalIgnoreCase))
-                return "You cannot use the default password. Please choose a new one.";
             if (AccountDefaults.CommonPasswords.Contains(newPassword))
                 return "This password is too common and easy to guess. Please choose another.";
 

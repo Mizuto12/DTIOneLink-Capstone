@@ -172,6 +172,23 @@
     box-shadow: 0 0 0 2px var(--tr-primary);
 }
 
+.task-review .tr-progress-input {
+    width: 100px;
+    padding: 10px 14px;
+    border-radius: var(--tr-radius);
+    border: 1px solid var(--tr-outline-variant);
+    background-color: var(--tr-surface);
+    color: var(--tr-on-surface);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.task-review .tr-progress-input:focus {
+    border-color: var(--tr-primary);
+    box-shadow: 0 0 0 2px var(--tr-primary);
+}
+
 .task-review .tr-error-text {
     font-size: 13px;
     color: var(--tr-error);

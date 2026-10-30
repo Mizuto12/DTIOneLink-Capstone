@@ -190,4 +190,94 @@ public class TasksControllerReviewTests
         var finalSubmission = await verifyContext.TaskSubmissions.FindAsync(submissionId);
         Assert.Equal("approved", finalSubmission!.Decision);
     }
+
+    // Feature coverage (2026-10-30): Admin/SuperAdmin can correct the
+    // assignee's self-reported percentage when returning a submission —
+    // panelist item T1 ("admin should be able to change the percentage of
+    // the submitted task"). Scoped to Return only; Approve always means
+    // 100%/Completed regardless of what's submitted (confirmed below).
+    [Fact]
+    public async Task Review_Return_WithCorrectedProgress_AppliesTheCorrection()
+    {
+        var (context, _, submission) = SeedForReview(); // seeded at 100%
+
+        var controller = BuildController(context, "SuperAdmin");
+
+        var result = await controller.Review(new TaskSubmissionDecisionViewModel
+        {
+            SubmissionId = submission.Id,
+            Decision = "return",
+            AdminRemarks = "The actual work looks closer to 60% than 100%.",
+            Progress = 60,
+        });
+
+        Assert.IsType<RedirectToActionResult>(result);
+        var reloaded = await context.TaskAssignments.FindAsync(submission.TaskAssignmentId);
+        Assert.Equal(TaskWorkflow.ReturnedForCorrection, reloaded!.Status);
+        Assert.Equal(60, reloaded.Progress);
+    }
+
+    [Fact]
+    public async Task Review_Return_WithoutProgress_LeavesTheOriginalValueUnchanged()
+    {
+        var (context, _, submission) = SeedForReview(); // seeded at 100%
+        var controller = BuildController(context, "SuperAdmin");
+
+        var result = await controller.Review(new TaskSubmissionDecisionViewModel
+        {
+            SubmissionId = submission.Id,
+            Decision = "return",
+            AdminRemarks = "Needs more detail.",
+            // Progress intentionally omitted (null) — Admin didn't correct it.
+        });
+
+        Assert.IsType<RedirectToActionResult>(result);
+        var reloaded = await context.TaskAssignments.FindAsync(submission.TaskAssignmentId);
+        Assert.Equal(100, reloaded!.Progress);
+    }
+
+    [Fact]
+    public async Task Review_Approve_IgnoresAnySubmittedProgress_AlwaysSetsExactly100()
+    {
+        var (context, _, submission) = SeedForReview();
+        var controller = BuildController(context, "SuperAdmin");
+
+        var result = await controller.Review(new TaskSubmissionDecisionViewModel
+        {
+            SubmissionId = submission.Id,
+            Decision = "approve",
+            Progress = 50, // must be ignored — Approve is never affected by this field
+        });
+
+        Assert.IsType<RedirectToActionResult>(result);
+        var reloaded = await context.TaskAssignments.FindAsync(submission.TaskAssignmentId);
+        Assert.Equal(TaskWorkflow.Completed, reloaded!.Status);
+        Assert.Equal(100, reloaded.Progress);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public async Task Review_Return_ProgressOutOfRange_IsRejectedAndUnchanged(int outOfRangeProgress)
+    {
+        // [Range(0, 100)] on the ViewModel is never enforced by this action
+        // (it doesn't check ModelState.IsValid as a whole) — this exercises
+        // the controller's own explicit guard instead.
+        var (context, _, submission) = SeedForReview(); // seeded at 100%
+        var controller = BuildController(context, "SuperAdmin");
+
+        var result = await controller.Review(new TaskSubmissionDecisionViewModel
+        {
+            SubmissionId = submission.Id,
+            Decision = "return",
+            AdminRemarks = "x",
+            Progress = outOfRangeProgress,
+        });
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        var reloaded = await context.TaskAssignments.FindAsync(submission.TaskAssignmentId);
+        Assert.Equal(TaskWorkflow.ForReview, reloaded!.Status); // untouched
+        Assert.Equal(100, reloaded.Progress); // untouched
+    }
 }

@@ -2,11 +2,6 @@ namespace DTIOneLink.Security
 {
     public static class AccountDefaults
     {
-        // Every new account starts with this password. Signing in with it
-        // requires an emailed code and then a new password before anything
-        // else, so knowing it is not enough to use someone else's account.
-        public const string DefaultPassword = "dtionelink2026";
-
         public const int MinPasswordLength = 8;
 
         // Login lockout (NIST SP 800-63B rate limiting).
@@ -51,7 +46,11 @@ namespace DTIOneLink.Security
         // for a check against commonly used values). Compared ignoring case.
         public static readonly HashSet<string> CommonPasswords = new(StringComparer.OrdinalIgnoreCase)
         {
-            DefaultPassword, "dtionelink", "dtilaguna", "dtilaguna2026", "onelink2026",
+            // "dtionelink2026" was this system's old default password, from
+            // before new accounts moved to the activation-link flow (no
+            // password exists until the owner sets their own) — kept banned
+            // here since it's still documented in old materials somewhere.
+            "dtionelink2026", "dtionelink", "dtilaguna", "dtilaguna2026", "onelink2026",
             "password", "password1", "password12", "password123", "password1234", "passw0rd",
             "p@ssword", "p@ssw0rd", "12345678", "123456789", "1234567890", "0123456789",
             "87654321", "11111111", "00000000", "88888888", "12341234", "11223344",

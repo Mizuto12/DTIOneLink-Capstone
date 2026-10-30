@@ -372,6 +372,18 @@ namespace DTIOneLink.Controllers
 
             var createdByUserId = HttpContext.Session.GetInt32("UserId");
 
+            // [Required]+[StringLength] alone let a name/description made
+            // only of symbols or punctuation through (e.g. "...", "---") —
+            // same gap already fixed for User Management's FullName field.
+            if (!HasRealContent(model.TaskName))
+            {
+                ModelState.AddModelError(nameof(model.TaskName), "Task name can't be made up of only symbols or punctuation.");
+            }
+            if (!HasRealContent(model.Description))
+            {
+                ModelState.AddModelError(nameof(model.Description), "Task description can't be made up of only symbols or punctuation.");
+            }
+
             // Always a Main Task (optionally with inline subtasks for a
             // Department Directive).
             var recurrence = string.IsNullOrWhiteSpace(model.Recurrence) ? null : model.Recurrence.Trim();
@@ -873,6 +885,18 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         ModelState.AddModelError(nameof(model.Priority), "Select a valid priority.");
     }
 
+    // Same gap already fixed for User Management's FullName field — only
+    // checked when these fields are actually written below (isAssignmentOnly
+    // never touches them), same reasoning as the Priority check above.
+    if (!isAssignmentOnly && !HasRealContent(model.TaskName))
+    {
+        ModelState.AddModelError(nameof(model.TaskName), "Task name can't be made up of only symbols or punctuation.");
+    }
+    if (!isAssignmentOnly && !HasRealContent(model.Description))
+    {
+        ModelState.AddModelError(nameof(model.Description), "Task description can't be made up of only symbols or punctuation.");
+    }
+
     if (!ModelState.IsValid)
     {
         model.AssigneeIds = currentAssigneeIds;
@@ -1216,6 +1240,14 @@ private async Task PopulateEmployeesAsync(string? requiredDepartment = null)
 private const string WholeOfficeDepartment = "Office of the Provincial Director";
 private const int MaxSubtasksOnCreate = 50;
 
+// A task name/description made only of symbols or punctuation (e.g. "...",
+// "---") passed [Required]+[StringLength] unnoticed — same gap already
+// fixed for User Management's FullName (UserManagementController.
+// HasRealNameContent). Letters OR digits count here (unlike FullName,
+// which required a letter specifically) since a legitimate task name can
+// be numeric-only, e.g. "Q3 2026 Report".
+private static bool HasRealContent(string value) => value.Any(char.IsLetterOrDigit);
+
 private async Task PopulateResponsibleAdminsAsync()
 {
     // Shown on the "Whole Office" option: how many people would get it.
@@ -1433,6 +1465,17 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
                 ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
                 return View(submission);
             }
+            // [Range(0, 100)] on the ViewModel is never enforced here —
+            // this action never checks ModelState.IsValid as a whole, only
+            // these specific hand-rolled conditions (same as every other
+            // check in this switch) — so the bound value needs its own
+            // explicit guard, same way AdminRemarks gets one above.
+            if (model.Progress is < 0 or > 100)
+            {
+                ModelState.AddModelError(nameof(model.Progress), "Progress must be between 0 and 100.");
+                ViewBag.TaskList = await BuildIndexModelAsync(null, null, null, null, null, null, null, 1);
+                return View(submission);
+            }
             nextAssignmentStatus = TaskWorkflow.ReturnedForCorrection;
             submissionDecision = "returned";
             break;
@@ -1463,6 +1506,13 @@ public async Task<IActionResult> Review(TaskSubmissionDecisionViewModel model)
     if (nextAssignmentStatus == TaskWorkflow.Completed)
     {
         assignment.Progress = 100; // Completed implies fully progressed, for display consistency
+    }
+    else if (nextAssignmentStatus == TaskWorkflow.ReturnedForCorrection && model.Progress.HasValue)
+    {
+        // Admin's correction to the assignee's self-reported percentage —
+        // only reachable on Return (see TaskSubmissionDecisionViewModel.
+        // Progress's comment for why Approve is never affected by this).
+        assignment.Progress = model.Progress.Value;
     }
     assignment.RowVersion = Guid.NewGuid().ToByteArray();
 
