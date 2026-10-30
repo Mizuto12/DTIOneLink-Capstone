@@ -52,6 +52,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/user-management.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notice-dialog.css" asp-append-version="true" />
 }
 
 <!-- ── Page Header ─────────────────────────────────────── -->
@@ -211,7 +212,12 @@
                 <span class="material-symbols-outlined">key</span>
                 <div>
                     <p>Temporary password for <strong>@TempData["TempPasswordFor"]</strong>:</p>
-                    <p class="um-temp-password-value">@tempPassword</p>
+                    <p class="um-temp-password-row">
+                        <span class="um-temp-password-value" id="umTempPasswordValue">@tempPassword</span>
+                        <button type="button" class="um-temp-password-copy" id="umTempPasswordCopy" data-password="@tempPassword" aria-label="Copy temporary password">
+                            <span class="material-symbols-outlined">content_copy</span>
+                        </button>
+                    </p>
                     <p>Give it to them in person or by phone. It is shown only this once. They must choose their own password when they log in with it.</p>
                     <p class="um-temp-password-recovery">If you lose this before handing it over, it's not recoverable — issue a new one from this same action instead; the old one stops working the moment you do.</p>
                 </div>
@@ -377,8 +383,7 @@
                                                     @* Only for when the emailed link genuinely can't reach them — an
                                                        Admin hands this one over in person or by phone instead. *@
                                                     <form asp-controller="UserManagement" asp-action="IssueActivationFallbackPassword" method="post"
-                                                          class="um-issue-fallback-password-form"
-                                                          onsubmit="return confirm('Issue a one-time temporary password for @user.FullName? Hand it over in person or by phone only — never by email. Any pending activation link stops working.');">
+                                                          class="um-issue-fallback-password-form" data-user-name="@user.FullName">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="id" value="@user.Id" />
                                                         <button type="submit" class="um-btn-secondary-action"
@@ -577,6 +582,9 @@
     </div>
 </dialog>
 
+<partial name="_NoticeDialog" />
+
 @section Scripts {
+    <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
     <script src="~/js/user-management.js" asp-append-version="true"></script>
 }

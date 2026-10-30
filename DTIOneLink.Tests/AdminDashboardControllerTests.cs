@@ -321,4 +321,110 @@ public class AdminDashboardControllerTests
         var tasks = Assert.IsAssignableFrom<List<TaskItem>>(view.Model);
         Assert.DoesNotContain(tasks, t => t.Id == completedNoSubmission.Id);
     }
+
+    // SuperAdminDashboard() had the same unbounded-query problem
+    // AdminDashboard() did, but was never covered by the fix above — it's a
+    // separate action, querying TaskAssignments (not TaskItems) and
+    // filtering per-assignee via TaskSubmission.TaskAssignmentId. Same
+    // 56-day recency rule, same "non-Completed never excluded" guarantee.
+    private static (AppDbContext Context, int OldCompletedAssignmentId, int RecentCompletedAssignmentId,
+        int OldActiveAssignmentId, int CompletedNoSubmissionAssignmentId) SeedSuperAdminRecencyFixture()
+    {
+        var context = InMemoryDbContextFactory.Create();
+        var now = DateTime.UtcNow;
+
+        var user = new User { Username = "u", FullName = "User", Role = "Employee", Department = "BDD" };
+        context.Users.Add(user);
+
+        var oldCompletedTask = new TaskItem { TaskName = "Old Completed", Description = "d", OwningDepartment = "BDD", DueDate = now.AddDays(-100), CreatedAt = now.AddDays(-120) };
+        var recentCompletedTask = new TaskItem { TaskName = "Recent Completed", Description = "d", OwningDepartment = "BDD", DueDate = now.AddDays(-5), CreatedAt = now.AddDays(-10) };
+        var oldActiveTask = new TaskItem { TaskName = "Old Active", Description = "d", OwningDepartment = "BDD", DueDate = now.AddDays(10), CreatedAt = now.AddDays(-400) };
+        var completedNoSubmissionTask = new TaskItem { TaskName = "Completed No Submission", Description = "d", OwningDepartment = "BDD", DueDate = now.AddDays(-200), CreatedAt = now.AddDays(-200) };
+        context.TaskItems.AddRange(oldCompletedTask, recentCompletedTask, oldActiveTask, completedNoSubmissionTask);
+        context.SaveChanges();
+
+        var oldCompletedAssignment = new TaskAssignment { TaskId = oldCompletedTask.Id, UserId = user.Id, Status = TaskWorkflow.Completed, Progress = 100 };
+        var recentCompletedAssignment = new TaskAssignment { TaskId = recentCompletedTask.Id, UserId = user.Id, Status = TaskWorkflow.Completed, Progress = 100 };
+        var oldActiveAssignment = new TaskAssignment { TaskId = oldActiveTask.Id, UserId = user.Id, Status = TaskWorkflow.InProgress, Progress = 40 };
+        var completedNoSubmissionAssignment = new TaskAssignment { TaskId = completedNoSubmissionTask.Id, UserId = user.Id, Status = TaskWorkflow.Completed, Progress = 100 };
+        context.TaskAssignments.AddRange(oldCompletedAssignment, recentCompletedAssignment, oldActiveAssignment, completedNoSubmissionAssignment);
+        context.SaveChanges();
+
+        context.TaskSubmissions.AddRange(
+            new TaskSubmission { TaskId = oldCompletedTask.Id, TaskAssignmentId = oldCompletedAssignment.Id, Decision = "approved", DecidedAt = now.AddDays(-90), ProofFileName = "x", ProofStoredFileName = "x" },
+            new TaskSubmission { TaskId = recentCompletedTask.Id, TaskAssignmentId = recentCompletedAssignment.Id, Decision = "approved", DecidedAt = now.AddDays(-5), ProofFileName = "x", ProofStoredFileName = "x" });
+        context.SaveChanges();
+
+        return (context, oldCompletedAssignment.Id, recentCompletedAssignment.Id, oldActiveAssignment.Id, completedNoSubmissionAssignment.Id);
+    }
+
+    private static DashboardController BuildSuperAdminController(AppDbContext context)
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set<ISessionFeature>(new FakeSessionFeature());
+        httpContext.Session.SetString("UserRole", "SuperAdmin");
+        httpContext.Session.SetInt32("UserId", 999);
+        return new DashboardController(context)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+        };
+    }
+
+    [Fact]
+    public async Task SuperAdminDashboard_CompletedAssignmentOlderThan56Days_IsExcluded()
+    {
+        var (context, oldCompletedId, _, _, _) = SeedSuperAdminRecencyFixture();
+        var controller = BuildSuperAdminController(context);
+
+        var result = await controller.SuperAdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SuperAdminDashboardViewModel>(view.Model);
+        Assert.DoesNotContain(vm.WorkItems, i => i.TaskId == oldCompletedId);
+    }
+
+    [Fact]
+    public async Task SuperAdminDashboard_CompletedAssignmentWithin56Days_IsIncluded()
+    {
+        var (context, _, recentCompletedAssignmentId, _, _) = SeedSuperAdminRecencyFixture();
+        var controller = BuildSuperAdminController(context);
+
+        var result = await controller.SuperAdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SuperAdminDashboardViewModel>(view.Model);
+        // WorkItems is keyed by TaskId, which can collide with the task's
+        // own Id across the fixture's rows — assert via the status count
+        // instead, which is unambiguous.
+        Assert.Equal(1, vm.CompletedCount);
+    }
+
+    [Fact]
+    public async Task SuperAdminDashboard_ActiveAssignmentRegardlessOfAge_IsNeverExcluded()
+    {
+        var (context, _, _, oldActiveAssignmentId, _) = SeedSuperAdminRecencyFixture();
+        var controller = BuildSuperAdminController(context);
+
+        var result = await controller.SuperAdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SuperAdminDashboardViewModel>(view.Model);
+        Assert.Equal(1, vm.InProgressCount);
+    }
+
+    [Fact]
+    public async Task SuperAdminDashboard_CompletedAssignmentWithNoSubmissionRecord_IsExcluded()
+    {
+        var (context, _, _, _, _) = SeedSuperAdminRecencyFixture();
+        var controller = BuildSuperAdminController(context);
+
+        var result = await controller.SuperAdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SuperAdminDashboardViewModel>(view.Model);
+        // Of the two Completed assignments with no live/recent submission
+        // (old one + no-submission one), only the recently-completed one
+        // should survive — total Completed count is exactly 1.
+        Assert.Equal(1, vm.CompletedCount);
+    }
 }

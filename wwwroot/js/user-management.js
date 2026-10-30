@@ -574,5 +574,68 @@
         document.addEventListener("keydown", function (e) {
             if (e.key === "Escape") closeAll();
         });
+
+        // ── Resend Activation Link / Issue Temp Password ──
+        // Neither had a double-submit guard, unlike every other mutating
+        // form on this page (Create, Edit Email, status dialog all disable
+        // their button on submit) — a fast double-click fired two POSTs.
+        document.querySelectorAll(".um-resend-activation-form").forEach(function (form) {
+            form.addEventListener("submit", function () {
+                var btn = form.querySelector("button[type=submit]");
+                if (btn) btn.disabled = true;
+            });
+        });
+
+        // Issue Temp Password also used a raw window.confirm() — the same
+        // inconsistency already fixed elsewhere on destructive/high-stakes
+        // actions, swapped here to the app's styled showNotice() dialog.
+        document.querySelectorAll(".um-issue-fallback-password-form").forEach(function (form) {
+            form.addEventListener("submit", function (event) {
+                if (form.dataset.confirmed === "true") {
+                    var btn = form.querySelector("button[type=submit]");
+                    if (btn) btn.disabled = true;
+                    return;
+                }
+                event.preventDefault();
+
+                var name = form.getAttribute("data-user-name") || "this account";
+                window.showNotice({
+                    tone: "warning",
+                    icon: "password",
+                    title: "Issue a one-time temporary password for " + name + "?",
+                    message: "Hand it over in person or by phone only — never by email. Any pending activation link stops working.",
+                    okText: "Issue Password",
+                    cancelText: "Cancel"
+                }).then(function (ok) {
+                    if (ok) {
+                        form.dataset.confirmed = "true";
+                        form.requestSubmit ? form.requestSubmit() : form.submit();
+                    }
+                });
+            });
+        });
+
+        // ── Copy the one-time temp password ───────────────
+        // The banner's own copy warns this can't be recovered once lost —
+        // a copy button is cheaper than an admin mis-transcribing it by hand.
+        var copyBtn = document.getElementById("umTempPasswordCopy");
+        if (copyBtn) {
+            copyBtn.addEventListener("click", function () {
+                var password = copyBtn.getAttribute("data-password") || "";
+                var icon = copyBtn.querySelector(".material-symbols-outlined");
+                var showCopied = function () {
+                    if (!icon) return;
+                    icon.textContent = "check";
+                    setTimeout(function () { icon.textContent = "content_copy"; }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(password).then(showCopied).catch(function () {
+                        // Clipboard permission denied or unavailable — the
+                        // value is still selectable text (user-select: all),
+                        // so manual copy still works as a fallback.
+                    });
+                }
+            });
+        }
     });
 })();

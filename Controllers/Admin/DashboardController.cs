@@ -192,6 +192,20 @@ namespace DTIOneLink.Controllers
         [RequirePermission(Permissions.ViewOfficeWideSummaries)]
         public async Task<IActionResult> SuperAdminDashboard()
         {
+            // This previously loaded every TaskAssignment row ever created,
+            // office-wide, with no bound — the fastest-growing of the three
+            // dashboards. Bounded the same way AdminDashboard was this
+            // session: a Completed assignment row is excluded only once its
+            // own approved TaskSubmission.DecidedAt is older than the
+            // window (TaskSubmissions.TaskAssignmentId gives per-assignee
+            // precision here, since one task can have assignees in
+            // different states); anything not Completed stays regardless
+            // of age. WorkItems/counts below are all computed from this
+            // same filtered list, so nothing falls out of sync with it.
+            const int RecentCompletedWindowDays = 56; // same 8-week window as GetCompletionTrend/AdminDashboard
+            const int MaxAssignmentsShown = 500;
+            var recentCompletedCutoff = TimeZoneHelper.PhilippineNow.AddDays(-RecentCompletedWindowDays);
+
             // Count TaskAssignment rows. TaskItem.AssigneeId is only the
             // legacy/primary assignee and undercounts Whole Office work.
             var assignments = await _context.TaskAssignments
@@ -199,7 +213,13 @@ namespace DTIOneLink.Controllers
                 .AsSplitQuery()
                 .Include(a => a.Task).ThenInclude(t => t!.ParentTask)
                 .Include(a => a.User)
+                .Where(a =>
+                    a.Status.Trim().ToLower() != TaskWorkflow.Completed ||
+                    _context.TaskSubmissions.Any(s =>
+                        s.TaskAssignmentId == a.Id && s.Decision == "approved" &&
+                        s.DecidedAt != null && s.DecidedAt >= recentCompletedCutoff))
                 .OrderByDescending(a => a.Task!.CreatedAt)
+                .Take(MaxAssignmentsShown)
                 .ToListAsync();
 
             var workItems = assignments.Where(a => a.Task != null && a.User != null)

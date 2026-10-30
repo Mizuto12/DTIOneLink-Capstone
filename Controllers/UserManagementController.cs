@@ -178,6 +178,17 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
             return RedirectToAction(nameof(Index));
         }
 
+        // The Create form's own JS forces/disables the Division field to
+        // OPD once Role=SuperAdmin is picked — client-side only. Without
+        // this, a direct POST could create a SuperAdmin account in a
+        // division other than OPD, a state the UI (division short-code
+        // lookups, workload-by-division grouping) was never built to show.
+        if (role == "SuperAdmin" && !string.Equals(department, Divisions[0], StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["ErrorMessage"] = "A Super Admin account must belong to the Office of the Provincial Director.";
+            return RedirectToAction(nameof(Index));
+        }
+
         using var conn = db.GetConnection();
         await conn.OpenAsync();
 
@@ -430,6 +441,14 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
         if (newRole == null || newDepartment == null)
         {
             TempData["DirectoryError"] = "Please choose a valid role and division.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Same invariant as Create: the dialog's own JS forces Division to
+        // OPD once Role=SuperAdmin is picked — client-side only without this.
+        if (newRole == "SuperAdmin" && !string.Equals(newDepartment, Divisions[0], StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["DirectoryError"] = "A Super Admin account must belong to the Office of the Provincial Director.";
             return RedirectToAction(nameof(Index));
         }
 

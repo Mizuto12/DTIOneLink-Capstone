@@ -183,4 +183,54 @@ public class UserManagementControllerTests
 
         await Assert.ThrowsAsync<SqlException>(() => controller.Create(newUser));
     }
+
+    // Validation-audit coverage (2026-10-30): the Create form's own JS
+    // forces/disables Division to OPD once Role=SuperAdmin is picked, but
+    // nothing previously re-checked that server-side — a direct POST could
+    // create a SuperAdmin account in a non-OPD division.
+    [Fact]
+    public async Task Create_SuperAdminRoleWithNonOpdDivision_IsRejectedBeforeTouchingTheDatabase()
+    {
+        var controller = BuildController("SuperAdmin");
+        var newUser = ValidNewUser("SuperAdmin");
+        newUser.Department = UserManagementController.Divisions[1]; // not OPD
+
+        var result = await controller.Create(newUser);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(UserManagementController.Index), redirect.ActionName);
+        Assert.Equal("A Super Admin account must belong to the Office of the Provincial Director.", controller.TempData["ErrorMessage"]);
+    }
+
+    [Fact]
+    public async Task Create_SuperAdminRoleWithOpdDivision_PassesTheGuard()
+    {
+        var controller = BuildController("SuperAdmin");
+        var newUser = ValidNewUser("SuperAdmin");
+        newUser.Department = UserManagementController.Divisions[0]; // OPD
+
+        await Assert.ThrowsAsync<SqlException>(() => controller.Create(newUser));
+    }
+
+    // Same OPD-division invariant, re-checked on ChangeStanding (promoting
+    // an existing account to SuperAdmin), not just Create.
+    [Fact]
+    public async Task ChangeStanding_SuperAdminRoleWithNonOpdDivision_IsRejectedBeforeTouchingTheDatabase()
+    {
+        var controller = BuildController("SuperAdmin");
+
+        var result = await controller.ChangeStanding(1, "SuperAdmin", UserManagementController.Divisions[1]);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(UserManagementController.Index), redirect.ActionName);
+        Assert.Equal("A Super Admin account must belong to the Office of the Provincial Director.", controller.TempData["DirectoryError"]);
+    }
+
+    [Fact]
+    public async Task ChangeStanding_SuperAdminRoleWithOpdDivision_PassesTheGuard()
+    {
+        var controller = BuildController("SuperAdmin");
+
+        await Assert.ThrowsAsync<SqlException>(() => controller.ChangeStanding(1, "SuperAdmin", UserManagementController.Divisions[0]));
+    }
 }
