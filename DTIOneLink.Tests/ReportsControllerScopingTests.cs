@@ -208,4 +208,48 @@ public class ReportsControllerScopingTests
         // "Admin" or "Employee" by string, so it falls outside Reports.
         Assert.False(InvokeIsAllowedRole("Supervisor"));
     }
+
+    // Validation-audit coverage (2026-10-30): a date like "9999-12-31" parsed
+    // fine under TryParseExact, but toDate.AddDays(1) / the Philippine-time
+    // conversion that follows could overflow DateTime's range before this
+    // bound was added, surfacing as an unhandled exception instead of the
+    // existing BadRequest(error) path.
+    private static (bool Ok, string? Error) InvokeTryParsePeriod(string? from, string? to)
+    {
+        var method = typeof(ReportsController).GetMethod("TryParsePeriod", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var args = new object?[] { from, to, null, null, null };
+        var ok = (bool)method.Invoke(null, args)!;
+        return (ok, (string?)args[4]);
+    }
+
+    [Theory]
+    [InlineData("9999-12-31", null)]
+    [InlineData(null, "9999-12-31")]
+    [InlineData("0001-01-01", null)]
+    [InlineData(null, "0001-01-01")]
+    public void TryParsePeriod_ImplausibleYear_IsRejectedWithoutThrowing(string? from, string? to)
+    {
+        var (ok, error) = InvokeTryParsePeriod(from, to);
+
+        Assert.False(ok);
+        Assert.NotNull(error);
+    }
+
+    [Fact]
+    public void TryParsePeriod_PlausibleRange_IsAccepted()
+    {
+        var (ok, error) = InvokeTryParsePeriod("2026-01-01", "2026-12-31");
+
+        Assert.True(ok);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void TryParsePeriod_BothBlank_IsAccepted()
+    {
+        var (ok, error) = InvokeTryParsePeriod(null, null);
+
+        Assert.True(ok);
+        Assert.Null(error);
+    }
 }

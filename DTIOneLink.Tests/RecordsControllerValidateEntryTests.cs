@@ -66,4 +66,55 @@ public class RecordsControllerValidateEntryTests
         Assert.Null(fields);
         Assert.Equal("Please choose a valid Retention Due Date.", error);
     }
+
+    // Validation-audit coverage (2026-10-30): the date pickers' own JS
+    // already blocks an inverted Period Covered range on submit, but that's
+    // client-only — a direct POST (or a crafted re-import) could still carry
+    // "2026-12-31 to 2026-01-01". The date pickers always produce the exact
+    // "yyyy-MM-dd to yyyy-MM-dd" shape this check looks for.
+    private static RecordEntry EntryWithPeriod(string periodCovered)
+    {
+        var entry = ValidEntry(DateTime.UtcNow.Date.AddYears(1).ToString("yyyy-MM-dd"));
+        entry.PeriodCovered = periodCovered;
+        return entry;
+    }
+
+    [Fact]
+    public void ValidateEntry_PeriodCoveredEndBeforeStart_IsRejected()
+    {
+        var (fields, error) = Validate(EntryWithPeriod("2026-12-31 to 2026-01-01"));
+
+        Assert.Null(fields);
+        Assert.Equal("Period Covered's end date must be on or after its start date.", error);
+    }
+
+    [Fact]
+    public void ValidateEntry_PeriodCoveredSameDay_IsAccepted()
+    {
+        var (fields, error) = Validate(EntryWithPeriod("2026-06-15 to 2026-06-15"));
+
+        Assert.Null(error);
+        Assert.NotNull(fields);
+    }
+
+    [Fact]
+    public void ValidateEntry_PeriodCoveredAscendingRange_IsAccepted()
+    {
+        var (fields, error) = Validate(EntryWithPeriod("2026-01-01 to 2026-12-31"));
+
+        Assert.Null(error);
+        Assert.NotNull(fields);
+    }
+
+    [Fact]
+    public void ValidateEntry_PeriodCoveredFreeTextNotTwoDatePattern_IsLeftAlone()
+    {
+        // Older/imported records may hold free text here (e.g. "2024") that
+        // doesn't match the date-picker's "X to Y" shape — the order check
+        // must not apply to it, only CheckText's length/control-char rules.
+        var (fields, error) = Validate(EntryWithPeriod("Calendar Year 2024"));
+
+        Assert.Null(error);
+        Assert.NotNull(fields);
+    }
 }

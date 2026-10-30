@@ -128,4 +128,32 @@ public class TasksControllerAddSubtaskTests
         var reloadedDirective = await context.TaskItems.FindAsync(directive.Id);
         Assert.NotEqual(TaskWorkflow.Completed, reloadedDirective!.Status);
     }
+
+    // Validation-audit coverage (2026-10-30): the view's <input> has
+    // maxlength="200", but a direct POST bypassed it entirely before this
+    // fix — the name was stored unbounded (nvarchar(max)).
+    [Fact]
+    public async Task AddSubtask_NameOver200Characters_IsRejectedAndNothingSaved()
+    {
+        var (context, directive) = SeedDirective();
+        var controller = BuildController(context, "SuperAdmin", null);
+
+        var result = await controller.AddSubtask(directive.Id, new string('a', 201));
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Subtask name is too long (maximum 200 characters).", controller.TempData["ErrorMessage"]);
+        Assert.Empty(await context.TaskItems.Where(t => t.ParentTaskId == directive.Id).ToListAsync());
+    }
+
+    [Fact]
+    public async Task AddSubtask_NameExactly200Characters_Succeeds()
+    {
+        var (context, directive) = SeedDirective();
+        var controller = BuildController(context, "SuperAdmin", null);
+
+        var result = await controller.AddSubtask(directive.Id, new string('a', 200));
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Single(await context.TaskItems.Where(t => t.ParentTaskId == directive.Id).ToListAsync());
+    }
 }

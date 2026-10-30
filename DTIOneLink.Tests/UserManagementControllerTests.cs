@@ -152,4 +152,35 @@ public class UserManagementControllerTests
 
         await Assert.ThrowsAsync<SqlException>(() => controller.Create(newUser));
     }
+
+    // Validation-audit coverage (2026-10-30): FullName previously only
+    // required [Required] + non-empty-after-whitespace-collapse, so a value
+    // like "..." or "---" passed every check (panelist revision U1).
+    [Theory]
+    [InlineData("...")]
+    [InlineData("---")]
+    [InlineData("   .   ")]
+    [InlineData("!!!")]
+    public async Task Create_FullNameIsSymbolsOnly_IsRejectedBeforeTouchingTheDatabase(string fullName)
+    {
+        var controller = BuildController("SuperAdmin");
+        var newUser = ValidNewUser("Employee");
+        newUser.FullName = fullName;
+
+        var result = await controller.Create(newUser);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(UserManagementController.Index), redirect.ActionName);
+        Assert.Equal("Full name can't be made up of only symbols or punctuation.", controller.TempData["ErrorMessage"]);
+    }
+
+    [Fact]
+    public async Task Create_FullNameHasARealLetter_PassesTheGuard()
+    {
+        var controller = BuildController("SuperAdmin");
+        var newUser = ValidNewUser("Employee");
+        newUser.FullName = "A."; // minimal real content (initial + period) must still work
+
+        await Assert.ThrowsAsync<SqlException>(() => controller.Create(newUser));
+    }
 }

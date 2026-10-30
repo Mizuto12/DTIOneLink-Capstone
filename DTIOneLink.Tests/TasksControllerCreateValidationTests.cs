@@ -109,4 +109,63 @@ public class TasksControllerCreateValidationTests
         Assert.IsType<RedirectToActionResult>(result);
         Assert.True(await context.TaskItems.AnyAsync());
     }
+
+    private static TaskCreateViewModel ValidDepartmentDirectiveModel(User admin) => new()
+    {
+        TaskName = "Department Directive",
+        Description = "Covers everyone in the department.",
+        TaskType = TaskTypes.DepartmentDirective,
+        OwningDepartment = TargetDepartments.BDD,
+        ResponsibleAdminUserId = admin.Id,
+        DueDate = DateTime.UtcNow.AddDays(5),
+        Priority = "medium",
+    };
+
+    // Validation-audit coverage (2026-10-30): the inline subtask-list
+    // <input> on Create has no maxlength, and the server previously only
+    // filtered out blank entries — an overlong name or a huge list both
+    // went straight into the database.
+    [Fact]
+    public async Task Create_SubtaskNameOver200Characters_IsRejectedAndNothingSaved()
+    {
+        var (context, admin) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = ValidDepartmentDirectiveModel(admin);
+        model.SubtaskNames = new List<string> { new string('a', 201) };
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Create_TooManySubtasks_IsRejectedAndNothingSaved()
+    {
+        var (context, admin) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = ValidDepartmentDirectiveModel(admin);
+        model.SubtaskNames = Enumerable.Range(1, 51).Select(i => $"Subtask {i}").ToList();
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Create_SubtasksWithinLimits_Succeeds()
+    {
+        var (context, admin) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = ValidDepartmentDirectiveModel(admin);
+        model.SubtaskNames = new List<string> { "Subtask A", "Subtask B" };
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(2, await context.TaskItems.CountAsync(t => t.TaskLevel == TaskLevels.Subtask));
+    }
 }
