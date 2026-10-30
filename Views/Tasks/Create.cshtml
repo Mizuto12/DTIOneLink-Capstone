@@ -57,17 +57,11 @@
 
                 @if (ViewBag.CanCreateMainTask == true)
                 {
-                    <!-- "To" — Task Type (how it's sent) and who it goes to,
-                         merged into one compose-to-row: Task Type stays
-                         visible always (it's the mode switch), the "Send To"
-                         picker underneath hides for Whole Office, which has
-                         no single recipient. Target Department is no longer
-                         its own choice — picking who to send to already
-                         determines the department (ValidateResponsibleAdminAsync
-                         still checks this server-side either way), so there's
-                         one decision here instead of two. -->
-                    <div class="compose-to-row" id="composeToRow">
-                        <span class="compose-to-row__label">To</span>
+                    <!-- Task Type — the mode switch, its own row/label (not
+                         folded into "To" — Task Type isn't a recipient, it's
+                         how the task is sent). -->
+                    <div class="compose-to-row">
+                        <span class="compose-to-row__label">Task Type</span>
                         <div class="compose-to-row__fields">
                             <div class="field-group">
                                 <span class="field-label">
@@ -103,11 +97,22 @@
                                     Only a Department Directive breaks into subtasks — a Direct Admin Task or Whole Office task is worked and submitted directly by its assignee(s), so there's nothing to break down.
                                 </p>
                             </div>
+                        </div>
+                    </div>
 
-                            <!-- Send To — Department Directive: one Admin (every
-                                 active Admin, each already labeled with their own
-                                 department). OwningDepartment (hidden) is filled in
-                                 from whichever Admin is picked. -->
+                    <!-- To — who it goes to. Hidden entirely for Whole Office,
+                         which has no single recipient (the note below explains
+                         that instead). Target Department is no longer its own
+                         choice — picking who to send to already determines
+                         the department (ValidateResponsibleAdminAsync still
+                         checks this server-side either way). -->
+                    <div class="compose-to-row" id="toRow">
+                        <span class="compose-to-row__label">To</span>
+                        <div class="compose-to-row__fields">
+                            <!-- Department Directive: one Admin (every active
+                                 Admin, each already labeled with their own
+                                 department). OwningDepartment (hidden) is
+                                 filled in from whichever Admin is picked. -->
                             <div class="field-group" id="sendToGroup">
                                 <label class="field-label" for="responsibleAdmin">SEND TO <span class="required-star">*</span></label>
                                 <div class="select-wrap">
@@ -124,17 +129,18 @@
                                 <input type="hidden" id="targetDepartment" asp-for="OwningDepartment" />
                             </div>
 
-                            <!-- Send To — Direct Admin Task: one or more Admins,
-                                 any department (picking across departments is the
-                                 point). Each gets their own copy to work themselves,
-                                 same as a multi-assignee employee task. A Gmail/
-                                 Outlook-style "To" field: type a name or email,
-                                 pick from the suggestions, selections become
-                                 removable chips (chip-recipient-input.js). The
-                                 hidden <input name="DirectAdminUserIds"> each chip
-                                 carries is the only thing the server ever sees —
-                                 same List<int> model binding as a native
-                                 <select multiple> would have posted. -->
+                            <!-- Direct Admin Task: one or more Admins, any
+                                 department (picking across departments is the
+                                 point). Each gets their own copy to work
+                                 themselves, same as a multi-assignee employee
+                                 task. A Gmail/Outlook-style "To" field: type a
+                                 name or email, pick from the suggestions,
+                                 selections become removable chips
+                                 (chip-recipient-input.js). The hidden
+                                 <input name="DirectAdminUserIds"> each chip
+                                 carries is the only thing the server ever
+                                 sees — same List<int> model binding as a
+                                 native <select multiple> would have posted. -->
                             <div class="field-group" id="directAdminGroup" style="display:none">
                                 <label class="field-label" for="directAdminChipText">SEND TO <span class="required-star">*</span></label>
                                 <div class="chip-input" data-chip-input data-chip-name="DirectAdminUserIds"
