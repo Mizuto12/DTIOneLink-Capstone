@@ -200,6 +200,10 @@ body{
     opacity: 0.85;
 }
 
+.task-management .due-panel--returned {
+    border: 1.5px solid #f3dcae;
+}
+
 .task-management .due-panel__head {
     display: flex;
     align-items: center;
@@ -222,6 +226,10 @@ body{
 .task-management .due-panel--completed .due-panel__head .material-symbols-outlined {
     color: #16a34a;
 }
+.task-management .due-panel--returned .due-panel__head h3,
+.task-management .due-panel--returned .due-panel__head .material-symbols-outlined {
+    color: #8a5000;
+}
 
 .task-management .due-panel__count {
     margin-left: auto;
@@ -234,6 +242,7 @@ body{
 }
 .task-management .due-panel__count--overdue { background-color: var(--color-error-container); color: #ba1a1a; }
 .task-management .due-panel__count--completed { background-color: #dcf5e4; color: #166534; }
+.task-management .due-panel__count--returned { background-color: #ffefd2; color: #8a5000; }
 
 .task-management .due-row {
     display: flex;
@@ -285,6 +294,7 @@ body{
 .task-management .status-pill.for-review  { background-color: #ece3ff; color: #6d28d9; }
 .task-management .status-pill.returned    { background-color: #ffefd2; color: #8a5000; }
 .task-management .status-pill.completed   { background-color: #dcf5e4; color: #166534; }
+.task-management .status-pill.overdue     { background-color: var(--color-error-container); color: #ba1a1a; }
 
 .task-management .tm-empty-page {
     padding: 64px 16px;

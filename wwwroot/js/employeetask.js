@@ -133,15 +133,20 @@ function initFilterButton() {
 
 /**
  * Clicking (or pressing Enter/Space on) a due-date row opens that
- * task's detail view. A click on the delete button inside a row is
- * excluded so it doesn't also trigger navigation.
+ * task's detail view. A click on the delete button, or the Resubmit
+ * link on a Returned row, is excluded so it doesn't also trigger
+ * row navigation racing against its own destination.
  */
 function initTaskCardNavigation() {
     var rows = document.querySelectorAll('.due-row[data-href]');
 
+    function isOwnAction(target) {
+        return target.closest('.task-delete-form') || target.closest('.action-btn');
+    }
+
     rows.forEach(function (row) {
         row.addEventListener('click', function (event) {
-            if (event.target.closest('.task-delete-form')) {
+            if (isOwnAction(event.target)) {
                 return;
             }
             var href = row.getAttribute('data-href');
@@ -154,7 +159,7 @@ function initTaskCardNavigation() {
             if (event.key !== 'Enter' && event.key !== ' ') {
                 return;
             }
-            if (event.target.closest('.task-delete-form')) {
+            if (isOwnAction(event.target)) {
                 return;
             }
             event.preventDefault();

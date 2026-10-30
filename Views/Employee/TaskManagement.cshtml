@@ -67,49 +67,27 @@
         && string.Equals(t.Status, "completed", StringComparison.OrdinalIgnoreCase)
         && t.TaskLevel != DTIOneLink.Services.TaskLevels.Main;
 
-    (string Label, string Css) StatusPill(string status) => status switch
-    {
-        "pending" => ("To Do", "todo"),
-        "in-progress" => ("In Progress", "in-progress"),
-        "for-review" => ("For Review", "for-review"),
-        "returned-for-correction" => ("Returned", "returned"),
-        "completed" => ("Completed", "completed"),
-        _ => ("To Do", "todo")
-    };
-
     string FormatDueDate(DateTime dueDate) => DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(dueDate);
 
-    // ---- Group by what actually needs attention, not by workflow column ----
-    // "Needs Your Action": every Returned task (always needs a resubmit),
-    // plus — separately — the single most-overdue task whose progress the
-    // viewer can still edit (pending/in-progress). That one task is then
-    // left out of the Overdue group below so it isn't shown twice; a
-    // Returned task is never duplicated below either, since resubmitting
-    // is the only thing to do with it regardless of its due date.
-    var returnedTasks = tasks.Where(t => EffectiveStatus(t) == "returned-for-correction")
-        .OrderBy(t => t.DueDate)
+    // ---- Group by workflow status, same five columns Admin/SuperAdmin's
+    // Kanban board uses (_DashboardContent.cshtml), instead of the previous
+    // due-date-urgency grouping (Needs Your Action / Overdue / Due This
+    // Week / Later). Each group is sorted overdue-first then by due date,
+    // same ordering rule _DashboardContent.cshtml's Kanban columns use.
+    List<DTIOneLink.Models.TaskItem> StatusGroup(string status) => tasks
+        .Where(t => EffectiveStatus(t) == status)
+        .OrderByDescending(t => t.DueDate.Date < today && status != "completed")
+        .ThenBy(t => t.DueDate)
         .ToList();
 
-    var editableOverdue = tasks
-        .Where(t => (EffectiveStatus(t) == "pending" || EffectiveStatus(t) == "in-progress") && t.DueDate.Date < today)
-        .OrderBy(t => t.DueDate)
-        .ToList();
-    var spotlightOverdue = editableOverdue.FirstOrDefault();
+    var todoTasks = StatusGroup("pending");
+    var inProgressTasks = StatusGroup("in-progress");
+    var forReviewTasks = StatusGroup("for-review");
+    var returnedTasks = StatusGroup("returned-for-correction");
+    var completedTasks = StatusGroup("completed").OrderByDescending(t => t.DueDate).ToList(); // most recent first
 
-    var completedTasks = tasks.Where(t => EffectiveStatus(t) == "completed").ToList();
-
-    var groupableTasks = tasks
-        .Where(t => EffectiveStatus(t) != "completed" && EffectiveStatus(t) != "returned-for-correction")
-        .Where(t => spotlightOverdue == null || t.Id != spotlightOverdue.Id)
-        .OrderBy(t => t.DueDate)
-        .ToList();
-
-    var overdueGroup = groupableTasks.Where(t => t.DueDate.Date < today).ToList();
-    var thisWeekGroup = groupableTasks.Where(t => t.DueDate.Date >= today && t.DueDate.Date <= today.AddDays(7)).ToList();
-    var laterGroup = groupableTasks.Where(t => t.DueDate.Date > today.AddDays(7)).ToList();
-
-    var hasAnyAction = returnedTasks.Any() || spotlightOverdue != null;
-    var hasAnything = hasAnyAction || overdueGroup.Any() || thisWeekGroup.Any() || laterGroup.Any() || completedTasks.Any();
+    var hasAnything = todoTasks.Any() || inProgressTasks.Any() || forReviewTasks.Any()
+        || returnedTasks.Any() || completedTasks.Any();
 
     var deletableCompletedCount = completedTasks.Count(CanDelete);
     var keptCompletedCount = completedTasks.Count - deletableCompletedCount;
@@ -148,119 +126,112 @@
     }
     else
     {
-        @if (hasAnyAction)
-        {
-            <section class="action-strip" aria-label="Needs your action">
-                <div class="action-strip__head">
-                    <span class="material-symbols-outlined">warning</span>
-                    <h3>Needs Your Action (@(returnedTasks.Count + (spotlightOverdue != null ? 1 : 0)))</h3>
-                </div>
-                <div class="action-strip__grid">
-                    @foreach (var task in returnedTasks)
-                    {
-                        <div class="action-card">
-                            <div class="action-card__tag">
-                                <span class="material-symbols-outlined">edit</span>
-                                <span>Returned for correction</span>
-                            </div>
-                            <div class="action-card__title">@task.TaskName</div>
-                            <div class="action-card__foot">
-                                <span class="action-card__meta">@(AssigneeDisplay(task)) · @PriorityLabel(task.Priority)</span>
-                                <a class="action-btn" asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id">
-                                    <span class="material-symbols-outlined">upload</span>Resubmit
-                                </a>
-                            </div>
-                        </div>
-                    }
-                    @if (spotlightOverdue != null)
-                    {
-                        var daysLate = (today - spotlightOverdue.DueDate.Date).Days;
-                        <div class="action-card">
-                            <div class="action-card__tag action-card__tag--overdue">
-                                <span class="material-symbols-outlined">warning</span>
-                                <span>Most overdue · @daysLate day@(daysLate == 1 ? "" : "s")</span>
-                            </div>
-                            <div class="action-card__title">@spotlightOverdue.TaskName</div>
-                            <div class="action-card__foot">
-                                <span class="action-card__meta">@(EffectiveProgress(spotlightOverdue))% done · @PriorityLabel(spotlightOverdue.Priority)</span>
-                                <a class="action-btn" asp-controller="Employee" asp-action="Details" asp-route-id="@spotlightOverdue.Id">
-                                    <span class="material-symbols-outlined">edit</span>Update Progress
-                                </a>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
+        // Overdue indication now lives inline per-row (via this helper)
+        // instead of its own section — Overdue was a due-date-urgency
+        // group under the old grouping and no longer exists as one of
+        // the five status columns, but the signal itself is still worth
+        // keeping visible wherever that task actually appears.
+        bool IsOverdueTask(DTIOneLink.Models.TaskItem t) =>
+            DTIOneLink.Services.TaskWorkflow.IsOverdue(EffectiveStatus(t), t.DueDate);
 
-        @if (overdueGroup.Any())
+        @if (todoTasks.Any())
         {
-            <section class="due-panel due-panel--overdue">
+            <section class="due-panel">
                 <div class="due-panel__head">
-                    <span class="material-symbols-outlined">warning</span>
-                    <h3>Overdue</h3>
-                    <span class="due-panel__count due-panel__count--overdue">@overdueGroup.Count</span>
+                    <span class="material-symbols-outlined">radio_button_unchecked</span>
+                    <h3>To Do</h3>
+                    <span class="due-panel__count">@todoTasks.Count</span>
                 </div>
-                @foreach (var task in overdueGroup)
+                @foreach (var task in todoTasks)
                 {
-                    var (label, css) = StatusPill(EffectiveStatus(task));
-                    var daysLate = (today - task.DueDate.Date).Days;
+                    var overdue = IsOverdueTask(task);
+                    var daysLate = overdue ? (today - task.DueDate.Date).Days : 0;
                     <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
                         <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
                         <div class="due-row__main">
                             <div class="due-row__title">@task.TaskName</div>
-                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate) (@daysLate day@(daysLate == 1 ? "" : "s") ago)</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate)@(overdue ? $" ({daysLate} day{(daysLate == 1 ? "" : "s")} ago)" : "")</div>
                         </div>
                         <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                        <span class="status-pill @css">@label@(css == "in-progress" ? $" · {EffectiveProgress(task)}%" : "")</span>
+                        @if (overdue)
+                        {
+                            <span class="status-pill overdue">Overdue</span>
+                        }
                     </div>
                 }
             </section>
         }
 
-        @if (thisWeekGroup.Any())
+        @if (inProgressTasks.Any())
         {
             <section class="due-panel">
                 <div class="due-panel__head">
-                    <span class="material-symbols-outlined">calendar_today</span>
-                    <h3>Due This Week</h3>
-                    <span class="due-panel__count">@thisWeekGroup.Count</span>
+                    <span class="material-symbols-outlined">autorenew</span>
+                    <h3>In Progress</h3>
+                    <span class="due-panel__count">@inProgressTasks.Count</span>
                 </div>
-                @foreach (var task in thisWeekGroup)
+                @foreach (var task in inProgressTasks)
                 {
-                    var (label, css) = StatusPill(EffectiveStatus(task));
+                    var overdue = IsOverdueTask(task);
+                    var daysLate = overdue ? (today - task.DueDate.Date).Days : 0;
                     <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
                         <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
                         <div class="due-row__main">
                             <div class="due-row__title">@task.TaskName</div>
-                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate)</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · @(EffectiveProgress(task))% done · Due @FormatDueDate(task.DueDate)@(overdue ? $" ({daysLate} day{(daysLate == 1 ? "" : "s")} ago)" : "")</div>
                         </div>
                         <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                        <span class="status-pill @css">@label@(css == "in-progress" ? $" · {EffectiveProgress(task)}%" : "")</span>
+                        @if (overdue)
+                        {
+                            <span class="status-pill overdue">Overdue</span>
+                        }
                     </div>
                 }
             </section>
         }
 
-        @if (laterGroup.Any())
+        @if (forReviewTasks.Any())
         {
             <section class="due-panel">
                 <div class="due-panel__head">
-                    <span class="material-symbols-outlined">schedule</span>
-                    <h3>Later</h3>
-                    <span class="due-panel__count">@laterGroup.Count</span>
+                    <span class="material-symbols-outlined">fact_check</span>
+                    <h3>For Review</h3>
+                    <span class="due-panel__count">@forReviewTasks.Count</span>
                 </div>
-                @foreach (var task in laterGroup)
+                @foreach (var task in forReviewTasks)
                 {
-                    var (label, css) = StatusPill(EffectiveStatus(task));
                     <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
                         <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
                         <div class="due-row__main">
                             <div class="due-row__title">@task.TaskName</div>
-                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Due @FormatDueDate(task.DueDate)</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Submitted, waiting for review</div>
                         </div>
                         <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
-                        <span class="status-pill @css">@label@(css == "in-progress" ? $" · {EffectiveProgress(task)}%" : "")</span>
+                    </div>
+                }
+            </section>
+        }
+
+        @if (returnedTasks.Any())
+        {
+            <section class="due-panel due-panel--returned">
+                <div class="due-panel__head">
+                    <span class="material-symbols-outlined">edit</span>
+                    <h3>Returned</h3>
+                    <span class="due-panel__count due-panel__count--returned">@returnedTasks.Count</span>
+                </div>
+                @foreach (var task in returnedTasks)
+                {
+                    <div class="due-row" data-href="@Url.Action("Details", "Employee", new { id = task.Id })" role="link" tabindex="0" aria-label="Open @task.TaskName">
+                        <div class="avatar-initials">@GetInitials(task.Assignee?.FullName)</div>
+                        <div class="due-row__main">
+                            <div class="due-row__title">@task.TaskName</div>
+                            <div class="due-row__meta">@(AssigneeDisplay(task)) · Needs a resubmission</div>
+                        </div>
+                        <span class="priority-badge @PriorityClass(task.Priority)">@PriorityLabel(task.Priority)</span>
+                        <a class="action-btn" asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id">
+                            <span class="material-symbols-outlined">upload</span>Resubmit
+                        </a>
                     </div>
                 }
             </section>
