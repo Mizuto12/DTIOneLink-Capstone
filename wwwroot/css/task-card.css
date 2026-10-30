@@ -46,6 +46,15 @@
 }
 .kanban-card:hover { box-shadow: 0 6px 16px rgba(0, 30, 101, 0.12); transform: translateY(-1px); }
 .kanban-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* .kanban-card's own `display: flex` above silently overrides the
+   browser's default `[hidden] { display: none }` (author CSS always beats
+   the user-agent stylesheet, same specificity or not) — without this, the
+   division filter / "Show N more" cap in superadmin-dashboard.js (and
+   AdminDashboard's Kanban board, which shares this same card) sets the
+   hidden attribute correctly but it has no visible effect. Same bug
+   already fixed for .offline-status-pill (adminlayout.css), .report-row
+   (reports.css), and .session-row (time-logs.css) — never applied here. */
+.kanban-card[hidden] { display: none; }
 .kanban-card.is-overdue { border-left-color: var(--card-danger-border); }
 
 .kanban-card__top { display: flex; flex-wrap: wrap; gap: 6px; }
