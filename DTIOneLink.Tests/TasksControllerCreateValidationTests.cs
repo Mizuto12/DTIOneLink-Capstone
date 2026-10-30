@@ -225,4 +225,32 @@ public class TasksControllerCreateValidationTests
         Assert.IsType<RedirectToActionResult>(result);
         Assert.True(await context.TaskItems.AnyAsync(t => t.TaskName == "2026"));
     }
+
+    // Production incident, 2026-10-30: a Whole Office task submitted with
+    // Description left blank crashed with ArgumentNullException instead of
+    // showing a validation error. ASP.NET Core's SimpleTypeModelBinder binds
+    // an empty submitted form field to null, not "" — HasRealContent called
+    // value.Any(...) on that null with no guard. model.Description = null!
+    // here reproduces exactly what model binding actually produced in
+    // production, not just an empty string a test might pick instead.
+    [Fact]
+    public async Task Create_WholeOfficeWithNullDescription_IsRejectedNotCrashed()
+    {
+        var (context, _) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = new TaskCreateViewModel
+        {
+            TaskName = "Quarterly Report",
+            Description = null!,
+            TaskType = TaskTypes.WholeOffice,
+            DueDate = DateTime.UtcNow.AddDays(5),
+            Priority = "medium",
+        };
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync());
+    }
 }

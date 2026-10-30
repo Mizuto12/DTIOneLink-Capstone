@@ -1306,7 +1306,18 @@ private const int MaxSubtasksOnCreate = 50;
 // HasRealNameContent). Letters OR digits count here (unlike FullName,
 // which required a letter specifically) since a legitimate task name can
 // be numeric-only, e.g. "Q3 2026 Report".
-private static bool HasRealContent(string value) => value.Any(char.IsLetterOrDigit);
+//
+// Nullable on purpose, unlike HasRealNameContent (which is only ever
+// called after its own caller has already coalesced the value to ""):
+// ASP.NET Core's SimpleTypeModelBinder binds an empty submitted string
+// field to null, not "" — a task created with TaskName filled in but
+// Description left blank (e.g. a Whole Office task, which has no other
+// required fields to distract from that) posted model.Description as
+// null and crashed here with ArgumentNullException before [Required]'s
+// own ModelState error ever got a chance to run. Null/empty both just
+// mean "no real content" — false, not a crash — same as the symbol-only
+// case; [Required] still adds its own, separate "is required" error.
+private static bool HasRealContent(string? value) => !string.IsNullOrEmpty(value) && value.Any(char.IsLetterOrDigit);
 
 private async Task PopulateResponsibleAdminsAsync()
 {
