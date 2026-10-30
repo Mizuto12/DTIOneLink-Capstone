@@ -170,9 +170,9 @@ function retentionCellHtml(data) {
 
 // Title and Location can run long; truncate with an ellipsis and keep the
 // full text on hover instead of forcing the column wider or the row taller.
-function truncHtml(value, wide) {
+function truncHtml(value, variant) {
   const esc = escapeHtml(value);
-  return `<span class="trunc${wide ? ' trunc-wide' : ''}" title="${esc}">${esc}</span>`;
+  return `<span class="trunc${variant ? ` trunc-${variant}` : ''}" title="${esc}">${esc}</span>`;
 }
 
 function actionsCellHtml(data) {
@@ -187,7 +187,11 @@ function actionsCellHtml(data) {
       </button>
       <button type="button" class="row-action-btn attach-file-btn" data-id="${data.recordId}"
               title="Attach a file" aria-label="Attach a file to ${escapeHtml(data.code)}">
-        <span class="material-symbols-outlined">attach_file</span>
+        <!-- "attach_file" isn't in the trimmed icon-font subset (see
+             wwwroot/css/fonts.css's icon_names list) and falls back to
+             literal text; "upload" is already in the subset and used for
+             the same "attach a file" concept elsewhere in the app. -->
+        <span class="material-symbols-outlined">upload</span>
       </button>
       <input type="file" class="attach-file-input" data-id="${data.recordId}" hidden
              accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" />
@@ -230,11 +234,11 @@ function renderRows() {
     row.innerHTML = `
       <td class="rownum-cell">${rowNumber}</td>
       <td class="code-cell" data-label="Code">${escapeHtml(data.code)}</td>
-      <td class="title-cell" data-label="Title of Record">${truncHtml(data.title, true)}</td>
+      <td class="title-cell" data-label="Title of Record">${truncHtml(data.title, 'wide')}</td>
       <td data-label="Medium">${mediumBadgeHtml(data.medium)}</td>
-      <td data-label="Location">${truncHtml(data.location, false)}</td>
+      <td data-label="Location">${truncHtml(data.location)}</td>
       <td data-label="Period Covered">${escapeHtml(data.periodCovered)}</td>
-      <td data-label="Filing System">${escapeHtml(data.filingSystem)}</td>
+      <td data-label="Filing System">${truncHtml(data.filingSystem, 'filing')}</td>
       <td data-label="Access Control">${accessBadgeHtml(data.accessControl)}</td>
       <td class="retention-td ${retentionTd}" data-label="Retention Period">${retentionCellHtml(data)}</td>
       ${showStatusColumn ? `<td data-label="Status">${statusCellHtml(data)}</td>` : ''}

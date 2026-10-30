@@ -49,16 +49,22 @@
         : creatorName;
 
     // The signed-in user's own assignment on this task (null if they aren't
-    // an assignee). The progress ring/slider edits only this row, and only
-    // while it is To Do / In Progress — the same rules EmployeeController.UpdateProgress
-    // enforces on the server.
+    // an assignee). The progress ring/slider edits only this row, while it
+    // is To Do / In Progress / Returned for Correction — the same states
+    // EmployeeController.ApplyProgressUpdateAsync accepts on the server
+    // (it only locks on For Review). Panelist item T10 (2026-10-31):
+    // Returned for Correction was previously missing here, so the slider
+    // silently disappeared right when a rejected submission needed fixing —
+    // even TaskWorkflow.CanSubmitProof and the hint text below were already
+    // written assuming this state stays editable.
     var viewerId = Context.Session.GetInt32("UserId");
     var myAssignment = viewerId.HasValue
         ? task.Assignments?.FirstOrDefault(a => a.UserId == viewerId.Value)
         : null;
     var myAssignmentStatus = (myAssignment?.Status ?? "").Trim().ToLowerInvariant();
     var canEditProgress = myAssignment != null
-        && (myAssignmentStatus == "pending" || myAssignmentStatus == "in-progress");
+        && (myAssignmentStatus == "pending" || myAssignmentStatus == "in-progress"
+            || myAssignmentStatus == DTIOneLink.Services.TaskWorkflow.ReturnedForCorrection);
     var sliderProgress = canEditProgress ? myAssignment!.Progress : task.Progress;
 
     // An Employee on a shared task sees only their own part of it: their own

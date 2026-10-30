@@ -503,6 +503,13 @@
    pattern as Title/Location now applies here too. */
 .records-page .trunc.trunc-retention { max-width: 200px; }
 
+/* Filing System ("Alphabetical/Numerical", etc.) rendered as plain text
+   with no truncation at all, so it overflowed the 150px filing-col and
+   visibly spilled into the next column's border. Same truncate-plus-hover
+   pattern as Title/Location/Retention, sized to the column's real content
+   room (150px column - 24px cell padding = 126px). */
+.records-page .trunc.trunc-filing { max-width: 120px; }
+
 /* Compact badges for the enum-like columns (Medium, Access Control), freeing
    width for Title and Location, which actually need it — merged into the
    single .badge rule above; this was a second, later-cascading definition
