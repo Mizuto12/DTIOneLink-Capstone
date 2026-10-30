@@ -104,7 +104,6 @@
 }
 .mtd-hero-status .material-symbols-outlined { font-size: 24px; flex-shrink: 0; }
 .mtd-hero-status-line { font-size: 16px; font-weight: 800; }
-.mtd-hero-status-sub { font-size: 14px; opacity: 0.85; margin-top: 2px; }
 
 /* Status is said as a full sentence everywhere on this page — the tinted
    wash here is a second, faster read for the same information, not the
@@ -172,6 +171,7 @@
 }
 .mtd-hero-facts span { display: block; opacity: 0.7; margin-bottom: 2px; }
 .mtd-hero-facts strong { font-size: 15px; }
+.mtd-hero-fact--overdue { color: #ffb4ab; }
 
 .mtd-hero-reassign {
     display: flex;

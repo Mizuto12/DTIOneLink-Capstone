@@ -156,17 +156,7 @@
 
         <div class="mtd-hero-status mtd-hero-status--@displayStatus">
             <span class="material-symbols-outlined" aria-hidden="true">@StatusSentence(displayStatus).Icon</span>
-            <div>
-                <div class="mtd-hero-status-line">@StatusSentence(displayStatus).Sentence</div>
-                @if (displayStatus == "overdue")
-                {
-                    <div class="mtd-hero-status-sub">It was due on @DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate).</div>
-                }
-                else
-                {
-                    <div class="mtd-hero-status-sub">Due @DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate).</div>
-                }
-            </div>
+            <div class="mtd-hero-status-line">@StatusSentence(displayStatus).Sentence</div>
         </div>
 
         <div class="mtd-hero-progress">
@@ -207,6 +197,15 @@
              task), so they read as one group, not a stack of accordions. -->
         <div class="mtd-hero-meta">
             <div class="mtd-hero-facts">
+                <div>
+                    <span>Due Date</span>
+                    @* Moved out of the status box above: the due date is a
+                       fact about the whole task, not about its current
+                       review/progress state, so it belongs here with the
+                       other task-level facts, not nested under the status
+                       line (per the panelist revision note on this page). *@
+                    <strong class="@(displayStatus == "overdue" ? "mtd-hero-fact--overdue" : "")">@DTIOneLink.Helpers.DisplayHelpers.FormalDate(task.DueDate)@(displayStatus == "overdue" ? " (overdue)" : "")</strong>
+                </div>
                 <div>
                     <span>Responsible Admin</span>
                     <strong>@(task.ResponsibleAdmin?.FullName ?? "Unassigned")</strong>
