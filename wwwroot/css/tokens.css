@@ -40,4 +40,19 @@
     --font-ui:      'Inter', sans-serif;
     --font-anton:   'Anton', sans-serif;
     --font-sauce:   'Open Sauce Sans', 'Segoe UI', sans-serif;
+
+    /* Task status badge colors — Overdue and Completed only. These two were
+       confirmed to genuinely disagree between tasks-index.css and the
+       otherwise-mutually-consistent admindashboard.css/employee-dashboard.css/
+       task-card.css trio, with no discovered deliberate reason for
+       tasks-index.css's different values. Deliberately NOT extended to
+       Pending/In-Progress/For-Review/Returned: each of those turned out to
+       have at least one other file (employeetask.css) it's intentionally
+       matched to instead, or its own "don't merge this" comment — forcing
+       them onto one shared value would reverse a decision someone made on
+       purpose. See the 2026-10-30 cross-role audit for the full picture. */
+    --status-completed-bg: #dcf5e4;
+    --status-completed-fg: #16a34a;
+    --status-overdue-bg:   #fee4e2;
+    --status-overdue-fg:   #b42318;
 }

@@ -18,17 +18,7 @@
         t.Assignments?.FirstOrDefault(a => a.UserId == viewerId);
 
     // One of the five workflow statuses (older free-text values mapped by keyword).
-    string StatusOf(DTIOneLink.Models.TaskItem t)
-    {
-        var s = TaskWorkflow.Normalize(Mine(t)?.Status ?? t.Status);
-        if (s is TaskWorkflow.Pending or TaskWorkflow.InProgress or TaskWorkflow.ForReview
-            or TaskWorkflow.ReturnedForCorrection or TaskWorkflow.Completed) return s;
-        if (s.Contains("complet") || s == "done") return TaskWorkflow.Completed;
-        if (s.Contains("review")) return TaskWorkflow.ForReview;
-        if (s.Contains("return")) return TaskWorkflow.ReturnedForCorrection;
-        if (s.Contains("progress") || s.Contains("ongoing")) return TaskWorkflow.InProgress;
-        return TaskWorkflow.Pending;
-    }
+    string StatusOf(DTIOneLink.Models.TaskItem t) => DTIOneLink.Helpers.DisplayHelpers.DisplayStatus(Mine(t)?.Status ?? t.Status);
     int ProgressOf(DTIOneLink.Models.TaskItem t) => Mine(t)?.Progress ?? t.Progress;
     string? PersonOf(DTIOneLink.Models.TaskItem t) => Mine(t)?.User?.FullName ?? t.Assignee?.FullName;
     bool IsOverdue(DTIOneLink.Models.TaskItem t) => TaskWorkflow.IsOverdue(StatusOf(t), t.DueDate);
@@ -66,18 +56,7 @@
         return parts.Length >= 2 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : name.Substring(0, Math.Min(2, name.Length)).ToUpper();
     }
 
-    string DueText(DateTime due)
-    {
-        var days = (due.Date - today).Days;
-        return days switch
-        {
-            < -1 => $"{-days} days late",
-            -1 => "1 day late",
-            0 => "Due today",
-            1 => "Due tomorrow",
-            _ => "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(due)
-        };
-    }
+    string DueText(DateTime due) => DTIOneLink.Helpers.DisplayHelpers.DueText(due, today);
 
     // Boards shown on the dashboard (the full five-status board is Task Management).
     var boards = new[]

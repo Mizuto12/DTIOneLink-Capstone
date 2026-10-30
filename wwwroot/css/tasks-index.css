@@ -394,7 +394,10 @@
 }
 
 .status-progress { background: #dbeafe; color: #1e40af; }
-.status-complete { background: #dcfce7; color: #166534; }
+/* Matches admindashboard.css/employee-dashboard.css/task-card.css's shared
+   Completed color (--status-completed-*, tokens.css) — this page's own
+   value previously disagreed with all three for no documented reason. */
+.status-complete { background: var(--status-completed-bg); color: var(--status-completed-fg); }
 .status-pending  { background: #f1f5f9; color: #475569; }
 /* Was falling through to .status-pending (the same gray as plain "To
    Do") — a returned task needing the employee's attention again looked
@@ -402,7 +405,10 @@
    already used for this same status on the Employee side
    (employeetask.css's .status-pill.returned). */
 .status-returned { background: #ffefd2; color: #8a5000; }
-.status-badge.status-overdue { background-color: #ffdad6; color: #ba1a1a; }
+/* Matches task-card.css's Kanban-card Overdue badge color
+   (--status-overdue-*, tokens.css) — this page's own value previously
+   disagreed with the dashboards' for no documented reason. */
+.status-badge.status-overdue { background-color: var(--status-overdue-bg); color: var(--status-overdue-fg); }
 
 /* ── Empty state ─────────────────────────────────────────── */
 .empty-state {
@@ -802,8 +808,8 @@
 .tile-progress .material-symbols-outlined  { background: #dbeafe; color: #1e40af; }
 .tile-review .material-symbols-outlined    { background: #ede9fe; color: #5b21b6; }
 .tile-returned .material-symbols-outlined  { background: #ffedd5; color: #c2410c; }
-.tile-overdue .material-symbols-outlined   { background: #ffdad6; color: #ba1a1a; }
-.tile-completed .material-symbols-outlined { background: #dcfce7; color: #166534; }
+.tile-overdue .material-symbols-outlined   { background: var(--status-overdue-bg); color: var(--status-overdue-fg); }
+.tile-completed .material-symbols-outlined { background: var(--status-completed-bg); color: var(--status-completed-fg); }
 
 /* ── Filter controls ─────────────────────────────────────── */
 .task-filter-form { margin: 0; }

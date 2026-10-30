@@ -42,18 +42,7 @@
         .Where(w => char.IsLetter(w[0])).Take(2).Select(w => char.ToUpper(w[0])));
 
     var today = TimeZoneHelper.PhilippineToday;
-    string DueText(DateTime due)
-    {
-        var days = (due.Date - today).Days;
-        return days switch
-        {
-            < -1 => $"{-days} days late",
-            -1 => "1 day late",
-            0 => "Due today",
-            1 => "Due tomorrow",
-            _ => "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(due)
-        };
-    }
+    string DueText(DateTime due) => DTIOneLink.Helpers.DisplayHelpers.DueText(due, today);
 
     // Collapsed-section previews: a one-line hint of what's inside before
     // expanding, so the closed state isn't just a bare title bar.

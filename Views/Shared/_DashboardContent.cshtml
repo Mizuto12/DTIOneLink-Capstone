@@ -29,17 +29,7 @@
         isEmployeeView ? t.Assignments?.FirstOrDefault(a => a.UserId == viewerId) : null;
     // One of the five workflow statuses. Older free-text values ("ongoing",
     // "done"...) are mapped by keyword so no task drops off the board.
-    string StatusOf(DTIOneLink.Models.TaskItem t)
-    {
-        var s = TaskWorkflow.Normalize(MyAssignment(t)?.Status ?? t.Status);
-        if (s is TaskWorkflow.Pending or TaskWorkflow.InProgress or TaskWorkflow.ForReview
-            or TaskWorkflow.ReturnedForCorrection or TaskWorkflow.Completed) return s;
-        if (s.Contains("complet") || s == "done") return TaskWorkflow.Completed;
-        if (s.Contains("review")) return TaskWorkflow.ForReview;
-        if (s.Contains("return")) return TaskWorkflow.ReturnedForCorrection;
-        if (s.Contains("progress") || s.Contains("ongoing")) return TaskWorkflow.InProgress;
-        return TaskWorkflow.Pending;
-    }
+    string StatusOf(DTIOneLink.Models.TaskItem t) => DTIOneLink.Helpers.DisplayHelpers.DisplayStatus(MyAssignment(t)?.Status ?? t.Status);
     int ProgressOf(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.Progress ?? t.Progress;
     string? AssigneeName(DTIOneLink.Models.TaskItem t) => MyAssignment(t)?.User?.FullName ?? t.Assignee?.FullName;
 
@@ -72,18 +62,7 @@
     }
 
     var today = TimeZoneHelper.PhilippineToday;
-    string DueText(DateTime due)
-    {
-        var days = (due.Date - today).Days;
-        return days switch
-        {
-            < -1 => $"{-days} days late",
-            -1 => "1 day late",
-            0 => "Due today",
-            1 => "Due tomorrow",
-            _ => "Due " + DTIOneLink.Helpers.DisplayHelpers.FormalMonthDay(due)
-        };
-    }
+    string DueText(DateTime due) => DTIOneLink.Helpers.DisplayHelpers.DueText(due, today);
 
     // ---- Gantt timeline -------------------------------------------------
     // No StartDate on the model, so each bar runs from CreatedAt (stored in
