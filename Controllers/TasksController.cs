@@ -1761,13 +1761,17 @@ public async Task<IActionResult> RemoveChecklistItem(int id)
 // an elevated viewer who isn't the assignee), not just at the moment of a
 // Review decision (TasksController.Review's own Progress field, scoped to
 // Return only, is unaffected by this — a separate, narrower capability).
-// Same lock rules as the assignee's own slider (TaskAssignmentService.
-// ApplyProgressChangeAsync): editable on Pending/In Progress/Returned for
-// Correction, frozen on Completed/ForReview — an Admin correcting a task
-// that's actively awaiting review belongs in the Review decision, not here.
-// JSON response (not TempData/redirect) so the page can update in place,
-// matching EmployeeController.UpdateProgress's own pattern for the same UI
-// concept.
+// Deliberately narrower than the assignee's own slider (TaskAssignmentService.
+// ApplyProgressChangeAsync allows Pending/In Progress too): this action only
+// ever applies once a submission has actually been returned for correction.
+// Allowing it on an ordinary Pending/In Progress task would put this control
+// and the assignee's own slider live on the same row at the same time —
+// RowVersion stops either write from silently clobbering the other, but
+// it's a confusing UX to invite in the first place, not just a safety net
+// to rely on. An Admin correcting a task that's actively awaiting review
+// belongs in the Review decision, not here. JSON response (not TempData/
+// redirect) so the page can update in place, matching EmployeeController.
+// UpdateProgress's own pattern for the same UI concept.
 [HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> UpdateAssignmentProgress(int taskAssignmentId, int progress)
@@ -1790,6 +1794,11 @@ public async Task<IActionResult> UpdateAssignmentProgress(int taskAssignmentId, 
     if (assignment?.Task == null || !IsWithinTaskScope(assignment.Task))
     {
         return NotFound(new { message = "That assignment could not be found." });
+    }
+
+    if (TaskWorkflow.Normalize(assignment.Status) != TaskWorkflow.ReturnedForCorrection)
+    {
+        return BadRequest(new { message = "This action only applies once a submission has been returned for correction." });
     }
 
     var previousProgress = assignment.Progress;

@@ -71,17 +71,20 @@
     // assignment already shown as "the" assignee elsewhere on this page
     // (task.AssigneeId — the rollup's chosen primary assignment) rather than
     // picking among co-assignees on a multi-assignee task, which this page
-    // doesn't otherwise distinguish between. Same editable states as the
-    // assignee's own slider; an Admin correcting a task that's actively
-    // awaiting review uses the Review decision's own Progress field instead
-    // (TasksController.Review, Return only), not this control.
+    // doesn't otherwise distinguish between. Deliberately narrower than the
+    // assignee's own slider: editable only once a submission has actually
+    // been returned for correction, not on an ordinary Pending/In Progress
+    // task — otherwise this control and the assignee's own slider would
+    // both be live on the same row at the same time, which is confusing
+    // even though RowVersion prevents real data loss. An Admin correcting a
+    // task that's actively awaiting review uses the Review decision's own
+    // Progress field instead (TasksController.Review, Return only).
     var targetAssignment = (isElevated && myAssignment == null)
         ? task.Assignments?.FirstOrDefault(a => a.UserId == task.AssigneeId)
         : null;
     var targetAssignmentStatus = (targetAssignment?.Status ?? "").Trim().ToLowerInvariant();
     var canAdminEditProgress = targetAssignment != null
-        && (targetAssignmentStatus == "pending" || targetAssignmentStatus == "in-progress"
-            || targetAssignmentStatus == DTIOneLink.Services.TaskWorkflow.ReturnedForCorrection);
+        && targetAssignmentStatus == DTIOneLink.Services.TaskWorkflow.ReturnedForCorrection;
 
     var sliderProgress = canEditProgress ? myAssignment!.Progress
         : canAdminEditProgress ? targetAssignment!.Progress

@@ -166,7 +166,7 @@ public class TasksControllerUpdateAssignmentProgressTests
     [Fact]
     public async Task SettingProgressTo100_DoesNotAutomaticallyCompleteTheTask()
     {
-        var (context, _, assignment, _) = Seed(status: TaskWorkflow.InProgress, progress: 80);
+        var (context, _, assignment, _) = Seed(status: TaskWorkflow.ReturnedForCorrection, progress: 80);
         var controller = BuildController(context, "SuperAdmin");
 
         var result = await controller.UpdateAssignmentProgress(assignment.Id, 100);
@@ -175,6 +175,23 @@ public class TasksControllerUpdateAssignmentProgressTests
         var reloaded = context.TaskAssignments.Single();
         Assert.Equal(100, reloaded.Progress);
         Assert.NotEqual(TaskWorkflow.Completed, reloaded.Status); // only TasksController.Review's Approve reaches Completed
+    }
+
+    [Theory]
+    [InlineData(TaskWorkflow.Pending)]
+    [InlineData(TaskWorkflow.InProgress)]
+    public async Task CannotAdjustProgress_UnlessTheSubmissionWasActuallyReturnedForCorrection(string status)
+    {
+        // Narrower than the assignee's own slider on purpose: an ordinary
+        // Pending/In Progress task should never have this control and the
+        // assignee's own slider both live on the same row at once.
+        var (context, _, assignment, _) = Seed(status: status, progress: 40);
+        var controller = BuildController(context, "SuperAdmin");
+
+        var result = await controller.UpdateAssignmentProgress(assignment.Id, 65);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(40, context.TaskAssignments.Single().Progress); // unchanged
     }
 
     [Fact]
