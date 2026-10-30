@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="~/css/tasks-index.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/help-hint.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/chip-recipient-input.css" asp-append-version="true" />
 }
 
 <!-- ── The real Task Management list, behind the form ───── -->
@@ -126,17 +127,29 @@
                             <!-- Send To — Direct Admin Task: one or more Admins,
                                  any department (picking across departments is the
                                  point). Each gets their own copy to work themselves,
-                                 same as a multi-assignee employee task. -->
+                                 same as a multi-assignee employee task. A Gmail/
+                                 Outlook-style "To" field: type a name or email,
+                                 pick from the suggestions, selections become
+                                 removable chips (chip-recipient-input.js). The
+                                 hidden <input name="DirectAdminUserIds"> each chip
+                                 carries is the only thing the server ever sees —
+                                 same List<int> model binding as a native
+                                 <select multiple> would have posted. -->
                             <div class="field-group" id="directAdminGroup" style="display:none">
-                                <label class="field-label" for="directAdminUserIds">SEND TO <span class="required-star">*</span></label>
-                                <select class="pill-input" id="directAdminUserIds" asp-for="DirectAdminUserIds" multiple size="5">
-                                    @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
-                                    {
-                                        <option value="@admin.Id">@admin.FullName (@admin.Department)</option>
-                                    }
-                                </select>
-                                <p class="modal-sub" style="margin-top:4px;">Ctrl/Cmd-click (or shift-click) to pick more than one.</p>
+                                <label class="field-label" for="directAdminChipText">SEND TO <span class="required-star">*</span></label>
+                                <div class="chip-input" data-chip-input data-chip-name="DirectAdminUserIds"
+                                     data-chip-options="directAdminOptionsData"
+                                     data-chip-selected="@string.Join(",", Model.DirectAdminUserIds)">
+                                    <div class="chip-input-chips" data-chip-chips></div>
+                                    <input type="text" id="directAdminChipText" class="chip-input-text" data-chip-text
+                                           placeholder="Type a name or email…" autocomplete="off"
+                                           role="combobox" aria-expanded="false" aria-autocomplete="list" aria-haspopup="listbox" />
+                                    <div class="chip-input-suggestions" data-chip-suggestions role="listbox" hidden></div>
+                                </div>
                                 <span asp-validation-for="DirectAdminUserIds" class="field-error"></span>
+                                <script type="application/json" id="directAdminOptionsData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                                    ((IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
+                                        .Select(a => new { id = a.Id, name = a.FullName, email = a.Email, department = a.Department })))</script>
                             </div>
 
                             <p class="modal-sub" id="wholeOfficeNote" hidden>
@@ -263,6 +276,7 @@
 @section Scripts {
     <script src="~/js/help-hint.js" asp-append-version="true"></script>
     <script src="~/js/subtask-list.js" asp-append-version="true"></script>
+    <script src="~/js/chip-recipient-input.js" asp-append-version="true"></script>
     <script src="~/js/tasks-create.js" asp-append-version="true"></script>
     <script>
         (function () {
