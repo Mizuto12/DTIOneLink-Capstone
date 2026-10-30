@@ -32,7 +32,13 @@ namespace DTIOneLink.Services
             int? ResponsibleAdminUserId, // null for a Whole Office task
             IReadOnlyList<string> SubtaskNames,
             string? Recurrence,
-            bool RequiresReview = true);
+            bool RequiresReview = true,
+            // Parallel to SubtaskNames by position. Missing/short/null falls
+            // back to TaskWorkflow.DefaultSubtaskWeight per entry — the
+            // caller (TasksController.Create) is the one that actually
+            // rejects an out-of-range value; this is paired up, not
+            // re-validated.
+            IReadOnlyList<int>? SubtaskWeights = null);
 
         // activityNote: what the activity log says about how it was created
         // (e.g. "OPD created this Department Directive." or "Repeated
@@ -131,17 +137,29 @@ namespace DTIOneLink.Services
             // Department Directive: no TaskAssignment rows created here —
             // the receiving Admin assigns employees afterward. Each non-blank
             // subtask name becomes its own employee-level task parented to
-            // this Main Task, left unassigned on purpose.
-            var subtaskNames = spec.SubtaskNames
-                .Select(n => n?.Trim())
-                .Where(n => !string.IsNullOrWhiteSpace(n))
+            // this Main Task, left unassigned on purpose. Weight is paired up
+            // by position BEFORE blank names are filtered out, so a blank
+            // row in the middle of the form can't shift every later
+            // subtask's weight onto the wrong one.
+            var subtaskWeights = spec.SubtaskWeights ?? new List<int>();
+            var subtaskEntries = spec.SubtaskNames
+                .Select((n, i) => (
+                    Name: n?.Trim(),
+                    // Clamped, not trusted outright — TasksController.Create
+                    // is the actual reject-on-invalid gate; this is only a
+                    // defense-in-depth backstop, same pattern AddChecklistItem
+                    // already uses for its own Weight.
+                    Weight: Math.Clamp(
+                        i < subtaskWeights.Count ? subtaskWeights[i] : TaskWorkflow.DefaultSubtaskWeight,
+                        TaskWorkflow.MinSubtaskWeight, TaskWorkflow.MaxSubtaskWeight)))
+                .Where(e => !string.IsNullOrWhiteSpace(e.Name))
                 .ToList();
 
-            foreach (var subtaskName in subtaskNames)
+            foreach (var entry in subtaskEntries)
             {
                 _context.TaskItems.Add(new TaskItem
                 {
-                    TaskName = subtaskName!,
+                    TaskName = entry.Name!,
                     DueDate = mainTask.DueDate,
                     Priority = mainTask.Priority,
                     Description = $"Subtask of: {mainTask.TaskName}",
@@ -153,7 +171,8 @@ namespace DTIOneLink.Services
                     OwningDepartment = mainTask.OwningDepartment,
                     ResponsibleAdminUserId = null,
                     ParentTaskId = mainTask.Id,
-                    RequiresReview = mainTask.RequiresReview
+                    RequiresReview = mainTask.RequiresReview,
+                    Weight = entry.Weight
                 });
             }
 
@@ -167,14 +186,15 @@ namespace DTIOneLink.Services
 
             await _notifications.NotifyAdminDirectiveReceivedAsync(spec.ResponsibleAdminUserId!.Value, mainTask.Id, mainTask.TaskName);
 
-            return (mainTask, subtaskNames.Count);
+            return (mainTask, subtaskEntries.Count);
         }
 
         // Adds one more subtask to an already-created Department Directive —
         // the directive doesn't have to be re-created just to break out
         // another piece of work. Left unassigned, same as a subtask created
         // at CreateAsync time; the receiving Admin assigns it afterward.
-        public async Task<TaskItem> AddSubtaskAsync(TaskItem mainTask, string subtaskName, int? createdByUserId, bool requiresReview = true)
+        public async Task<TaskItem> AddSubtaskAsync(TaskItem mainTask, string subtaskName, int? createdByUserId,
+            bool requiresReview = true, int weight = TaskWorkflow.DefaultSubtaskWeight)
         {
             var subtask = new TaskItem
             {
@@ -187,7 +207,11 @@ namespace DTIOneLink.Services
                 OwningDepartment = mainTask.OwningDepartment,
                 ResponsibleAdminUserId = null,
                 ParentTaskId = mainTask.Id,
-                RequiresReview = requiresReview
+                RequiresReview = requiresReview,
+                // Clamped, not trusted outright — the controller is the
+                // actual reject-on-invalid gate (same backstop pattern as
+                // CreateAsync's own subtask weights above).
+                Weight = Math.Clamp(weight, TaskWorkflow.MinSubtaskWeight, TaskWorkflow.MaxSubtaskWeight)
             };
 
             _context.TaskItems.Add(subtask);

@@ -382,6 +382,9 @@ namespace DTIOneLink.Migrations
                     b.Property<string>("TaskType")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Weight")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssigneeId");

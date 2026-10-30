@@ -447,6 +447,11 @@
                 @Html.AntiForgeryToken()
                 <label for="mtdNewSubtask" class="mtd-add-subtask-label">New subtask name</label>
                 <input type="text" id="mtdNewSubtask" name="subtaskName" data-capitalize="title" placeholder="e.g. Submit consolidated report" maxlength="200" required>
+                <label for="mtdNewSubtaskWeight" class="mtd-add-subtask-label">
+                    Estimated workload weight
+                    <span class="mtd-add-subtask-hint">A higher number counts for more of this directive's overall progress.</span>
+                </label>
+                <input type="number" id="mtdNewSubtaskWeight" name="weight" min="1" max="20" step="1" value="1" style="max-width:100px;">
                 <label class="mtd-add-subtask-label" style="display:flex; align-items:center; gap:6px; font-weight:normal;">
                     <input type="checkbox" name="requiresReview" value="true" checked />
                     Requires review before completion

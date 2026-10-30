@@ -650,6 +650,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     flex: 1;
 }
 
+/* Estimated workload weight — fixed-width, sits between the name and the
+   remove button; see subtask-list.js. */
+.subtask-weight-input {
+    flex-shrink: 0;
+    width: 56px;
+    padding: 9px 8px;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--outline-variant);
+    background: var(--surface);
+    color: var(--on-surface);
+    font-size: 14px;
+    text-align: center;
+}
+
+.subtask-weight-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary);
+}
+
 .subtask-remove-btn {
     display: flex;
     align-items: center;

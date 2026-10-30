@@ -20,6 +20,22 @@
         input.placeholder = 'e.g. Prepare venue logistics';
         row.appendChild(input);
 
+        // Estimated workload weight — paired with SubtaskNames by position
+        // (one of each per row), model-bound into TaskCreateViewModel.
+        // SubtaskWeights the same way. Defaults to 1 (an unweighted
+        // average, same as not having this feature at all) until changed.
+        var weightInput = document.createElement('input');
+        weightInput.type = 'number';
+        weightInput.name = 'SubtaskWeights';
+        weightInput.className = 'subtask-weight-input';
+        weightInput.min = '1';
+        weightInput.max = '20';
+        weightInput.step = '1';
+        weightInput.value = '1';
+        weightInput.title = 'Estimated workload weight (1-20) — a higher number counts for more of this directive\'s overall progress.';
+        weightInput.setAttribute('aria-label', 'Estimated workload weight');
+        row.appendChild(weightInput);
+
         if (!removable) {
             row.classList.add('subtask-row-first');
             // Empty space the size of the remove button, so every box lines up.

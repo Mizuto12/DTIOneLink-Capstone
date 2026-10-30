@@ -315,6 +315,14 @@ input[type="datetime-local"].et-input::-webkit-calendar-picker-indicator:hover {
     color: var(--et-error);
 }
 
+/* Explanatory text under a field — Estimated Workload Weight's effect on
+   parent task progress, same look as et-ca-note's due-date note. */
+.edit-task .et-field-hint {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #5f6368;
+}
+
 /* --------------------------------------------------------------------
    Priority radio pills
    -------------------------------------------------------------------- */

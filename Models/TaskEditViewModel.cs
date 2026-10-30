@@ -49,5 +49,11 @@ namespace DTIOneLink.Models
         [Display(Name = "Task Description")]
         [StringLength(2000)]
         public string Description { get; set; } = string.Empty;
+
+        // Only meaningful (and only ever rendered/written) when this task is
+        // actually a subtask of a Main Task — see the view's IsSubtask flag
+        // and the controller's isAssignmentOnly gate, same as Priority above.
+        [Display(Name = "Estimated Workload Weight")]
+        public int Weight { get; set; } = DTIOneLink.Services.TaskWorkflow.DefaultSubtaskWeight;
     }
 }

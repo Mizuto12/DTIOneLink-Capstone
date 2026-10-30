@@ -420,6 +420,15 @@ namespace DTIOneLink.Controllers
                 ModelState.AddModelError(nameof(model.SubtaskNames), "Each subtask name must be at most 200 characters.");
             }
 
+            // Each row's weight <input> has min/max=1/20, but that's a client
+            // hint only — a direct POST could still send anything.
+            if ((model.SubtaskWeights ?? new List<int>()).Any(w =>
+                w < TaskWorkflow.MinSubtaskWeight || w > TaskWorkflow.MaxSubtaskWeight))
+            {
+                ModelState.AddModelError(nameof(model.SubtaskWeights),
+                    $"Each subtask's weight must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.");
+            }
+
             // Nothing previously checked this at all — a task could be
             // created already overdue, which the UI would immediately
             // badge as "Overdue" with no actual work having been skipped.
@@ -469,7 +478,8 @@ namespace DTIOneLink.Controllers
                     // Only a Department Directive has subtasks, whatever the client sent.
                     isDirect || isWholeOffice ? new List<string>() : (model.SubtaskNames ?? new List<string>()),
                     recurrence,
-                    model.RequiresReview),
+                    model.RequiresReview,
+                    isDirect || isWholeOffice ? new List<int>() : (model.SubtaskWeights ?? new List<int>())),
                 createdByUserId,
                 isWholeOffice ? "OPD gave this task to the whole office."
                     : isDirect ? "OPD created this Direct Admin Task." : "OPD created this Department Directive.");
@@ -674,7 +684,8 @@ namespace DTIOneLink.Controllers
          AssigneeIds = task.Assignments.Select(a => a.UserId).ToList(),
          DueDate = task.DueDate,
          Priority = task.Priority,
-         Description = task.Description
+         Description = task.Description,
+         Weight = task.Weight
      };
 
     // True when the current user is a department-scoped Admin/Supervisor
@@ -684,6 +695,9 @@ namespace DTIOneLink.Controllers
     // AssigneeIds is locked in the view when this is true, and
     // re-enforced server-side in the POST action below.
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || isDirectMainTaskAssignment) && !IsOfficeWideTaskManager();
+    // Weight only ever means anything for an actual subtask — a standalone
+    // task or a Main Task itself never has the field rendered at all.
+    ViewBag.IsSubtask = task.ParentTaskId.HasValue;
     // Narrower still than the local isDirectMainTaskAssignment above: this
     // specifically drives the "no subtasks yet" note, which only makes
     // sense on a zero-subtask Department Directive — not a Direct Admin /
@@ -897,6 +911,19 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         ModelState.AddModelError(nameof(model.Description), "Task description can't be made up of only symbols or punctuation.");
     }
 
+    // Weight only ever means anything (and is only ever written below) for
+    // an actual subtask being edited by someone who isn't assignment-only —
+    // same gate as Priority/TaskName/Description above. [Range] on the
+    // ViewModel already covers this for a genuine subtask edit; this is the
+    // same "only checked when it's actually used" discipline as every other
+    // field here, not a stricter rule.
+    var canEditWeight = !isAssignmentOnly && task.ParentTaskId.HasValue;
+    if (canEditWeight && (model.Weight < TaskWorkflow.MinSubtaskWeight || model.Weight > TaskWorkflow.MaxSubtaskWeight))
+    {
+        ModelState.AddModelError(nameof(model.Weight),
+            $"Weight must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.");
+    }
+
     if (!ModelState.IsValid)
     {
         model.AssigneeIds = currentAssigneeIds;
@@ -908,6 +935,7 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     // so we know what actually changed once the save is done.
     var oldDueDate = task.DueDate;
     var oldPriority = task.Priority;
+    var oldWeight = task.Weight;
     var oldAssigneeUserIds = task.Assignments.Select(a => a.UserId).ToList();
 
     // Only the editable fields — Progress, Status, CreatedAt, Submissions
@@ -918,6 +946,10 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         task.TaskName = model.TaskName;
         task.Priority = model.Priority;
         task.Description = model.Description;
+    }
+    if (canEditWeight)
+    {
+        task.Weight = model.Weight;
     }
 
     var changedByUserId = HttpContext.Session.GetInt32("UserId");
@@ -971,6 +1003,12 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
         {
             TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, TaskActivityType.Edited,
                 $"Due date changed from {oldDueDate:MMM d, yyyy} to {task.DueDate:MMM d, yyyy}.");
+        }
+
+        if (oldWeight != task.Weight)
+        {
+            TaskActivityLogger.Log(_context, task.Id, changedByUserId.Value, TaskActivityType.Edited,
+                $"Workload weight changed from {oldWeight} to {task.Weight} — recalculates the parent task's progress.");
         }
     }
 
@@ -1352,6 +1390,7 @@ private async Task RepopulateEditContextAsync(TaskItem task)
     ViewBag.ShowAssigneeSection = task.TaskLevel != TaskLevels.Main || isMainLevelDirectAssignment;
     ViewBag.IsDirectMainTaskAssignment = isMainLevelDirectAssignment && TaskTypes.DepartmentDirective == task.TaskType;
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || task.TaskLevel == TaskLevels.Main) && !IsOfficeWideTaskManager();
+    ViewBag.IsSubtask = task.ParentTaskId.HasValue;
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
     // Due soon or overdue: the OPD deadline is shown but no longer a limit.
     ViewBag.CanPassOpdDueDate = TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate);
@@ -1596,7 +1635,7 @@ public IActionResult SuggestPriority(DateTime dueDate, string? taskType = null)
 // same rule as Create.
 [HttpPost]
 [ValidateAntiForgeryToken]
-public async Task<IActionResult> AddSubtask(int id, string subtaskName, bool requiresReview = true)
+public async Task<IActionResult> AddSubtask(int id, string subtaskName, bool requiresReview = true, int weight = TaskWorkflow.DefaultSubtaskWeight)
 {
     if (!IsOfficeWideTaskManager())
     {
@@ -1626,9 +1665,14 @@ public async Task<IActionResult> AddSubtask(int id, string subtaskName, bool req
         TempData["ErrorMessage"] = "Subtask name is too long (maximum 200 characters).";
         return RedirectToAction(nameof(MainTaskDetails), new { id });
     }
+    if (weight < TaskWorkflow.MinSubtaskWeight || weight > TaskWorkflow.MaxSubtaskWeight)
+    {
+        TempData["ErrorMessage"] = $"Weight must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.";
+        return RedirectToAction(nameof(MainTaskDetails), new { id });
+    }
 
     var createdByUserId = HttpContext.Session.GetInt32("UserId");
-    await _opdTasks.AddSubtaskAsync(mainTask, subtaskName.Trim(), createdByUserId, requiresReview);
+    await _opdTasks.AddSubtaskAsync(mainTask, subtaskName.Trim(), createdByUserId, requiresReview, weight);
 
     TempData["SuccessMessage"] = "Subtask added.";
     return RedirectToAction(nameof(MainTaskDetails), new { id });
