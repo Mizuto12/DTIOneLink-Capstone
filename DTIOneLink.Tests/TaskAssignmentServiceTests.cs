@@ -375,6 +375,27 @@ public class TaskAssignmentServiceTests
         Assert.Equal(20, mainTask.Progress);
     }
 
+    // Confirms there is no subtask-level weighting: a trivial subtask (e.g.
+    // "get a signature") and a substantial one (e.g. "write the full
+    // report") count exactly the same toward the parent's progress — only
+    // TaskChecklistItem.Weight exists, and that's scoped to items WITHIN
+    // one assignee's own checklist, a level below this.
+    [Fact]
+    public void RecalculateMainTaskFromSubtasks_SubtasksHaveNoIndividualWeight_EveryoneCountsEqually()
+    {
+        var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Completed, Progress = 100 }); // "Get a signature" — trivial
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0 });       // "Write the full report" — substantial
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0 });       // "File the paperwork" — substantial
+
+        new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask);
+
+        // 1 of 3 subtasks done = 33%, a plain unweighted average — not
+        // something higher because the done subtask happened to be trivial,
+        // and not something lower because the other two are substantial.
+        Assert.Equal(33, mainTask.Progress);
+    }
+
     [Fact]
     public async Task PropagateToParentMainTaskAsync_StandaloneTask_IsNoOp()
     {
