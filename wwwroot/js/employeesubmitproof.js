@@ -95,11 +95,40 @@ document.addEventListener('DOMContentLoaded', function () {
         return input ? input.value : '';
     }
 
+    // Mirrors Services/ProofFileValidator.cs's size/extension rules (not the
+    // magic-byte content check, which only the server can do) — catches an
+    // obviously-wrong file before a slow upload, instead of after one. The
+    // server re-validates everything regardless; this is purely a faster
+    // "no" for the common mistakes.
+    var MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+    var ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.jpg', '.jpeg', '.png'];
+
+    function fileProblem(file) {
+        if (file.size === 0) {
+            return 'The selected file is empty.';
+        }
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            return 'File must be 10 MB or smaller.';
+        }
+        var dot = file.name.lastIndexOf('.');
+        var ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+        if (ALLOWED_EXTENSIONS.indexOf(ext) === -1) {
+            return 'Only PDF, DOCX, XLSX, JPG, and PNG files are allowed.';
+        }
+        return null;
+    }
+
     form.addEventListener('submit', function (event) {
         event.preventDefault();
 
         if (!fileInput.files[0]) {
             setHint('Please attach a file as proof of completion.', 'error');
+            return;
+        }
+
+        var problem = fileProblem(fileInput.files[0]);
+        if (problem) {
+            setHint(problem, 'error');
             return;
         }
 

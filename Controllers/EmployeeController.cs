@@ -62,55 +62,6 @@ namespace DTIOneLink.Controllers
         }
         return View(task);
     }
-        // GET: /Employee/Update/5
-[HttpGet]
-public async Task<IActionResult> Update(int id)
-{
-    var task = await GetAccessibleTaskAsync(id);
-    if (task == null)
-    {
-        return NotFound();
-    }
-    return View(task);
-}
-
-// POST: /Employee/Update
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> Update(TaskProgressUpdateViewModel model)
-{
-    var userId = HttpContext.Session.GetInt32("UserId");
-    var task = await GetAccessibleTaskAsync(model.Id);
-    if (task == null)
-    {
-        return NotFound();
-    }
-
-    // Progress/Status now live per-assignee. An elevated user can OPEN any
-    // task via GetAccessibleTaskAsync without being an assignee themselves —
-    // there's nothing here for them to update.
-    var assignment = task.Assignments.FirstOrDefault(a => a.UserId == userId);
-    if (assignment == null)
-    {
-        return NotFound();
-    }
-
-    if (!ModelState.IsValid)
-    {
-        return View(task);
-    }
-
-    var error = await ApplyProgressUpdateAsync(task, assignment, model.Progress, model.RequestedStatus);
-    if (error != null)
-    {
-        TempData["ErrorMessage"] = error;
-        return RedirectToAction(nameof(TaskManagement));
-    }
-
-    TempData["SuccessMessage"] = "Progress updated successfully!";
-    return RedirectToAction(nameof(TaskManagement));
-}
-
 // POST: /Employee/UpdateProgress — the progress slider on the Details page.
 // Same rules as the Update form (shared via ApplyProgressUpdateAsync), but
 // answers with JSON so the slider can save without leaving the page.
@@ -845,6 +796,9 @@ public async Task<IActionResult> AddComment(int taskId, string text)
     if (text.Trim().Length > 1000)
     {
         TempData["ErrorMessage"] = "Comment is too long (maximum 1000 characters).";
+        // The redirect below is a full navigation — without this, the
+        // textarea comes back empty and whatever was typed is lost.
+        TempData["CommentDraft"] = text;
         return RedirectToAction(nameof(Details), new { id = taskId });
     }
 

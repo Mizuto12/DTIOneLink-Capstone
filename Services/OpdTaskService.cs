@@ -105,7 +105,7 @@ namespace DTIOneLink.Services
                 // Assigned straight to the Responsible Admin via the
                 // existing assignment system — mirrors AssigneeId for
                 // legacy compatibility and gives the Admin a normal
-                // TaskAssignment row to work through Employee/Update
+                // TaskAssignment row to work through Employee/UpdateProgress
                 // and Employee/SubmitProof, same as any employee task.
                 // No subtasks are ever attached to a Direct Admin Task.
                 _taskAssignments.AssignEmployees(mainTask, new List<int> { responsibleAdminId }, createdByUserId);

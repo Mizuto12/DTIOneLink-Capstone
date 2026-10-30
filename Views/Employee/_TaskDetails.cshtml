@@ -229,18 +229,20 @@
                     <section class="td-description">
                         <h3>Checklist</h3>
                         <p class="td-progress-hero-hint">Your progress above is set by this checklist, not the slider.</p>
-                        <ul style="list-style:none; padding:0; margin:8px 0;">
+                        <ul class="td-checklist-list">
                             @foreach (var item in myAssignment.ChecklistItems.OrderBy(i => i.Id))
                             {
-                                <li style="display:flex; align-items:center; gap:8px; padding:6px 0;">
+                                <li class="td-checklist-item">
                                     <form asp-controller="Employee" asp-action="ToggleChecklistItem" method="post"
-                                          data-checklist-toggle-form style="margin:0; display:flex; align-items:center; gap:8px;">
+                                          data-checklist-toggle-form class="td-checklist-form">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@item.Id" />
-                                        <input type="checkbox" checked="@(item.IsDone ? "checked" : null)"
-                                               @(canEditProgress ? "" : "disabled")
-                                               onchange="this.form.submit()" />
-                                        <span style="@(item.IsDone ? "text-decoration:line-through; color:var(--secondary,#5a6b8c);" : "")">@item.Label</span>
+                                        <label class="td-checklist-label">
+                                            <input type="checkbox" checked="@(item.IsDone ? "checked" : null)"
+                                                   @(canEditProgress ? "" : "disabled")
+                                                   onchange="this.form.submit()" />
+                                            <span class="@(item.IsDone ? "is-done" : "")">@item.Label</span>
+                                        </label>
                                     </form>
                                 </li>
                             }
@@ -361,7 +363,7 @@
             <input type="hidden" name="taskId" value="@task.Id" />
             <div class="avatar-initials-sm" aria-hidden="true">@currentUserInitials</div>
             <div class="td-comment-form-body">
-                <textarea name="text" class="td-comment-input" placeholder="Write a comment..." rows="2" required></textarea>
+                <textarea name="text" class="td-comment-input" placeholder="Write a comment..." rows="2" maxlength="1000" required>@TempData["CommentDraft"]</textarea>
                 <button type="submit" class="btn btn-primary td-comment-submit">
                     <span class="material-symbols-outlined">send</span>
                     Post

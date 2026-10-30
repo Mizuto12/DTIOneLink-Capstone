@@ -309,13 +309,24 @@ function initDeleteConfirm() {
     }
 
     form.addEventListener('submit', function (e) {
-        var name = form.getAttribute('data-task-name') || 'this task';
-        var ok = window.confirm(
-            'Permanently delete "' + name + '"?\n\n' +
-            'This removes the task for everyone, including its proof files, ' +
-            'comments, and history. This cannot be undone.');
-        if (!ok) {
-            e.preventDefault();
+        if (form.dataset.confirmed === 'true') {
+            return;
         }
+        e.preventDefault();
+
+        var name = form.getAttribute('data-task-name') || 'this task';
+        window.showNotice({
+            tone: 'danger',
+            icon: 'delete',
+            title: 'Permanently delete "' + name + '"?',
+            message: 'This removes the task for everyone, including its proof files, comments, and history. This cannot be undone.',
+            okText: 'Delete',
+            cancelText: 'Cancel'
+        }).then(function (ok) {
+            if (ok) {
+                form.dataset.confirmed = 'true';
+                form.requestSubmit ? form.requestSubmit() : form.submit();
+            }
+        });
     });
 }

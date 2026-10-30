@@ -33,6 +33,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/employeetaskdetails.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notice-dialog.css" asp-append-version="true" />
 }
 
 @* Explicit path, not just "_TaskDetails": partial lookup follows the
@@ -42,6 +43,9 @@
    throws "partial view not found". *@
 <partial name="~/Views/Employee/_TaskDetails.cshtml" model="Model" />
 
+<partial name="_NoticeDialog" />
+
 @section Scripts {
+    <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
     <script src="~/js/employeetaskdetails.js" asp-append-version="true"></script>
 }

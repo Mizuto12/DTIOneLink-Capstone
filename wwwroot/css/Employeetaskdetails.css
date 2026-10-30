@@ -1007,3 +1007,13 @@ body{
     .task-details .td-overview-list > div { align-items: flex-start; }
     .task-details .td-overview-list dd    { overflow-wrap: anywhere; }
 }
+
+/* Checklist — was inline-styled; moved here so the fallback color actually
+   matches --secondary instead of a one-off hex that drifted from it. */
+.td-checklist-list { list-style: none; padding: 0; margin: 8px 0; }
+.td-checklist-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.td-checklist-form { margin: 0; display: flex; align-items: center; gap: 8px; }
+/* The whole row (checkbox + text) is one <label> so clicking the text also
+   toggles the checkbox, not just the small checkbox hit-area. */
+.td-checklist-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.td-checklist-label span.is-done { text-decoration: line-through; color: var(--secondary, #5c5f61); }

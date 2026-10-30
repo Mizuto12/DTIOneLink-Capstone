@@ -186,8 +186,8 @@ namespace DTIOneLink.Services
 
         // Recomputes TaskItem.Status/Progress/AssigneeId from task.Assignments
         // (must be loaded). Call this after ANY assignment mutation —
-        // Employee/Update, Employee/SubmitProof, Tasks/Review decision, or
-        // Tasks/Create|Edit — right before SaveChangesAsync.
+        // Employee/UpdateProgress, Employee/SubmitProof, Tasks/Review
+        // decision, or Tasks/Create|Edit — right before SaveChangesAsync.
         public void RecalculateOverallStatus(TaskItem task)
         {
             if (!task.Assignments.Any())
