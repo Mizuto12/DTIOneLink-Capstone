@@ -7,7 +7,9 @@
     var task = Model.Task!;
     var submittedByName = Model.TaskAssignment?.User?.FullName ?? "this person";
     var previewableExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".pdf", ".jpg", ".jpeg", ".png" };
-    var canPreview = previewableExtensions.Contains(System.IO.Path.GetExtension(Model.ProofFileName));
+    var proofExtension = System.IO.Path.GetExtension(Model.ProofFileName);
+    var canPreview = previewableExtensions.Contains(proofExtension);
+    var isImagePreview = new[] { ".jpg", ".jpeg", ".png" }.Contains(proofExtension, StringComparer.OrdinalIgnoreCase);
 }
 
 @section Styles {
@@ -49,11 +51,19 @@
                     <p class="tr-info-row"><strong>Remarks from employee:</strong> @(string.IsNullOrWhiteSpace(Model.Remarks) ? "(none)" : Model.Remarks)</p>
                     @if (canPreview)
                     {
-                        <a asp-controller="Employee" asp-action="PreviewProof" asp-route-submissionId="@Model.Id" class="tr-download" target="_blank" rel="noopener">
-                            Preview submitted proof (@Model.ProofFileName)
-                        </a>
+                        <div class="tr-preview-wrap">
+                            @if (isImagePreview)
+                            {
+                                <img class="tr-preview-image" src="@Url.Action("PreviewProof", "Employee", new { submissionId = Model.Id })" alt="Submitted proof: @Model.ProofFileName" />
+                            }
+                            else
+                            {
+                                <iframe class="tr-preview-frame" src="@Url.Action("PreviewProof", "Employee", new { submissionId = Model.Id })" title="Submitted proof: @Model.ProofFileName"></iframe>
+                            }
+                        </div>
                     }
                     <a asp-controller="Employee" asp-action="DownloadProof" asp-route-submissionId="@Model.Id" class="tr-download">
+                        <span class="material-symbols-outlined" aria-hidden="true">download</span>
                         Download submitted proof (@Model.ProofFileName)
                     </a>
                 </div>

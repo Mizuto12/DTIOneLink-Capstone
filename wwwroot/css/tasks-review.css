@@ -89,6 +89,29 @@
     margin-right: 4px;
 }
 
+/* Embedded preview — was a text-only "Preview" link opening a new tab;
+   now shows the actual file inline, with Download kept as its own
+   action underneath rather than folded into the preview itself. */
+.task-review .tr-preview-wrap {
+    border: 1px solid var(--tr-surface-container-highest);
+    border-radius: var(--tr-radius);
+    overflow: hidden;
+    background: var(--tr-surface-container-low);
+}
+.task-review .tr-preview-frame {
+    display: block;
+    width: 100%;
+    height: 420px;
+    border: none;
+}
+.task-review .tr-preview-image {
+    display: block;
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    background: var(--tr-surface-container-low);
+}
+
 .task-review .tr-download {
     display: inline-flex;
     align-items: center;
@@ -195,6 +218,7 @@
 @media (max-width: 640px) {
     .task-review .tr-card { padding: 20px; }
     .task-review .tr-title { font-size: 22px; }
+    .task-review .tr-preview-frame { height: 280px; }
     .task-review .tr-actions { flex-direction: column-reverse; align-items: stretch; }
     .task-review .tr-actions > * { width: 100%; justify-content: center; min-height: 44px; }
 }
