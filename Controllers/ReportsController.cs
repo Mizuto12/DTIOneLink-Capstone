@@ -247,7 +247,7 @@ namespace DTIOneLink.Controllers
             if (!string.IsNullOrWhiteSpace(from))
             {
                 if (!DateTime.TryParseExact(from.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.None, out var d))
+                        System.Globalization.DateTimeStyles.None, out var d) || !IsPlausibleReportDate(d))
                 {
                     error = "The start date isn't a valid date.";
                     return false;
@@ -257,7 +257,7 @@ namespace DTIOneLink.Controllers
             if (!string.IsNullOrWhiteSpace(to))
             {
                 if (!DateTime.TryParseExact(to.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.None, out var d))
+                        System.Globalization.DateTimeStyles.None, out var d) || !IsPlausibleReportDate(d))
                 {
                     error = "The end date isn't a valid date.";
                     return false;
@@ -274,6 +274,11 @@ namespace DTIOneLink.Controllers
             if (toDate != null) toUtc = TimeZoneHelper.PhilippineDateStartUtc(toDate.Value.AddDays(1));
             return true;
         }
+
+        // A date near DateTime.MinValue/MaxValue (e.g. "9999-12-31") parses
+        // fine but can overflow when AddDays(1)/timezone math runs on it
+        // below — reject anything outside a plausible calendar range first.
+        private static bool IsPlausibleReportDate(DateTime d) => d.Year is >= 1900 and <= 2100;
 
         private static bool IsAllowedRole(string? role) =>
             string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||

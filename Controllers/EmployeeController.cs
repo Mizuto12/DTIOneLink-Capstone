@@ -842,6 +842,11 @@ public async Task<IActionResult> AddComment(int taskId, string text)
         TempData["ErrorMessage"] = "Comment can't be empty.";
         return RedirectToAction(nameof(Details), new { id = taskId });
     }
+    if (text.Trim().Length > 1000)
+    {
+        TempData["ErrorMessage"] = "Comment is too long (maximum 1000 characters).";
+        return RedirectToAction(nameof(Details), new { id = taskId });
+    }
 
     var userId = HttpContext.Session.GetInt32("UserId");
     if (userId == null)

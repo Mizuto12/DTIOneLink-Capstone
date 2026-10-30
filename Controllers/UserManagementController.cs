@@ -42,6 +42,13 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
 
     private static bool IsValidEmailFormat(string value) => StrictEmailPattern.IsMatch(value);
 
+    // A name made only of periods, dashes, or other symbols (e.g. "...",
+    // "---") passes [Required] and the whitespace-collapse above — this
+    // requires at least one real letter, matching the panelist revision
+    // "should not accept values such as whitespace, period, and other
+    // symbols alone."
+    private static bool HasRealNameContent(string value) => value.Any(char.IsLetter);
+
     public async Task<IActionResult> Index()
     {
         var users = new List<UserItem>();
@@ -117,6 +124,11 @@ public class UserManagementController(DatabaseHelper db, OneTimeCodeService code
         if (!ModelState.IsValid || role == null || department == null || fullName.Length == 0)
         {
             TempData["ErrorMessage"] = "Please complete all account fields correctly.";
+            return RedirectToAction(nameof(Index));
+        }
+        if (!HasRealNameContent(fullName))
+        {
+            TempData["ErrorMessage"] = "Full name can't be made up of only symbols or punctuation.";
             return RedirectToAction(nameof(Index));
         }
         if (!IsAsciiPrintableNoWhitespace(email))

@@ -41,6 +41,9 @@ namespace DTIOneLink.Controllers
         private const int MaxTitleLength = 500;
         private const int MaxLocationLength = 255;
         private const int MaxPeriodCoveredLength = 100;
+        // Match RecordDispositionEvents.AuthorityReference/Notes column sizes.
+        private const int MaxAuthorityReferenceLength = 200;
+        private const int MaxDisposalNotesLength = 1000;
 
         private const string GenericSaveError = "Unable to save the record. Please contact the administrator.";
         private const string GenericLoadError = "Unable to load records. Please contact the administrator.";
@@ -196,6 +199,40 @@ namespace DTIOneLink.Controllers
             if (value.Length == 0) return $"Please fill in {label}.";
             if (value.Length > maxLength) return $"{label} is too long (maximum {maxLength} characters).";
             if (value.Any(char.IsControl)) return $"{label} contains characters that aren't allowed.";
+            return null;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex PeriodCoveredPattern =
+            new(@"^(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        // The date pickers' own JS already blocks "to" before "from" on
+        // submit, but that's client-only — a direct POST (or a crafted
+        // re-import) can still carry an inverted range. Only re-checks the
+        // two-date "yyyy-MM-dd to yyyy-MM-dd" shape the pickers actually
+        // produce; older free-text values in this field are left alone.
+        private static string? CheckPeriodCoveredOrder(string periodCovered)
+        {
+            var match = PeriodCoveredPattern.Match(periodCovered);
+            if (!match.Success) return null;
+            if (!DateTime.TryParse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var from)
+                || !DateTime.TryParse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var to))
+            {
+                return "Period Covered has an invalid date.";
+            }
+            return to < from ? "Period Covered's end date must be on or after its start date." : null;
+        }
+
+        // Blank is allowed (both fields are optional); only checks length
+        // and control characters, same as CheckText — never validates
+        // content/format, per the no-compliance-claim note above.
+        private static string? CheckOptionalText(string? value, string label, int maxLength)
+        {
+            var trimmed = value?.Trim() ?? "";
+            if (trimmed.Length == 0) return null;
+            if (trimmed.Length > maxLength) return $"{label} is too long (maximum {maxLength} characters).";
+            if (trimmed.Any(char.IsControl)) return $"{label} contains characters that aren't allowed.";
             return null;
         }
 
@@ -726,7 +763,8 @@ WHERE ").Append(VisibilityClause(user));
             var textError = CheckText(code, "Code", MaxCodeLength)
                 ?? CheckText(title, "Title of Record", MaxTitleLength)
                 ?? CheckText(location, "Location", MaxLocationLength)
-                ?? CheckText(periodCovered, "Period Covered", MaxPeriodCoveredLength);
+                ?? CheckText(periodCovered, "Period Covered", MaxPeriodCoveredLength)
+                ?? CheckPeriodCoveredOrder(periodCovered);
             if (textError != null)
             {
                 return (null, textError);
@@ -1203,11 +1241,21 @@ WHERE RecordId = @RecordId", conn);
         // disposal authority. authorityReference is an honest paper trail
         // only (decision 4): free text, stored and shown as-is, never
         // validated or required to look like a real NAP reference number —
-        // the app makes no compliance claim about it.
+        // the app makes no compliance claim about its content. Length/
+        // control-character safety is still checked, same as every other
+        // free-text field in this module.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public Task<IActionResult> MarkAuthorizedForDisposal(int id, string? authorityReference, string? notes) =>
-            SetDisposalStatus(id, RecordDisposalWorkflow.AuthorizedForDisposal, authorityReference, notes);
+        public Task<IActionResult> MarkAuthorizedForDisposal(int id, string? authorityReference, string? notes)
+        {
+            var error = CheckOptionalText(authorityReference, "Authority reference", MaxAuthorityReferenceLength)
+                ?? CheckOptionalText(notes, "Notes", MaxDisposalNotesLength);
+            if (error != null)
+            {
+                return Task.FromResult<IActionResult>(BadRequest(new { message = error }));
+            }
+            return SetDisposalStatus(id, RecordDisposalWorkflow.AuthorizedForDisposal, authorityReference, notes);
+        }
 
         // POST: /Records/MarkDisposed/{id} — the records officer's (Admin's)
         // confirmation that a record has actually been physically disposed of.

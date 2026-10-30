@@ -121,7 +121,10 @@
                     <span class="material-symbols-outlined um-input-icon" aria-hidden="true">manage_accounts</span>
                     <select class="um-select um-role-select" name="Role" id="newUserRole" data-help="newUserRoleHelp" required>
                         <option value="">Select Role</option>
-                        @foreach (var role in roleHelp.Keys)
+                        @* An Admin may only create Employee accounts (enforced again in
+                           UserManagementController.Create) — only SuperAdmin sees the
+                           other two, same pattern as the Division dropdown below. *@
+                        @foreach (var role in roleHelp.Keys.Where(r => currentRole == "SuperAdmin" || r == "Employee"))
                         {
                             <option value="@role" data-help="@roleHelp[role].Help" selected="@(role == formRole)">@roleHelp[role].Title</option>
                         }

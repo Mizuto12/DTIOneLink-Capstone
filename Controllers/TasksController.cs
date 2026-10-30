@@ -394,6 +394,20 @@ namespace DTIOneLink.Controllers
                 ModelState.AddModelError(nameof(model.Priority), "Select a valid priority.");
             }
 
+            // The inline subtask list's <input> has maxlength=200 and the
+            // JS caps how many rows can be added, but neither is re-checked
+            // server-side — a direct POST could bypass both.
+            var subtaskNames = (model.SubtaskNames ?? new List<string>())
+                .Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            if (subtaskNames.Count > MaxSubtasksOnCreate)
+            {
+                ModelState.AddModelError(nameof(model.SubtaskNames), $"A task can have at most {MaxSubtasksOnCreate} subtasks.");
+            }
+            else if (subtaskNames.Any(s => s.Trim().Length > 200))
+            {
+                ModelState.AddModelError(nameof(model.SubtaskNames), "Each subtask name must be at most 200 characters.");
+            }
+
             // Nothing previously checked this at all — a task could be
             // created already overdue, which the UI would immediately
             // badge as "Overdue" with no actual work having been skipped.
@@ -1200,6 +1214,7 @@ private async Task PopulateEmployeesAsync(string? requiredDepartment = null)
 // browser can filter it as soon as a target department is selected.
 // OwningDepartment of a Whole Office task (it belongs to the OPD).
 private const string WholeOfficeDepartment = "Office of the Provincial Director";
+private const int MaxSubtasksOnCreate = 50;
 
 private async Task PopulateResponsibleAdminsAsync()
 {
@@ -1556,6 +1571,11 @@ public async Task<IActionResult> AddSubtask(int id, string subtaskName, bool req
         TempData["ErrorMessage"] = "Type a name for the subtask.";
         return RedirectToAction(nameof(MainTaskDetails), new { id });
     }
+    if (subtaskName.Trim().Length > 200)
+    {
+        TempData["ErrorMessage"] = "Subtask name is too long (maximum 200 characters).";
+        return RedirectToAction(nameof(MainTaskDetails), new { id });
+    }
 
     var createdByUserId = HttpContext.Session.GetInt32("UserId");
     await _opdTasks.AddSubtaskAsync(mainTask, subtaskName.Trim(), createdByUserId, requiresReview);
@@ -1617,6 +1637,11 @@ public async Task<IActionResult> AddChecklistItem(int taskAssignmentId, string l
         TempData["ErrorMessage"] = "Type a label for the checklist item.";
         return RedirectToAction(nameof(Checklist), new { id = assignment.TaskId });
     }
+    if (label.Trim().Length > 200)
+    {
+        TempData["ErrorMessage"] = "Checklist item label is too long (maximum 200 characters).";
+        return RedirectToAction(nameof(Checklist), new { id = assignment.TaskId });
+    }
 
     if (assignment.ChecklistItems.Count >= TaskWorkflow.MaxChecklistItemsPerAssignment)
     {
@@ -1628,7 +1653,7 @@ public async Task<IActionResult> AddChecklistItem(int taskAssignmentId, string l
     {
         TaskAssignmentId = assignment.Id,
         Label = label.Trim(),
-        Weight = Math.Max(1, weight)
+        Weight = Math.Clamp(weight, 1, 100)
     });
 
     var userId = HttpContext.Session.GetInt32("UserId");
