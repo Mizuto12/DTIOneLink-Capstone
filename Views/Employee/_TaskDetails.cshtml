@@ -75,9 +75,13 @@
 
     // Whether proof can be submitted right now, and how far from unlocked —
     // computed once here so the progress hero can show it as a headline
-    // instead of a footnote under a greyed-out button.
+    // instead of a footnote under a greyed-out button. Must read
+    // myAssignmentStatus, not the rolled-up task-level status: the latter
+    // can never equal ReturnedForCorrection (RecalculateOverallStatus rolls
+    // it up to InProgress), so CanSubmitProof's "always allowed once
+    // returned" carve-out silently never fired from here until this fix.
     var minProgress = DTIOneLink.Services.TaskWorkflow.MinProgressToSubmitProof;
-    var canSubmitProofNow = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(status, sliderProgress);
+    var canSubmitProofNow = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(myAssignmentStatus, sliderProgress);
     var pointsToUnlock = Math.Max(0, minProgress - sliderProgress);
 
     // How overdue, or how much runway is left — a concrete number the
@@ -285,10 +289,10 @@
                     </button>
                     @if (isAssignee)
                     {
-                        @if (status == "pending" || status == "in-progress")
+                        @if (myAssignmentStatus == "pending" || myAssignmentStatus == "in-progress")
                         {
                             var myProgress = myAssignment?.Progress ?? task.Progress;
-                            var canSubmitProof = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(status, myProgress);
+                            var canSubmitProof = DTIOneLink.Services.TaskWorkflow.CanSubmitProof(myAssignmentStatus, myProgress);
                             @* Same element either way — JS flips the lock state live as the
                                progress slider moves (data-min-progress), instead of needing
                                a page reload once the threshold is crossed. *@
@@ -304,7 +308,7 @@
                                 </a>
                             </div>
                         }
-                        @if (status == "returned-for-correction")
+                        @if (myAssignmentStatus == DTIOneLink.Services.TaskWorkflow.ReturnedForCorrection)
                         {
                             <a asp-controller="Employee" asp-action="SubmitProof" asp-route-id="@task.Id" class="btn btn-primary">
                                 <span class="material-symbols-outlined">upload</span>
