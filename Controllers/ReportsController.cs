@@ -68,6 +68,99 @@ namespace DTIOneLink.Controllers
                 return BadRequest(new { message = periodError });
             }
 
+            var items = await BuildReportItemsAsync(userId.Value, role, fromUtc, toUtc);
+
+            var ordered = items.OrderByDescending(i => i.SortAt).Select(i => new
+            {
+                id = i.Id,
+                title = i.Title,
+                owner = i.Owner,
+                tag = i.Tag,
+                badge = i.Badge,
+                icon = i.Icon,
+                tone = i.Tone,
+                time = i.Time,
+                category = i.Category
+            });
+
+            return Json(ordered);
+        }
+
+        // GET: /Reports/Export — the same scoped, period-filtered dataset
+        // Data() returns, as a formatted .xlsx workbook instead of JSON.
+        // category/q mirror reports.js's own client-side filters (category
+        // dropdown, search box) so "export what's currently shown" actually
+        // matches what's on screen, not a silently wider dataset — the
+        // server re-applies both rather than trusting the browser's own
+        // filtered list.
+        [HttpGet]
+        public async Task<IActionResult> Export(string? from, string? to, string? category, string? q)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            var role = HttpContext.Session.GetString("UserRole");
+            if (userId == null)
+            {
+                return StatusCode(StatusCodes.Status401Unauthorized, new { message = "Please sign in again." });
+            }
+            if (!IsAllowedRole(role))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You don't have access to reports." });
+            }
+
+            if (!TryParsePeriod(from, to, out var fromUtc, out var toUtc, out var periodError))
+            {
+                return BadRequest(new { message = periodError });
+            }
+
+            var items = await BuildReportItemsAsync(userId.Value, role, fromUtc, toUtc);
+
+            if (!string.IsNullOrWhiteSpace(category) && category != "All Categories")
+            {
+                items = items.Where(i => i.Category == category).ToList();
+            }
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                items = items.Where(i =>
+                    i.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    i.Owner.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    i.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    i.Tag.Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            var isOfficeWide = RolePermissions.Has(role, Permissions.ViewOfficeWideSummaries);
+            var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
+            var department = HttpContext.Session.GetString("UserDepartment");
+            var scope = isOfficeWide ? "Office-wide (all departments)"
+                : isAdmin ? $"{department ?? "your"} department"
+                : "Your own tasks and activity";
+
+            var periodLabel = fromUtc == null && toUtc == null
+                ? "All time"
+                : $"{(from ?? "…")} to {(to ?? "…")}";
+
+            var rows = items.OrderByDescending(i => i.SortAt).Select(i =>
+                new ReportsExcel.Row(i.Id, i.Category, i.Title, i.Owner, i.Tag, i.Badge, i.SortAt)).ToList();
+
+            var sheet = new ReportsExcel.Sheet(
+                GeneratedAtUtc: DateTime.UtcNow,
+                GeneratedBy: HttpContext.Session.GetString("FullName") ?? "Unknown",
+                Scope: scope,
+                PeriodLabel: periodLabel,
+                CategoryFilter: category,
+                SearchTerm: q,
+                Rows: rows);
+
+            var bytes = ReportsExcel.Build(sheet);
+            var fileDate = TimeZoneHelper.ToPhilippineTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+            return File(bytes, ReportsExcel.ContentType, $"DTI_OneLink_Reports_{fileDate}.xlsx");
+        }
+
+        // Shared by Data (JSON) and Export (.xlsx) — identical scoping,
+        // visibility and period-filtering rules for both, so the export can
+        // never show more (or different) data than the page itself does.
+        private async Task<List<ReportItem>> BuildReportItemsAsync(int userId, string? role, DateTime? fromUtc, DateTime? toUtc)
+        {
             var department = HttpContext.Session.GetString("UserDepartment");
             var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
             var isOfficeWide = RolePermissions.Has(role, Permissions.ViewOfficeWideSummaries);
@@ -82,7 +175,7 @@ namespace DTIOneLink.Controllers
             var items = new List<ReportItem>();
 
             // ── Tasks: Active / Completed ─────────────────────────────
-            var taskQuery = ScopedTasks(userId.Value, isAdmin, isOfficeWide, department);
+            var taskQuery = ScopedTasks(userId, isAdmin, isOfficeWide, department);
             if (fromUtc != null || toUtc != null)
             {
                 var start = fromUtc ?? DateTime.MinValue;
@@ -216,22 +309,9 @@ namespace DTIOneLink.Controllers
             // their whole division would see almost nothing here.
             var seesAllRecords = RolePermissions.Has(role, Permissions.ManageRecords)
                 || RolePermissions.Has(role, Permissions.ApproveRecords);
-            items.AddRange(await OwnRecordsAsync(userId.Value, seesAllRecords, now, fromUtc, toUtc));
+            items.AddRange(await OwnRecordsAsync(userId, seesAllRecords, now, fromUtc, toUtc));
 
-            var ordered = items.OrderByDescending(i => i.SortAt).Select(i => new
-            {
-                id = i.Id,
-                title = i.Title,
-                owner = i.Owner,
-                tag = i.Tag,
-                badge = i.Badge,
-                icon = i.Icon,
-                tone = i.Tone,
-                time = i.Time,
-                category = i.Category
-            });
-
-            return Json(ordered);
+            return items;
         }
 
         // Reads ?from=/?to= (yyyy-MM-dd, Philippine dates, both inclusive) into

@@ -329,28 +329,27 @@
 
   // ---------- Export Data ----------
   // Downloads exactly what is listed now (search, category and period
-  // applied) as a CSV file that opens in Excel.
+  // applied) as a formatted .xlsx workbook, built server-side
+  // (ReportsController.Export / Services/ReportsExcel.cs) from the same
+  // scoped, authorized dataset Data() returns — the server re-applies the
+  // category/search filters rather than trusting whatever the browser
+  // happened to have filtered client-side.
   const exportBtn = document.getElementById('export-btn');
-  function csvCell(value) {
-    const s = String(value ?? '');
-    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  }
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
-      const rows = getFilteredReports();
-      const lines = [['ID', 'Title', 'Owner', 'Details', 'Badge', 'Category', 'Last Activity']]
-        .concat(rows.map(r => [r.id, r.title, r.owner, r.tag, r.badge || '', r.category, r.time]))
-        .map(cols => cols.map(csvCell).join(','));
-      // BOM so Excel reads names with ñ and other accents correctly.
-      const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-      const t = manilaToday();
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `onelink-reports-${iso(t.y, t.m, t.d)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      const period = currentPeriod();
+      const url = new URL('/Reports/Export', window.location.origin);
+      if (period) {
+        url.searchParams.set('from', period.from);
+        url.searchParams.set('to', period.to);
+      }
+      if (currentFilter && currentFilter !== 'All Categories') {
+        url.searchParams.set('category', currentFilter);
+      }
+      if (searchTerm) {
+        url.searchParams.set('q', searchTerm);
+      }
+      window.location.href = url.toString();
     });
   }
 
