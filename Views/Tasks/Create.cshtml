@@ -127,7 +127,7 @@
                                  any department (picking across departments is the
                                  point). Each gets their own copy to work themselves,
                                  same as a multi-assignee employee task. -->
-                            <div class="field-group" id="directAdminGroup" hidden>
+                            <div class="field-group" id="directAdminGroup" style="display:none">
                                 <label class="field-label" for="directAdminUserIds">SEND TO <span class="required-star">*</span></label>
                                 <select class="pill-input" id="directAdminUserIds" asp-for="DirectAdminUserIds" multiple size="5">
                                     @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
@@ -287,7 +287,7 @@
                 var sendToGroup = document.getElementById('sendToGroup');
                 if (sendToGroup) sendToGroup.style.display = (wholeOffice || direct) ? 'none' : '';
                 var directAdminGroup = document.getElementById('directAdminGroup');
-                if (directAdminGroup) directAdminGroup.hidden = !direct;
+                if (directAdminGroup) directAdminGroup.style.display = direct ? '' : 'none';
                 var note = document.getElementById('wholeOfficeNote');
                 if (note) note.hidden = !wholeOffice;
             }
