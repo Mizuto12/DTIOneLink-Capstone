@@ -71,6 +71,7 @@ public class TasksControllerCreateNotificationTests
             TaskType = TaskTypes.DirectAdmin,
             OwningDepartment = TargetDepartments.BDD,
             ResponsibleAdminUserId = admin.Id,
+            DirectAdminUserIds = new List<int> { admin.Id },
             DueDate = DateTime.UtcNow.AddDays(5),
             Priority = "medium",
         };
@@ -82,6 +83,81 @@ public class TasksControllerCreateNotificationTests
         Assert.NotNull(notif);
         Assert.Equal(NotificationType.Task, notif!.Type);
         Assert.Contains("Quarterly Report", notif.Message);
+    }
+
+    // T4 (capstone revision list): a SuperAdmin must be able to hand a
+    // Direct Admin Task to more than one Admin at once, including Admins
+    // from different departments — that cross-department reach is the
+    // actual point of letting more than one be picked, so this deliberately
+    // seeds the two Admins in different departments rather than the same
+    // one.
+    [Fact]
+    public async Task Create_DirectAdminTask_MultipleAdmins_EachGetsOwnAssignmentAndNotification()
+    {
+        var (context, firstAdmin) = SeedAdmin();
+        var secondAdmin = new User
+        {
+            Username = "admin2@dti.gov.ph",
+            Email = "admin2@dti.gov.ph",
+            FullName = "Second Admin",
+            Role = "Admin",
+            Department = TargetDepartments.CPD,
+            IsActive = true,
+            EmailConfirmed = true,
+            SecurityStamp = "stamp2",
+        };
+        context.Users.Add(secondAdmin);
+        context.SaveChanges();
+
+        var controller = BuildController(context);
+        var model = new TaskCreateViewModel
+        {
+            TaskName = "Multi-Admin Directive",
+            Description = "Given to more than one Admin at once.",
+            TaskType = TaskTypes.DirectAdmin,
+            DirectAdminUserIds = new List<int> { firstAdmin.Id, secondAdmin.Id },
+            DueDate = DateTime.UtcNow.AddDays(5),
+            Priority = "medium",
+        };
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        var task = await context.TaskItems.SingleAsync();
+        var assignedUserIds = await context.TaskAssignments
+            .Where(a => a.TaskId == task.Id).Select(a => a.UserId).Distinct().ToListAsync();
+        Assert.Equal(2, assignedUserIds.Count);
+        Assert.Contains(firstAdmin.Id, assignedUserIds);
+        Assert.Contains(secondAdmin.Id, assignedUserIds);
+        // Primary/OwningDepartment come from whichever Admin was picked
+        // first, so every existing single-admin scoping check still works.
+        Assert.Equal(firstAdmin.Id, task.ResponsibleAdminUserId);
+        Assert.Equal(firstAdmin.Department, task.OwningDepartment);
+
+        Assert.NotNull(await context.Notifications.SingleOrDefaultAsync(n => n.RecipientUserId == firstAdmin.Id));
+        Assert.NotNull(await context.Notifications.SingleOrDefaultAsync(n => n.RecipientUserId == secondAdmin.Id));
+    }
+
+    [Fact]
+    public async Task Create_DirectAdminTask_NoAdminsSelected_IsRejectedAndNothingSaved()
+    {
+        var (context, _) = SeedAdmin();
+        var controller = BuildController(context);
+        var model = new TaskCreateViewModel
+        {
+            TaskName = "Unassigned Directive",
+            Description = "No Admins picked.",
+            TaskType = TaskTypes.DirectAdmin,
+            DirectAdminUserIds = new List<int>(),
+            DueDate = DateTime.UtcNow.AddDays(5),
+            Priority = "medium",
+        };
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync());
     }
 
     [Fact]

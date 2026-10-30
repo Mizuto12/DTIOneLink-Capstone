@@ -63,6 +63,7 @@ public class TasksControllerCreateValidationTests
         TaskType = TaskTypes.DirectAdmin,
         OwningDepartment = TargetDepartments.BDD,
         ResponsibleAdminUserId = admin.Id,
+        DirectAdminUserIds = new List<int> { admin.Id },
         DueDate = DateTime.UtcNow.AddDays(5),
         Priority = "medium",
     };

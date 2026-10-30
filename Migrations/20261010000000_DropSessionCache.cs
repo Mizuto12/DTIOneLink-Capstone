@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using DTIOneLink.Data;
 
 #nullable disable
 
@@ -13,6 +15,7 @@ namespace DTIOneLink.Migrations
     // 5.x/6.0.9 DLLs in place), breaking every database connection including
     // login. Program.cs is back to AddDistributedMemoryCache(), so this table
     // is unused; drop it rather than leave dead weight behind.
+    [DbContext(typeof(AppDbContext))]
     [Migration("20261010000000_DropSessionCache")]
     public partial class DropSessionCache : Migration
     {

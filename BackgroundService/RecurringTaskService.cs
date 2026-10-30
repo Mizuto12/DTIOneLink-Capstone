@@ -77,6 +77,7 @@ namespace DTIOneLink.Services
 
             var previous = await db.TaskItems
                 .Include(t => t.Subtasks)
+                .Include(t => t.Assignments)
                 .FirstOrDefaultAsync(t => t.Id == taskId, stoppingToken);
 
             if (previous == null)
@@ -107,18 +108,55 @@ namespace DTIOneLink.Services
             }
 
             // Same rule as creating a task: the responsible Admin must still be
-            // an active Admin of that department. If not, keep waiting (and
-            // say why in the log) until the OPD fixes it or stops the repeat.
-            // (A Whole Office copy has no Responsible Admin; it simply goes to
-            // everyone who is active when the copy is sent out.)
-            var adminStillValid = isWholeOffice || await db.Users.AnyAsync(u =>
-                u.Id == previous.ResponsibleAdminUserId!.Value && u.IsActive &&
-                u.Role == "Admin" && u.Department == previous.OwningDepartment, stoppingToken);
+            // an active Admin. If not, keep waiting (and say why in the log)
+            // until the OPD fixes it or stops the repeat. (A Whole Office
+            // copy has no Responsible Admin; it simply goes to everyone who
+            // is active when the copy is sent out.)
+            //
+            // A Direct Admin Task may have been given to more than one Admin
+            // (TasksController.Create's DirectAdminUserIds); co-assignees can
+            // be from a different department than OwningDepartment (that's
+            // the point of picking more than one), so — unlike the
+            // single-recipient TaskType below — only "still an active Admin"
+            // is checked, not department. Order is preserved primary-first
+            // so a surviving ResponsibleAdminUserId stays the primary on the
+            // new copy; if it alone dropped out, whichever surviving
+            // co-assignee comes first becomes the new primary.
+            var isDirectAdmin = previous.TaskType == TaskTypes.DirectAdmin;
+            List<int> directAdminAssigneeIds = new();
+            bool adminStillValid;
+            if (isWholeOffice)
+            {
+                adminStillValid = true;
+            }
+            else if (isDirectAdmin)
+            {
+                var previousAssigneeIds = previous.Assignments
+                    .OrderByDescending(a => a.IsPrimaryAssignee)
+                    .Select(a => a.UserId)
+                    .Distinct()
+                    .ToList();
+                var sourceIds = previousAssigneeIds.Count > 0
+                    ? previousAssigneeIds
+                    : new List<int> { previous.ResponsibleAdminUserId!.Value };
+                var activeIds = (await db.Users
+                    .Where(u => sourceIds.Contains(u.Id) && u.IsActive && u.Role == "Admin")
+                    .Select(u => u.Id)
+                    .ToListAsync(stoppingToken)).ToHashSet();
+                directAdminAssigneeIds = sourceIds.Where(activeIds.Contains).ToList();
+                adminStillValid = directAdminAssigneeIds.Count > 0;
+            }
+            else
+            {
+                adminStillValid = await db.Users.AnyAsync(u =>
+                    u.Id == previous.ResponsibleAdminUserId!.Value && u.IsActive &&
+                    u.Role == "Admin" && u.Department == previous.OwningDepartment, stoppingToken);
+            }
             if (!adminStillValid)
             {
                 _logger.LogWarning(
-                    "Repeating task {TaskId} was not sent out: its responsible Admin is no longer an active Admin of {Department}.",
-                    previous.Id, previous.OwningDepartment);
+                    "Repeating task {TaskId} was not sent out: no originally-assigned Admin is still active.",
+                    previous.Id);
                 return;
             }
 
@@ -142,9 +180,10 @@ namespace DTIOneLink.Services
                     previous.Priority,
                     previous.TaskType,
                     previous.OwningDepartment,
-                    previous.ResponsibleAdminUserId,
+                    isDirectAdmin ? directAdminAssigneeIds[0] : previous.ResponsibleAdminUserId,
                     subtaskNames,
-                    frequency),
+                    frequency,
+                    DirectAdminAssigneeIds: isDirectAdmin ? directAdminAssigneeIds : null),
                 previous.CreatedByUserId,
                 $"Repeated automatically ({TaskRecurrence.Label(frequency).ToLowerInvariant()}) from TASK-{previous.Id:D4}.");
 

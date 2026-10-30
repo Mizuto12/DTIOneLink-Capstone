@@ -34,9 +34,20 @@ namespace DTIOneLink.Models
         public string? OwningDepartment { get; set; }
 
         // SuperAdmin only. Must be an active Admin belonging to
-        // TargetDepartment — validated in TasksController.
+        // TargetDepartment — validated in TasksController. Used for a
+        // Department Directive's single recipient; a Direct Admin Task uses
+        // DirectAdminUserIds instead (see below).
         [Display(Name = "Responsible Admin")]
         public int? ResponsibleAdminUserId { get; set; }
+
+        // SuperAdmin + TaskTypes.DirectAdmin only. One or more active Admins
+        // (any department — picking Admins across departments is the point),
+        // each of whom gets their own TaskAssignment and works the task
+        // themselves, same as a multi-assignee employee task. Not
+        // [Required]: empty is rejected explicitly in the controller so the
+        // error reads the same way AssigneeIds's does.
+        [Display(Name = "Admins")]
+        public List<int> DirectAdminUserIds { get; set; } = new();
 
         // SuperAdmin only, optional. Each non-blank entry becomes its own
         // employee-level TaskItem parented to the newly created Main Task,

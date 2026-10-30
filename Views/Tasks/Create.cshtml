@@ -103,9 +103,9 @@
                                 </p>
                             </div>
 
-                            <!-- Send To — every active Admin, each already labeled
-                                 with their own department. Choosing one is now the
-                                 only step; OwningDepartment (hidden) is filled in
+                            <!-- Send To — Department Directive: one Admin (every
+                                 active Admin, each already labeled with their own
+                                 department). OwningDepartment (hidden) is filled in
                                  from whichever Admin is picked. -->
                             <div class="field-group" id="sendToGroup">
                                 <label class="field-label" for="responsibleAdmin">SEND TO <span class="required-star">*</span></label>
@@ -121,6 +121,22 @@
                                 </div>
                                 <span asp-validation-for="ResponsibleAdminUserId" class="field-error"></span>
                                 <input type="hidden" id="targetDepartment" asp-for="OwningDepartment" />
+                            </div>
+
+                            <!-- Send To — Direct Admin Task: one or more Admins,
+                                 any department (picking across departments is the
+                                 point). Each gets their own copy to work themselves,
+                                 same as a multi-assignee employee task. -->
+                            <div class="field-group" id="directAdminGroup" hidden>
+                                <label class="field-label" for="directAdminUserIds">SEND TO <span class="required-star">*</span></label>
+                                <select class="pill-input" id="directAdminUserIds" asp-for="DirectAdminUserIds" multiple size="5">
+                                    @foreach (var admin in (IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
+                                    {
+                                        <option value="@admin.Id">@admin.FullName (@admin.Department)</option>
+                                    }
+                                </select>
+                                <p class="modal-sub" style="margin-top:4px;">Ctrl/Cmd-click (or shift-click) to pick more than one.</p>
+                                <span asp-validation-for="DirectAdminUserIds" class="field-error"></span>
                             </div>
 
                             <p class="modal-sub" id="wholeOfficeNote" hidden>
@@ -259,14 +275,19 @@
                 return checked ? checked.value : '';
             }
 
-            // Direct Admin: no subtasks. Whole Office: no "Send To" picker or
-            // subtasks (it goes to everyone) — the note explains that instead.
+            // Direct Admin: no subtasks, and "Send To" is the multi-select
+            // Admin list instead of the single-admin dropdown. Whole Office:
+            // no "Send To" picker of either kind or subtasks (it goes to
+            // everyone) — the note explains that instead.
             function syncVisibility() {
                 var type = selectedType();
                 var wholeOffice = type === 'whole-office';
-                subtasksGroup.style.display = type === 'direct-admin' || wholeOffice ? 'none' : '';
+                var direct = type === 'direct-admin';
+                subtasksGroup.style.display = direct || wholeOffice ? 'none' : '';
                 var sendToGroup = document.getElementById('sendToGroup');
-                if (sendToGroup) sendToGroup.style.display = wholeOffice ? 'none' : '';
+                if (sendToGroup) sendToGroup.style.display = (wholeOffice || direct) ? 'none' : '';
+                var directAdminGroup = document.getElementById('directAdminGroup');
+                if (directAdminGroup) directAdminGroup.hidden = !direct;
                 var note = document.getElementById('wholeOfficeNote');
                 if (note) note.hidden = !wholeOffice;
             }
@@ -278,7 +299,11 @@
 
             // OwningDepartment is inferred from whichever Admin is picked —
             // there's no separate department choice anymore (each option
-            // already carries its own department as data-department).
+            // already carries its own department as data-department). Only
+            // relevant for the single-admin "Send To" (Department Directive);
+            // a Direct Admin Task's OwningDepartment is derived server-side
+            // from whichever Admin was picked first, since this field isn't
+            // shown for that type at all.
             var adminSelect = document.getElementById('responsibleAdmin');
             var departmentField = document.getElementById('targetDepartment');
             if (adminSelect && departmentField) {

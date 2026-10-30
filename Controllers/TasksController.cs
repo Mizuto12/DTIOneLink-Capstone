@@ -438,14 +438,34 @@ namespace DTIOneLink.Controllers
             }
 
             var isWholeOffice = model.TaskType == TaskTypes.WholeOffice;
+            var isDirect = model.TaskType == TaskTypes.DirectAdmin;
             if (isWholeOffice)
             {
-                // Goes to everyone, so no division or Responsible Admin —
-                // whatever the form sent for those is ignored.
+                // Goes to everyone, so no division, Responsible Admin or
+                // Direct Admin list — whatever the form sent for those is
+                // ignored.
                 model.OwningDepartment = WholeOfficeDepartment;
                 model.ResponsibleAdminUserId = null;
+                model.DirectAdminUserIds = new();
                 ModelState.Remove(nameof(model.OwningDepartment));
                 ModelState.Remove(nameof(model.ResponsibleAdminUserId));
+                ModelState.Remove(nameof(model.DirectAdminUserIds));
+            }
+            else if (isDirect)
+            {
+                // OwningDepartment and ResponsibleAdminUserId (the primary
+                // assignee, for the existing single-admin scoping checks
+                // elsewhere) are derived from whichever Admins were picked,
+                // not taken from the form — same pattern Whole Office uses
+                // above for the fields that don't apply to it.
+                ModelState.Remove(nameof(model.OwningDepartment));
+                ModelState.Remove(nameof(model.ResponsibleAdminUserId));
+                var primaryDepartment = await ValidateDirectAdminUserIdsAsync(model.DirectAdminUserIds, nameof(model.DirectAdminUserIds));
+                if (primaryDepartment != null)
+                {
+                    model.OwningDepartment = primaryDepartment;
+                    model.ResponsibleAdminUserId = model.DirectAdminUserIds[0];
+                }
             }
             else if (!TargetDepartments.IsValid(model.OwningDepartment))
             {
@@ -465,7 +485,6 @@ namespace DTIOneLink.Controllers
                 return View(model);
             }
 
-            var isDirect = model.TaskType == TaskTypes.DirectAdmin;
             var (created, subtaskCount) = await _opdTasks.CreateAsync(
                 new OpdTaskService.NewOpdTask(
                     model.TaskName,
@@ -479,7 +498,8 @@ namespace DTIOneLink.Controllers
                     isDirect || isWholeOffice ? new List<string>() : (model.SubtaskNames ?? new List<string>()),
                     recurrence,
                     model.RequiresReview,
-                    isDirect || isWholeOffice ? new List<int>() : (model.SubtaskWeights ?? new List<int>())),
+                    isDirect || isWholeOffice ? new List<int>() : (model.SubtaskWeights ?? new List<int>()),
+                    isDirect ? model.DirectAdminUserIds : null),
                 createdByUserId,
                 isWholeOffice ? "OPD gave this task to the whole office."
                     : isDirect ? "OPD created this Direct Admin Task." : "OPD created this Department Directive.");
@@ -488,7 +508,9 @@ namespace DTIOneLink.Controllers
             TempData["SuccessMessage"] = isWholeOffice
                 ? $"Task given to the whole office ({created.Assignments.Count} people)." + repeatNote
                 : isDirect
-                ? "Direct Admin task created and assigned." + repeatNote
+                ? (model.DirectAdminUserIds.Count > 1
+                    ? $"Direct Admin task created and assigned to {model.DirectAdminUserIds.Count} Admins." + repeatNote
+                    : "Direct Admin task created and assigned." + repeatNote)
                 : (subtaskCount > 0
                     ? $"Main task created with {subtaskCount} subtask(s)."
                     : "Main task created successfully!") + repeatNote;
@@ -1322,6 +1344,39 @@ private async Task ValidateResponsibleAdminAsync(int? responsibleAdminUserId, st
     {
         ModelState.AddModelError(modelKey, "Selected Admin must be an active Admin in the target department.");
     }
+}
+
+// A Direct Admin Task's Admins may come from different departments on
+// purpose — that's the whole point of picking more than one — so unlike
+// ValidateResponsibleAdminAsync there is no single targetDepartment to
+// check against. Returns the first selected Admin's department (used as
+// the Main Task's OwningDepartment and that Admin as the primary/
+// ResponsibleAdminUserId, for every existing single-admin scoping check
+// elsewhere) on success, or null after adding a ModelState error.
+private async Task<string?> ValidateDirectAdminUserIdsAsync(List<int> adminUserIds, string modelKey)
+{
+    var distinct = (adminUserIds ?? new()).Distinct().ToList();
+    if (distinct.Count == 0)
+    {
+        ModelState.AddModelError(modelKey, "Select at least one Admin.");
+        return null;
+    }
+
+    var admins = await _context.Users
+        .Where(u => distinct.Contains(u.Id) && u.IsActive && u.Role == "Admin")
+        .ToListAsync();
+
+    if (admins.Count != distinct.Count)
+    {
+        ModelState.AddModelError(modelKey, "One or more selected Admins are invalid.");
+        return null;
+    }
+
+    var byId = admins.ToDictionary(a => a.Id);
+    // distinct[0], not admins[0] — the primary is whichever option the
+    // creator picked first, not whatever order the database happens to
+    // return them in.
+    return byId[distinct[0]].Department;
 }
 
 private async Task ValidateAssigneeIdsAsync(List<int> assigneeIds, string modelKey)

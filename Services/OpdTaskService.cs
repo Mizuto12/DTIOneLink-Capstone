@@ -38,7 +38,13 @@ namespace DTIOneLink.Services
             // caller (TasksController.Create) is the one that actually
             // rejects an out-of-range value; this is paired up, not
             // re-validated.
-            IReadOnlyList<int>? SubtaskWeights = null);
+            IReadOnlyList<int>? SubtaskWeights = null,
+            // TaskTypes.DirectAdmin only. The full set of Admins who each
+            // get their own TaskAssignment. Null/empty falls back to just
+            // ResponsibleAdminUserId, so the recurring-task job and any
+            // other caller that only ever had one admin keep working
+            // unchanged.
+            IReadOnlyList<int>? DirectAdminAssigneeIds = null);
 
         // activityNote: what the activity log says about how it was created
         // (e.g. "OPD created this Department Directive." or "Repeated
@@ -107,27 +113,40 @@ namespace DTIOneLink.Services
 
             if (mainTask.TaskType == TaskTypes.DirectAdmin)
             {
-                var responsibleAdminId = spec.ResponsibleAdminUserId!.Value;
-                // Assigned straight to the Responsible Admin via the
-                // existing assignment system — mirrors AssigneeId for
-                // legacy compatibility and gives the Admin a normal
-                // TaskAssignment row to work through Employee/UpdateProgress
-                // and Employee/SubmitProof, same as any employee task.
-                // No subtasks are ever attached to a Direct Admin Task.
-                _taskAssignments.AssignEmployees(mainTask, new List<int> { responsibleAdminId }, createdByUserId);
+                // One or more Admins, each via the existing assignment
+                // system — gives every one of them a normal TaskAssignment
+                // row to work through Employee/UpdateProgress and
+                // Employee/SubmitProof, same as any employee task. Falls
+                // back to just the (singular) Responsible Admin when the
+                // caller never passed a list, e.g. the recurring-task job
+                // recreating an older, single-admin copy. No subtasks are
+                // ever attached to a Direct Admin Task.
+                var assigneeIds = (spec.DirectAdminAssigneeIds != null && spec.DirectAdminAssigneeIds.Count > 0)
+                    ? spec.DirectAdminAssigneeIds.Distinct().ToList()
+                    : new List<int> { spec.ResponsibleAdminUserId!.Value };
+                _taskAssignments.AssignEmployees(mainTask, assigneeIds, createdByUserId);
                 await _context.SaveChangesAsync();
 
-                var responsibleAdmin = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Id == responsibleAdminId);
-                var adminName = responsibleAdmin?.FullName ?? "the responsible Admin";
+                var admins = await _context.Users
+                    .Where(u => assigneeIds.Contains(u.Id))
+                    .OrderBy(u => u.FullName)
+                    .ToListAsync();
+                var adminNames = admins.Count > 0
+                    ? string.Join(", ", admins.Select(a => a.FullName))
+                    : "the responsible Admin";
 
-                await _notifications.NotifyTaskAssignedAsync(responsibleAdminId, mainTask.Id, mainTask.TaskName);
+                await _notifications.CreateManyAsync(assigneeIds
+                    .Select(userId => new NotificationService.NotificationSpec(
+                        userId, NotificationType.Task, $"You've been assigned: \"{mainTask.TaskName}\"",
+                        RelatedTaskId: mainTask.Id, Link: $"/Employee/Details/{mainTask.Id}",
+                        EmailSubject: "You have a new task in DTI OneLink"))
+                    .ToList());
 
                 if (createdByUserId.HasValue)
                 {
                     TaskActivityLogger.Log(_context, mainTask.Id, createdByUserId.Value, "created", activityNote);
                     TaskActivityLogger.Log(_context, mainTask.Id, createdByUserId.Value, TaskActivityType.Assigned,
-                        $"Directly assigned to {adminName}.");
+                        $"Directly assigned to {adminNames}.");
                     await _context.SaveChangesAsync();
                 }
 

@@ -100,6 +100,7 @@ public class CapstonePaperGapIntegrationTests : IDisposable
             ["TaskType"] = TaskTypes.DirectAdmin,
             ["OwningDepartment"] = TargetDepartments.BDD,
             ["ResponsibleAdminUserId"] = adminId.ToString(),
+            ["DirectAdminUserIds"] = adminId.ToString(),
             ["DueDate"] = DateTime.UtcNow.AddDays(5).ToString("yyyy-MM-dd"),
             ["Priority"] = "medium",
             ["Description"] = "Prepare the quarterly report.",
