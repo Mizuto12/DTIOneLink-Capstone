@@ -77,8 +77,39 @@ namespace DTIOneLink.Controllers
             }
             // isOfficeWide: no filter — SuperAdmin sees every department.
 
+            // This previously loaded a department's ENTIRE task history, with
+            // no bound, every time the dashboard loaded. Bounded two ways:
+            //
+            // 1. Exclude old Completed tasks, but never anything still active
+            //    (Pending/In Progress/For Review/Returned stay regardless of
+            //    age). "Recently completed" reuses the same signal
+            //    GetCompletionTrend below already treats as authoritative —
+            //    an approved TaskSubmission's DecidedAt (set even for the
+            //    RequiresReview=false bypass; see EmployeeController.
+            //    SubmitProof) — within the same 8-week window, not an
+            //    unrelated/arbitrary date rule.
+            // 2. A hard cap as a last-resort safety valve (same pattern as
+            //    ReportsController.AuditLogLimit), in case active-task volume
+            //    alone ever grows unreasonably large.
+            //
+            // _DashboardContent.cshtml computes every count (the header
+            // count, each Kanban column's count) directly from this same
+            // list — there is no separate, wider stats query elsewhere to
+            // fall out of sync with, so what's filtered here is exactly
+            // what's counted.
+            const int RecentCompletedWindowDays = 56; // same 8 weeks as GetCompletionTrend's WeekCount
+            const int MaxTasksShown = 500;
+            var recentCompletedCutoff = TimeZoneHelper.PhilippineNow.AddDays(-RecentCompletedWindowDays);
+
+            query = query.Where(t =>
+                t.Status.Trim().ToLower() != TaskWorkflow.Completed ||
+                _context.TaskSubmissions.Any(s =>
+                    s.TaskId == t.Id && s.Decision == "approved" &&
+                    s.DecidedAt != null && s.DecidedAt >= recentCompletedCutoff));
+
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
+                .Take(MaxTasksShown)
                 .ToListAsync();
 
             return View(tasks);

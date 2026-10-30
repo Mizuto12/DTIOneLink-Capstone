@@ -616,7 +616,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .checklist-page__item-weight { color: var(--secondary); font-size: 12px; }
 .checklist-page__item-state { font-size: 12px; color: var(--secondary); }
 .checklist-page__item form { margin: 0; }
-.checklist-page__remove-btn { padding: 2px 10px; font-size: 12px; }
+/* Its own danger treatment, not .btn-cancel's neutral/primary outline —
+   this is a destructive action, same visual language as mtd-btn-danger
+   on Main Task Details and tr-btn-return on Review. */
+.checklist-page__remove-btn {
+    padding: 2px 10px;
+    font-size: 12px;
+    border-color: var(--error);
+    color: var(--error);
+}
+.checklist-page__remove-btn:hover { background: rgba(186, 26, 26, 0.08); }
 
 .checklist-page__add-form { display: flex; gap: 8px; }
 .checklist-page__add-form .pill-input:first-child { flex: 1; }

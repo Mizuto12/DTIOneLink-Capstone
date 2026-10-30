@@ -224,4 +224,101 @@ public class AdminDashboardControllerTests
         var task = Assert.IsType<TaskItem>(view.Model);
         Assert.Equal(taskB.Id, task.Id);
     }
+
+    // Validation-audit coverage (2026-10-30): AdminDashboard() previously
+    // loaded a department's entire task history unbounded. Now excludes a
+    // Completed task only once its approved TaskSubmission.DecidedAt is
+    // older than 56 days (GetCompletionTrend's own 8-week window) — every
+    // non-Completed status stays regardless of age.
+    private static (AppDbContext Context, TaskItem OldCompleted, TaskItem RecentCompleted,
+        TaskItem OldActive, TaskItem CompletedNoSubmission) SeedRecencyFixture()
+    {
+        var context = InMemoryDbContextFactory.Create();
+        var now = DateTime.UtcNow;
+
+        var oldCompleted = new TaskItem
+        {
+            TaskName = "Old Completed", Description = "d", OwningDepartment = "BDD",
+            Status = TaskWorkflow.Completed, DueDate = now.AddDays(-100), CreatedAt = now.AddDays(-120),
+        };
+        var recentCompleted = new TaskItem
+        {
+            TaskName = "Recent Completed", Description = "d", OwningDepartment = "BDD",
+            Status = TaskWorkflow.Completed, DueDate = now.AddDays(-5), CreatedAt = now.AddDays(-10),
+        };
+        var oldActive = new TaskItem
+        {
+            TaskName = "Old Active", Description = "d", OwningDepartment = "BDD",
+            Status = TaskWorkflow.InProgress, DueDate = now.AddDays(10), CreatedAt = now.AddDays(-400),
+        };
+        // Completed with no TaskSubmission row at all (e.g. pre-dates
+        // submission tracking) — must be excluded, same as a stale one,
+        // not kept indefinitely for lack of a record.
+        var completedNoSubmission = new TaskItem
+        {
+            TaskName = "Completed No Submission", Description = "d", OwningDepartment = "BDD",
+            Status = TaskWorkflow.Completed, DueDate = now.AddDays(-200), CreatedAt = now.AddDays(-200),
+        };
+        context.TaskItems.AddRange(oldCompleted, recentCompleted, oldActive, completedNoSubmission);
+        context.SaveChanges();
+
+        context.TaskSubmissions.AddRange(
+            new TaskSubmission { TaskId = oldCompleted.Id, Decision = "approved", DecidedAt = now.AddDays(-90), ProofFileName = "x", ProofStoredFileName = "x" },
+            new TaskSubmission { TaskId = recentCompleted.Id, Decision = "approved", DecidedAt = now.AddDays(-5), ProofFileName = "x", ProofStoredFileName = "x" });
+        context.SaveChanges();
+
+        return (context, oldCompleted, recentCompleted, oldActive, completedNoSubmission);
+    }
+
+    [Fact]
+    public async Task AdminDashboard_CompletedTaskOlderThan56Days_IsExcluded()
+    {
+        var (context, oldCompleted, _, _, _) = SeedRecencyFixture();
+        var controller = BuildController(context, "Admin", "BDD");
+
+        var result = await controller.AdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var tasks = Assert.IsAssignableFrom<List<TaskItem>>(view.Model);
+        Assert.DoesNotContain(tasks, t => t.Id == oldCompleted.Id);
+    }
+
+    [Fact]
+    public async Task AdminDashboard_CompletedTaskWithin56Days_IsIncluded()
+    {
+        var (context, _, recentCompleted, _, _) = SeedRecencyFixture();
+        var controller = BuildController(context, "Admin", "BDD");
+
+        var result = await controller.AdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var tasks = Assert.IsAssignableFrom<List<TaskItem>>(view.Model);
+        Assert.Contains(tasks, t => t.Id == recentCompleted.Id);
+    }
+
+    [Fact]
+    public async Task AdminDashboard_ActiveTaskRegardlessOfAge_IsNeverExcludedByTheRecencyFilter()
+    {
+        var (context, _, _, oldActive, _) = SeedRecencyFixture();
+        var controller = BuildController(context, "Admin", "BDD");
+
+        var result = await controller.AdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var tasks = Assert.IsAssignableFrom<List<TaskItem>>(view.Model);
+        Assert.Contains(tasks, t => t.Id == oldActive.Id);
+    }
+
+    [Fact]
+    public async Task AdminDashboard_CompletedTaskWithNoSubmissionRecord_IsExcluded()
+    {
+        var (context, _, _, _, completedNoSubmission) = SeedRecencyFixture();
+        var controller = BuildController(context, "Admin", "BDD");
+
+        var result = await controller.AdminDashboard();
+
+        var view = Assert.IsType<ViewResult>(result);
+        var tasks = Assert.IsAssignableFrom<List<TaskItem>>(view.Model);
+        Assert.DoesNotContain(tasks, t => t.Id == completedNoSubmission.Id);
+    }
 }

@@ -9,6 +9,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notice-dialog.css" asp-append-version="true" />
 }
 
 <main class="checklist-page">
@@ -52,7 +53,7 @@
                             </span>
                             <span class="checklist-page__item-state">@(item.IsDone ? "Done" : "Not done")</span>
                             <form asp-controller="Tasks" asp-action="RemoveChecklistItem" asp-route-id="@item.Id" method="post"
-                                  onsubmit="return confirm('Remove this checklist item?');">
+                                  class="checklist-page__remove-form" data-item-label="@item.Label">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn-cancel checklist-page__remove-btn">Remove</button>
                             </form>
@@ -71,7 +72,7 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="taskAssignmentId" value="@assignment.Id" />
                     <input type="text" name="label" maxlength="200" required placeholder="e.g. Draft the report" class="pill-input" />
-                    <input type="number" name="weight" value="1" min="1" max="10" class="pill-input checklist-page__weight-input" title="Weight" />
+                    <input type="number" name="weight" value="1" min="1" max="100" class="pill-input checklist-page__weight-input" title="Weight" />
                     <button type="submit" class="btn-create">Add item</button>
                 </form>
             }
@@ -81,3 +82,10 @@
     <a asp-controller="Tasks" asp-action="@(Model.TaskLevel == DTIOneLink.Services.TaskLevels.Subtask && Model.ParentTaskId.HasValue ? "MainTaskDetails" : "Edit")"
        asp-route-id="@(Model.ParentTaskId ?? Model.Id)" class="btn-cancel checklist-page__back">Back to task</a>
 </main>
+
+<partial name="_NoticeDialog" />
+
+@section Scripts {
+    <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
+    <script src="~/js/tasks-checklist.js" asp-append-version="true"></script>
+}
