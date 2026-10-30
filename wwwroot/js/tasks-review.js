@@ -21,12 +21,29 @@
     }
 
     // ── Close: animate out, then back to Task Management ──
+    // This page is a real, separately-navigable URL (not a true client-side
+    // modal) rendering a dialog over an inert copy of Task Management —
+    // opening it always adds its own history entry, same as SubmitProof did
+    // before its fix. A plain forward navigation here means the stack only
+    // ever grows: TaskManagement -> Review -> TaskManagement(new); one Back
+    // press from there lands back on this same Review page instead of
+    // wherever the user actually came from. history.back() instead
+    // collapses it the way a real close should — same fix as
+    // employeesubmitproof.js's closeModal(). Falls back to a plain
+    // navigation only when there's nothing of ours to go back to (direct
+    // link, new tab, bookmark), where history.back() could leave the app.
     function closeModal() {
         if (!modal) return;
         var box = modal.querySelector('.modal');
         if (box) box.classList.add('closing');
         setTimeout(function () {
-            window.location.href = modal.dataset.closeUrl || '/Tasks';
+            var cameFromThisApp = document.referrer &&
+                document.referrer.indexOf(window.location.origin + '/') === 0;
+            if (cameFromThisApp && window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = modal.dataset.closeUrl || '/Tasks';
+            }
         }, 150);
     }
 

@@ -22,7 +22,19 @@
   text-align: center;
   animation: noticeDialogEnter 0.18s ease;
 }
-.notice-dialog[data-tone="danger"] { --tone: #b42318; --tone-soft: #fee4e2; }
+/* "error" (used by records.js's confirm/alert calls) is the same severity
+   as "danger" (used everywhere else) under a different name — same rule,
+   not a separate color, so the two don't visually disagree on what is
+   effectively the same tone. "info" needs no rule: it's the opts.tone
+   default already, which already equals the dialog's own default styling
+   below. Warning/success reuse the same amber/green pair already used for
+   "At risk"/"Completed" elsewhere (task-card.css, admindashboard.css,
+   employee-dashboard.css) so a notice dialog's color means the same thing
+   a status badge's color already does. */
+.notice-dialog[data-tone="danger"],
+.notice-dialog[data-tone="error"]   { --tone: #b42318; --tone-soft: #fee4e2; }
+.notice-dialog[data-tone="warning"] { --tone: #92400e; --tone-soft: #fff1d6; }
+.notice-dialog[data-tone="success"] { --tone: #16a34a; --tone-soft: #dcf5e4; }
 .notice-dialog::backdrop { background: rgba(15, 23, 42, 0.45); }
 .notice-dialog [hidden] { display: none !important; }
 
@@ -145,7 +157,10 @@
   background: var(--primary);
   color: var(--on-primary, #fff);
 }
-.notice-dialog[data-tone="danger"] .btn-primary { background: var(--tone); }
+.notice-dialog[data-tone="danger"] .btn-primary,
+.notice-dialog[data-tone="error"] .btn-primary,
+.notice-dialog[data-tone="warning"] .btn-primary,
+.notice-dialog[data-tone="success"] .btn-primary { background: var(--tone); }
 
 /* Every page's own .btn classes already get a focus-visible ring where
    that page defines one; this dialog is also used standalone on pages
