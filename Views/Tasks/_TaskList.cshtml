@@ -239,7 +239,10 @@
                             <td class="td-last">
                                 @* Edit icon removed — clicking the row opens the task
                                    (main → details page, subtask → its edit page). *@
-                                @if (displayStatus == "for-review")
+                                @* Raw status, not displayStatus: "Overdue" overlays For Review
+                                   on a late task, and a resubmission after Returned for
+                                   Correction still has to be reviewable. *@
+                                @if (DTIOneLink.Services.TaskWorkflow.Normalize(task.Status) == DTIOneLink.Services.TaskWorkflow.ForReview)
                                 {
                                     var pendingSubmission = task.Submissions?.OrderByDescending(s => s.SubmittedAt).FirstOrDefault(s => s.Decision == null);
                                     if (pendingSubmission != null)

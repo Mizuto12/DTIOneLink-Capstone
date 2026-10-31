@@ -348,7 +348,11 @@
             @foreach (var a in task.Assignments.OrderByDescending(x => x.IsPrimaryAssignee).ThenBy(x => x.User?.FullName))
             {
                 var aDisplayStatus = DTIOneLink.Services.TaskWorkflow.DisplayStatus(a.Status, task.DueDate);
-                var pending = isOpd && DTIOneLink.Services.TaskTypes.IsAssignedByOpd(task.TaskType)
+                // Same split as TasksController.CanReviewSubmission: the OPD
+                // reviews Direct Admin / Whole Office work, the department's
+                // Admin reviews a Department Directive's direct assignees
+                // (including a resubmission after Returned for Correction).
+                var pending = isOpd == isAssignedByOpd
                               && DTIOneLink.Services.TaskWorkflow.Normalize(a.Status) == DTIOneLink.Services.TaskWorkflow.ForReview
                     ? task.Submissions.Where(s => s.TaskAssignmentId == a.Id && s.Decision == null)
                                       .OrderByDescending(s => s.SubmittedAt).FirstOrDefault()

@@ -341,8 +341,14 @@ namespace DTIOneLink.Controllers
                 // up for any reason, even though they could already open the
                 // same task from Task Management.
                 var department = HttpContext.Session.GetString("UserDepartment");
+                // The Responsible Admin bypass matches TasksController's
+                // IsWithinTaskScope: a directive handed to this Admin across
+                // departments must still open here, or they can't correct a
+                // returned assignee's progress.
                 task = await query.FirstOrDefaultAsync(t => t.Id == id &&
                     (t.Assignments.Any(a => a.UserId == userId) ||
+                     (t.ResponsibleAdminUserId != null && t.ResponsibleAdminUserId == userId) ||
+                     (t.ParentTask != null && t.ParentTask.ResponsibleAdminUserId != null && t.ParentTask.ResponsibleAdminUserId == userId) ||
                      (t.OwningDepartment != null && t.OwningDepartment == department) ||
                      (t.OwningDepartment == null && t.ParentTask != null && t.ParentTask.OwningDepartment == department) ||
                      (t.OwningDepartment == null && (t.ParentTask == null || t.ParentTask.OwningDepartment == null) &&
