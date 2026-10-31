@@ -22,8 +22,26 @@
             return !panel.hasAttribute('hidden');
         }
 
+        // The panel is CSS-positioned absolute by default, but its nearest
+        // "card" ancestor (.et-workspace on Edit, the equivalent on Create)
+        // has overflow:hidden for its rounded corners — which also clips
+        // anything inside that tries to extend past the card, cutting the
+        // dropdown off instead of letting it float over the page. Switching
+        // to fixed positioning, placed via the trigger's own on-screen
+        // rect, escapes that clipping regardless of which page this is on
+        // or how it's scrolled. Inline styles always win over the CSS
+        // absolute-positioning rule, so no CSS changes are needed.
+        function positionPanel() {
+            var rect = trigger.getBoundingClientRect();
+            panel.style.position = 'fixed';
+            panel.style.top = (rect.bottom + 6) + 'px';
+            panel.style.left = rect.left + 'px';
+            panel.style.width = rect.width + 'px';
+        }
+
         function openPanel() {
             if (isOpen()) return;
+            positionPanel();
             panel.removeAttribute('hidden');
             trigger.setAttribute('aria-expanded', 'true');
             root.classList.add('is-open');
@@ -34,6 +52,10 @@
             }
             document.addEventListener('click', onDocumentClick, true);
             document.addEventListener('keydown', onDocumentKeydown, true);
+            // capture:true so this still fires on a scroll inside a nested
+            // scrollable area (e.g. the tab card itself), not just the window.
+            window.addEventListener('scroll', positionPanel, true);
+            window.addEventListener('resize', positionPanel);
         }
 
         function closePanel(refocusTrigger) {
@@ -43,6 +65,8 @@
             root.classList.remove('is-open');
             document.removeEventListener('click', onDocumentClick, true);
             document.removeEventListener('keydown', onDocumentKeydown, true);
+            window.removeEventListener('scroll', positionPanel, true);
+            window.removeEventListener('resize', positionPanel);
             if (refocusTrigger) trigger.focus();
         }
 
