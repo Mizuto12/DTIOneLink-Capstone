@@ -58,12 +58,11 @@ function totalPages() {
   return Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
 }
 
-// Status column: always shown now — disposal is the record owner's call,
-// not just a records manager's (see RecordsController.SetDisposalStatus),
-// so an Employee needs to see and act on their own record's status too.
-// Approve stays PD-only (ApproveRecords); the disposal buttons are gated
-// per-row by data.canDispose, which the server already computed as
-// "records manager OR this record's own creator."
+// Status column: always shown — disposal is the record owner's call (see
+// RecordsController.SetDisposalStatus), and every user only sees records
+// they logged. Approve stays PD-only (ApproveRecords); the disposal buttons
+// are gated per-row by data.canDispose, which the server computed as
+// "this record's own creator."
 const canApproveRecords = tableBody.dataset.canApprove === 'true';
 const showStatusColumn = true;
 

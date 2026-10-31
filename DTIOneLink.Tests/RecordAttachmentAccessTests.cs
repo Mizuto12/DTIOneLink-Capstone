@@ -9,9 +9,9 @@ namespace DTIOneLink.Tests;
 // RecordsDispositionTests.cs tests RecordDisposalWorkflow directly instead
 // of RecordsController. The scoping rule for attachment upload/delete
 // (RecordAttachmentAccess.CanManage) is the part of "attachment retrieval
-// scoping" that's actually unit-testable without a live SQL Server: a
-// records manager, or the record's own creator, same rule CanEditRow and
-// CanDisposeRow already use (this is their shared implementation).
+// scoping" that's actually unit-testable without a live SQL Server: only
+// the record's own creator, same rule CanEditRow and CanDisposeRow
+// already use (this is their shared implementation).
 //
 // Read access (DownloadAttachment, FileBrowser) reuses VisibilityClause's
 // own SQL fragment by direct call, not a re-implementation — so it cannot
@@ -20,30 +20,25 @@ namespace DTIOneLink.Tests;
 public class RecordAttachmentAccessTests
 {
     [Fact]
-    public void CanManage_RecordsManager_AlwaysAllowed_EvenOnSomeoneElsesRecord()
-    {
-        Assert.True(RecordAttachmentAccess.CanManage(userCanManage: true, recordCreatedByUserId: 999, userId: 1));
-    }
-
-    [Fact]
     public void CanManage_RecordsOwnCreator_Allowed()
     {
-        Assert.True(RecordAttachmentAccess.CanManage(userCanManage: false, recordCreatedByUserId: 1, userId: 1));
+        Assert.True(RecordAttachmentAccess.CanManage(recordCreatedByUserId: 1, userId: 1));
     }
 
     [Fact]
-    public void CanManage_NeitherManagerNorCreator_Denied()
+    public void CanManage_SomeoneElsesRecord_Denied()
     {
-        Assert.False(RecordAttachmentAccess.CanManage(userCanManage: false, recordCreatedByUserId: 999, userId: 1));
+        // No role override: Admin and SuperAdmin are denied on someone
+        // else's record too, since they can't see it (VisibilityClause).
+        Assert.False(RecordAttachmentAccess.CanManage(recordCreatedByUserId: 999, userId: 1));
     }
 
     [Fact]
-    public void CanManage_LegacyRecordWithNoStoredOwner_DeniedUnlessManager()
+    public void CanManage_LegacyRecordWithNoStoredOwner_Denied()
     {
         // A record logged before CreatedByUserId existed has a null owner —
-        // nobody but a manager can touch its attachments, same as
-        // VisibilityClause already treats it as invisible to anyone else.
-        Assert.False(RecordAttachmentAccess.CanManage(userCanManage: false, recordCreatedByUserId: null, userId: 1));
-        Assert.True(RecordAttachmentAccess.CanManage(userCanManage: true, recordCreatedByUserId: null, userId: 1));
+        // nobody can touch it, same as VisibilityClause treats it as
+        // invisible to everyone.
+        Assert.False(RecordAttachmentAccess.CanManage(recordCreatedByUserId: null, userId: 1));
     }
 }

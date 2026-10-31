@@ -284,18 +284,11 @@ namespace DTIOneLink.Controllers
                     new { message = "Your account is not allowed to use Records Management." });
 
         // Row-level visibility, applied in SQL so hidden rows never leave the
-        // database. An Employee only ever sees the records they logged
-        // (CreatedByUserId). Admin (the records officer, ManageRecords) and
-        // SuperAdmin (the PD, ApproveRecords) see every record office-wide —
-        // deliberately, so disposal validation and approval can actually see
-        // the records they're approving/validating, Confidential included.
-        // Records with no stored owner (logged before the owner column
-        // existed) are visible to nobody but managers/approvers until an
-        // owner is assigned in the database.
-        private static string VisibilityClause(RecordsUser user) =>
-            (user.CanManage || user.CanApprove)
-                ? "1 = 1"
-                : @"
+        // database. Every user — Admin and SuperAdmin included — only ever
+        // sees the records they logged (CreatedByUserId). Records with no
+        // stored owner (logged before the owner column existed) are visible
+        // to nobody until an owner is assigned in the database.
+        private static string VisibilityClause(RecordsUser user) => @"
 (
     r.CreatedByUserId IS NOT NULL
     AND r.CreatedByUserId = @UserId
@@ -366,25 +359,18 @@ namespace DTIOneLink.Controllers
             return due <= today.AddMonths(RecordRetentionReminder.ReminderMonths) ? "due-soon" : null;
         }
 
-        // Who may Edit/Delete a given row: its own creator, or a records
-        // manager (Admin). Allowed even once a record is saved into a
-        // Masterlist — a saved Masterlist's own Excel file is a frozen
-        // snapshot from when it was generated, so correcting the live
-        // record afterward doesn't rewrite history, it just means a
-        // re-download would differ from what was already handed out.
-        // SuperAdmin (approval-only) does not get this on someone else's
-        // record, only on one they logged themselves, same as anyone else.
+        // Who may Edit/Delete a given row: its own creator. Allowed even once
+        // a record is saved into a Masterlist — a saved Masterlist's own
+        // Excel file is a frozen snapshot from when it was generated, so
+        // correcting the live record afterward doesn't rewrite history, it
+        // just means a re-download would differ from what was already
+        // handed out.
         private static bool CanEditRow(RecordRow row, RecordsUser user) =>
-            RecordAttachmentAccess.CanManage(user.CanManage, row.CreatedByUserId, user.UserId);
+            RecordAttachmentAccess.CanManage(row.CreatedByUserId, user.UserId);
 
-        // Disposal is the record owner's call too (not just a records
-        // manager's — see SetDisposalStatus), so an Employee needs to see
-        // their own record's status and disposal actions the same as a
-        // manager/approver would for it. Confidentiality isn't a concern
-        // here: VisibilityClause already limits a non-manager/approver to
-        // only the records they logged themselves.
+        // Disposal is the record owner's call (see SetDisposalStatus).
         private static bool CanDisposeRow(RecordRow row, RecordsUser user) =>
-            RecordAttachmentAccess.CanManage(user.CanManage, row.CreatedByUserId, user.UserId);
+            RecordAttachmentAccess.CanManage(row.CreatedByUserId, user.UserId);
 
         private static object ToClientRow(RecordRow row, RecordsUser user)
         {
@@ -447,22 +433,12 @@ namespace DTIOneLink.Controllers
 
         // GET: /Records/Overview — a compact summary for the Dashboard.
         //
-        // Admin/Employee: how many active (RecordStatus = 'Retention')
-        // records this user has logged, how many are due for disposal
-        // review soon or already overdue (same thresholds as the per-row
-        // reminder colours, see RetentionState), and how many masterlists
-        // they've saved. Scoped the same as everywhere else in Records:
-        // only the records this user logged (VisibilityClause).
-        //
-        // SuperAdmin (CanApprove) sees every record office-wide already
-        // (VisibilityClause is "1 = 1" for them), but the overview itself
-        // only counts records a records officer has actually raised for
-        // the SuperAdmin's attention — RecordStatus IN ('Disposal',
-        // 'Disposed'), i.e. MarkForDisposal/MarkDisposed has been called —
-        // rather than every still-active Retention record office-wide.
-        // "Saved Masterlists" follows the same rule: masterlists that
-        // contain at least one such record, not every masterlist anyone
-        // has ever saved.
+        // Every role: how many active (RecordStatus = 'Retention') records
+        // this user has logged, how many are due for disposal review soon
+        // or already overdue (same thresholds as the per-row reminder
+        // colours, see RetentionState), and how many masterlists they've
+        // saved. Scoped the same as everywhere else in Records: only the
+        // records this user logged (VisibilityClause).
         [HttpGet]
         public IActionResult Overview()
         {
@@ -478,10 +454,6 @@ namespace DTIOneLink.Controllers
                 conn.Open();
                 var source = HasSystemColumns(conn) ? "Records r" : LegacyRecordsSource;
                 var today = PhilippineToday();
-                var statusFilter = user.CanApprove
-                    ? "r.RecordStatus IN ('Disposal', 'Disposed')"
-                    : "r.RecordStatus = 'Retention'";
-
                 int total, dueSoon, overdue;
                 using (var cmd = new SqlCommand($@"
 SELECT
@@ -489,7 +461,7 @@ SELECT
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate <= @Today THEN 1 ELSE 0 END),
     SUM(CASE WHEN r.RetentionDueDate IS NOT NULL AND r.RetentionDueDate > @Today AND r.RetentionDueDate <= @SoonLimit THEN 1 ELSE 0 END)
 FROM {source}
-WHERE {VisibilityClause(user)} AND {statusFilter}", conn))
+WHERE {VisibilityClause(user)} AND r.RecordStatus = 'Retention'", conn))
                 {
                     AddVisibilityParameters(cmd, user);
                     cmd.Parameters.Add("@Today", SqlDbType.Date).Value = today;
@@ -504,22 +476,10 @@ WHERE {VisibilityClause(user)} AND {statusFilter}", conn))
                 var savedMasterlists = 0;
                 if (HasMasterlists(conn))
                 {
-                    if (user.CanApprove)
-                    {
-                        using var cmd = new SqlCommand($@"
-SELECT COUNT(DISTINCT r.MasterlistId)
-FROM {source}
-WHERE {VisibilityClause(user)} AND r.MasterlistId IS NOT NULL AND {statusFilter}", conn);
-                        AddVisibilityParameters(cmd, user);
-                        savedMasterlists = (int)cmd.ExecuteScalar();
-                    }
-                    else
-                    {
-                        using var cmd = new SqlCommand(
-                            "SELECT COUNT(*) FROM dbo.RecordMasterlists WHERE CreatedByUserId = @UserId", conn);
-                        cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
-                        savedMasterlists = (int)cmd.ExecuteScalar();
-                    }
+                    using var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM dbo.RecordMasterlists WHERE CreatedByUserId = @UserId", conn);
+                    cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = user.UserId;
+                    savedMasterlists = (int)cmd.ExecuteScalar();
                 }
 
                 return Json(new { total, dueSoon, overdue, savedMasterlists });
@@ -970,7 +930,7 @@ WHERE ").Append(VisibilityClause(user));
         }
 
         // POST: /Records/Update — corrects a record already logged. Allowed
-        // for its own creator or a records manager (Admin), and only while
+        // only for its own creator, and only while
         // it's still on the working table (not yet saved into a Masterlist —
         // see CanEditRow). Clears any PD approval on a successful edit: an
         // approval recorded against the old content shouldn't silently carry
@@ -1011,7 +971,7 @@ WHERE ").Append(VisibilityClause(user));
                 }
                 var (createdByUserId, _, _) = state.Value;
 
-                if (!user.CanManage && createdByUserId != user.UserId)
+                if (!RecordAttachmentAccess.CanManage(createdByUserId, user.UserId))
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only edit a record you logged yourself." });
                 }
@@ -1079,7 +1039,7 @@ WHERE ").Append(VisibilityClause(user));
         }
 
         // POST: /Records/Delete/{id} — same ownership rule as Update:
-        // creator or records manager. Allowed even once the record is saved
+        // creator only. Allowed even once the record is saved
         // into a Masterlist (see CanEditRow).
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -1103,7 +1063,7 @@ WHERE ").Append(VisibilityClause(user));
                 }
                 var (createdByUserId, _, _) = state.Value;
 
-                if (!user.CanManage && createdByUserId != user.UserId)
+                if (!RecordAttachmentAccess.CanManage(createdByUserId, user.UserId))
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only delete a record you logged yourself." });
                 }
@@ -1195,7 +1155,7 @@ WHERE ").Append(VisibilityClause(user));
 
                 using var cmd = new SqlCommand(@"
 UPDATE Records SET ApprovedByUserId = @ApproverId, ApprovedAt = SYSUTCDATETIME()
-WHERE RecordId = @RecordId", conn);
+WHERE RecordId = @RecordId AND CreatedByUserId = @ApproverId", conn);
                 cmd.Parameters.Add("@ApproverId", SqlDbType.Int).Value = user.UserId;
                 cmd.Parameters.Add("@RecordId", SqlDbType.Int).Value = id;
                 var rows = cmd.ExecuteNonQuery();
@@ -1323,18 +1283,18 @@ WHERE RecordId = @RecordId", conn);
                 // Disposal is the "product owner's" call (Say, OPD, chat on
                 // 2026-10-23: the account person who logged the record keeps
                 // it and decides when it's due for disposal — not Imran, not
-                // the PD, and not records managers generically). Allowed for
-                // the record's own creator or a records manager (Admin), same
-                // ownership rule as CanEditRow.
+                // the PD, and not records managers generically). Allowed only
+                // for the record's own creator, same ownership rule as
+                // CanEditRow.
                 var state = LoadRecordState(conn, id);
                 if (state == null)
                 {
                     return NotFound(new { message = "Record not found." });
                 }
                 var (ownerOfRecord, _, currentStatus) = state.Value;
-                if (!RecordAttachmentAccess.CanManage(user.CanManage, ownerOfRecord, user.UserId))
+                if (!RecordAttachmentAccess.CanManage(ownerOfRecord, user.UserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can update disposal status." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only update the disposal status of a record you logged yourself." });
                 }
 
                 if (!RecordDisposalWorkflow.CanTransition(currentStatus, newStatus))
@@ -1537,9 +1497,9 @@ ORDER BY e.OccurredAt ASC, e.Id ASC", conn))
                     return NotFound(new { message = "Record not found." });
                 }
                 var (ownerOfRecord, _, _) = state.Value;
-                if (!RecordAttachmentAccess.CanManage(user.CanManage, ownerOfRecord, user.UserId))
+                if (!RecordAttachmentAccess.CanManage(ownerOfRecord, user.UserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can attach files to it." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only attach files to a record you logged yourself." });
                 }
 
                 Directory.CreateDirectory(AttachmentStorageRoot);
@@ -1669,9 +1629,9 @@ WHERE a.Id = @Id", conn))
                     storedFileName = reader.GetString(1);
                 }
 
-                if (!RecordAttachmentAccess.CanManage(user.CanManage, createdByUserId, user.UserId))
+                if (!RecordAttachmentAccess.CanManage(createdByUserId, user.UserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Only the record's owner or a records manager can remove this attachment." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only remove attachments from a record you logged yourself." });
                 }
 
                 using (var cmd = new SqlCommand("DELETE FROM RecordAttachments WHERE Id = @Id", conn))

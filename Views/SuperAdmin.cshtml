@@ -213,19 +213,16 @@
                 </div>
             </section>
 
-            <!-- ── Records overview: unlike Admin/Employee's own version of
-                 this card, a SuperAdmin already sees every record
-                 office-wide, so this only counts records a records officer
-                 has actually raised for review (marked Disposal/Disposed) —
-                 not every still-active record in the building. Filled in by
-                 records-overview.js (RecordsController.Overview). ──────── -->
+            <!-- ── Records overview: the SuperAdmin's own records, same as
+                 every other role. Filled in by records-overview.js
+                 (RecordsController.Overview). ──────── -->
             <section class="sa-section sa-section--rail records-overview" id="recordsOverview" aria-label="Records overview">
                 <div class="records-overview__header">
                     <div class="records-overview__title-group">
                         <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
                         <div>
                             <h4 class="sa-section__title">Records Overview</h4>
-                            <p class="sa-section__sub">Marked for disposal review, office-wide.</p>
+                            <p class="sa-section__sub">Records you've logged.</p>
                         </div>
                     </div>
                     <a class="records-overview__link" href="@Url.Action("Index", "Records")">View Records</a>
