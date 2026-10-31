@@ -93,7 +93,7 @@ public class TasksControllerSubtaskWeightTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    [InlineData(21)]
+    [InlineData(101)]
     public async Task Create_OutOfRangeSubtaskWeight_IsRejectedAndNothingSaved(int invalidWeight)
     {
         var (context, _, admin) = SeedUsers();
@@ -107,6 +107,37 @@ public class TasksControllerSubtaskWeightTests
         Assert.IsType<ViewResult>(result);
         Assert.False(controller.ModelState.IsValid);
         Assert.False(await context.TaskItems.AnyAsync(t => t.TaskLevel == TaskLevels.Subtask));
+    }
+
+    [Fact]
+    public async Task Create_SubtaskWeightsSumOver100_IsRejectedAndNothingSaved()
+    {
+        var (context, _, admin) = SeedUsers();
+        var controller = BuildController(context, "SuperAdmin");
+        var model = ValidDirectiveModel(admin);
+        model.SubtaskNames = new List<string> { "A", "B", "C" };
+        model.SubtaskWeights = new List<int> { 40, 40, 40 }; // sums to 120
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.False(await context.TaskItems.AnyAsync(t => t.TaskLevel == TaskLevels.Subtask));
+    }
+
+    [Fact]
+    public async Task Create_SubtaskWeightsSumExactly100_Succeeds()
+    {
+        var (context, _, admin) = SeedUsers();
+        var controller = BuildController(context, "SuperAdmin");
+        var model = ValidDirectiveModel(admin);
+        model.SubtaskNames = new List<string> { "A", "B" };
+        model.SubtaskWeights = new List<int> { 60, 40 };
+
+        var result = await controller.Create(model);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(2, await context.TaskItems.CountAsync(t => t.TaskLevel == TaskLevels.Subtask));
     }
 
     [Fact]
@@ -136,24 +167,24 @@ public class TasksControllerSubtaskWeightTests
         var mainTask = new TaskItem { TaskName = "Directive", Description = "d", TaskLevel = TaskLevels.Main, TaskType = TaskTypes.DepartmentDirective, OwningDepartment = TargetDepartments.BDD, DueDate = DateTime.UtcNow.AddDays(5) };
         context.TaskItems.Add(mainTask);
         await context.SaveChangesAsync();
-        var existingSubtask = new TaskItem { TaskName = "Existing", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Completed, Progress = 100, Weight = 1 };
+        var existingSubtask = new TaskItem { TaskName = "Existing", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Completed, Progress = 100, Weight = 25 };
         context.TaskItems.Add(existingSubtask);
         await context.SaveChangesAsync();
 
-        var result = await controller.AddSubtask(mainTask.Id, "New heavier subtask", requiresReview: true, weight: 3);
+        var result = await controller.AddSubtask(mainTask.Id, "New heavier subtask", requiresReview: true, weight: 75);
 
         Assert.IsType<RedirectToActionResult>(result);
         var added = await context.TaskItems.SingleAsync(t => t.TaskName == "New heavier subtask");
-        Assert.Equal(3, added.Weight);
+        Assert.Equal(75, added.Weight);
         var reloadedMain = await context.TaskItems.SingleAsync(t => t.Id == mainTask.Id);
-        // (100*1 + 0*3) / (1+3) = 25%, not the 50% an unweighted average would give.
+        // (100*25 + 0*75) / 100 = 25%, not the 50% a plain average would give.
         Assert.Equal(25, reloadedMain.Progress);
         Assert.NotEqual(TaskWorkflow.Completed, reloadedMain.Status);
     }
 
     [Theory]
     [InlineData(0)]
-    [InlineData(21)]
+    [InlineData(101)]
     public async Task AddSubtask_OutOfRangeWeight_IsRejectedAndNothingAdded(int invalidWeight)
     {
         var (context, _, admin) = SeedUsers();
@@ -166,6 +197,24 @@ public class TasksControllerSubtaskWeightTests
 
         Assert.IsType<RedirectToActionResult>(result); // redirects back with TempData error, same as the name-validation failures
         Assert.False(await context.TaskItems.AnyAsync(t => t.TaskLevel == TaskLevels.Subtask));
+    }
+
+    [Fact]
+    public async Task AddSubtask_WouldPushSiblingTotalOver100_IsRejectedAndNothingAdded()
+    {
+        var (context, _, _) = SeedUsers();
+        var controller = BuildController(context, "SuperAdmin");
+        var mainTask = new TaskItem { TaskName = "Directive", Description = "d", TaskLevel = TaskLevels.Main, TaskType = TaskTypes.DepartmentDirective, OwningDepartment = TargetDepartments.BDD, DueDate = DateTime.UtcNow.AddDays(5) };
+        context.TaskItems.Add(mainTask);
+        await context.SaveChangesAsync();
+        var existingSubtask = new TaskItem { TaskName = "Existing", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Pending, Progress = 0, Weight = 70 };
+        context.TaskItems.Add(existingSubtask);
+        await context.SaveChangesAsync();
+
+        var result = await controller.AddSubtask(mainTask.Id, "New subtask", requiresReview: true, weight: 50); // 70 + 50 = 120
+
+        Assert.IsType<RedirectToActionResult>(result); // redirects back with TempData error
+        Assert.Equal(1, await context.TaskItems.CountAsync(t => t.TaskLevel == TaskLevels.Subtask)); // only the existing one
     }
 
     [Fact]
@@ -201,13 +250,16 @@ public class TasksControllerSubtaskWeightTests
         context.TaskItems.Add(mainTask);
         await context.SaveChangesAsync();
 
-        var doneSubtask = new TaskItem { TaskName = "Done", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Completed, Progress = 100, Weight = 1 };
-        var pendingSubtask = new TaskItem { TaskName = "Pending", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Pending, Progress = 0, Weight = 1 };
+        // Weight 50 + 20 = 70 (room left for a sum-validation test to add
+        // more); pendingSubtask has nonzero progress so changing its
+        // weight actually moves the parent's calculated progress.
+        var doneSubtask = new TaskItem { TaskName = "Done", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Completed, Progress = 100, Weight = 50 };
+        var pendingSubtask = new TaskItem { TaskName = "Pending", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.InProgress, Progress = 40, Weight = 20 };
         context.TaskItems.AddRange(doneSubtask, pendingSubtask);
         await context.SaveChangesAsync();
 
         context.TaskAssignments.Add(new TaskAssignment { TaskId = doneSubtask.Id, UserId = employee1.Id, Status = TaskWorkflow.Completed, Progress = 100, IsPrimaryAssignee = true });
-        context.TaskAssignments.Add(new TaskAssignment { TaskId = pendingSubtask.Id, UserId = employee2.Id, Status = TaskWorkflow.Pending, Progress = 0, IsPrimaryAssignee = true });
+        context.TaskAssignments.Add(new TaskAssignment { TaskId = pendingSubtask.Id, UserId = employee2.Id, Status = TaskWorkflow.InProgress, Progress = 40, IsPrimaryAssignee = true });
         await context.SaveChangesAsync();
 
         var service = new TaskAssignmentService(context);
@@ -222,7 +274,8 @@ public class TasksControllerSubtaskWeightTests
     {
         var (context, _, _) = SeedUsers();
         var (mainTask, pendingSubtask) = await SeedDirectiveWithTwoSubtasksAsync(context);
-        Assert.Equal(50, (await context.TaskItems.SingleAsync(t => t.Id == mainTask.Id)).Progress); // sanity: equal-weight baseline
+        // Sanity: (100*50 + 40*20) / 100 = 58 baseline.
+        Assert.Equal(58, (await context.TaskItems.SingleAsync(t => t.Id == mainTask.Id)).Progress);
 
         var controller = BuildController(context, "SuperAdmin");
         var model = new TaskEditViewModel
@@ -232,16 +285,16 @@ public class TasksControllerSubtaskWeightTests
             Description = pendingSubtask.Description,
             DueDate = pendingSubtask.DueDate,
             Priority = pendingSubtask.Priority,
-            Weight = 3,
+            Weight = 40, // up from 20; other sibling (doneSubtask) is 50, so 50+40=90 <= 100
         };
 
         var result = await controller.Edit(model);
 
         Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal(3, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight);
+        Assert.Equal(40, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight);
         var reloadedMain = await context.TaskItems.SingleAsync(t => t.Id == mainTask.Id);
-        // (100*1 + 0*3) / (1+3) = 25%, not the previous 50%.
-        Assert.Equal(25, reloadedMain.Progress);
+        // (100*50 + 40*40) / 100 = 66, not the previous 58.
+        Assert.Equal(66, reloadedMain.Progress);
     }
 
     [Fact]
@@ -264,12 +317,12 @@ public class TasksControllerSubtaskWeightTests
         var result = await controller.Edit(model);
 
         Assert.IsType<RedirectToActionResult>(result); // the edit itself succeeds (due date is still assignment-only editable) — just not the weight
-        Assert.Equal(1, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight); // unchanged
+        Assert.Equal(20, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight); // unchanged
     }
 
     [Theory]
     [InlineData(0)]
-    [InlineData(21)]
+    [InlineData(101)]
     public async Task Edit_OutOfRangeWeight_IsRejectedAndUnchanged(int invalidWeight)
     {
         var (context, _, _) = SeedUsers();
@@ -290,7 +343,31 @@ public class TasksControllerSubtaskWeightTests
 
         Assert.IsType<ViewResult>(result);
         Assert.False(controller.ModelState.IsValid);
-        Assert.Equal(1, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight); // unchanged
+        Assert.Equal(20, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight); // unchanged
+    }
+
+    [Fact]
+    public async Task Edit_WeightChangeThatWouldPushOtherSiblingTotalOver100_IsRejectedAndUnchanged()
+    {
+        var (context, _, _) = SeedUsers();
+        var (_, pendingSubtask) = await SeedDirectiveWithTwoSubtasksAsync(context); // doneSubtask=50, pendingSubtask=20
+
+        var controller = BuildController(context, "SuperAdmin");
+        var model = new TaskEditViewModel
+        {
+            Id = pendingSubtask.Id,
+            TaskName = pendingSubtask.TaskName,
+            Description = pendingSubtask.Description,
+            DueDate = pendingSubtask.DueDate,
+            Priority = pendingSubtask.Priority,
+            Weight = 60, // other sibling is 50; 50 + 60 = 110 > 100
+        };
+
+        var result = await controller.Edit(model);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.Equal(20, (await context.TaskItems.SingleAsync(t => t.Id == pendingSubtask.Id)).Weight); // unchanged
     }
 
     // ---------- Removing a subtask recalculates the parent ----------
@@ -303,15 +380,15 @@ public class TasksControllerSubtaskWeightTests
         context.TaskItems.Add(mainTask);
         await context.SaveChangesAsync();
 
-        var keptSubtask = new TaskItem { TaskName = "Kept", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Completed, Progress = 100, Weight = 1 };
-        var removedSubtask = new TaskItem { TaskName = "Removed", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Pending, Progress = 0, Weight = 3 };
+        var keptSubtask = new TaskItem { TaskName = "Kept", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Completed, Progress = 100, Weight = 25 };
+        var removedSubtask = new TaskItem { TaskName = "Removed", Description = "d", TaskLevel = TaskLevels.Subtask, ParentTaskId = mainTask.Id, OwningDepartment = TargetDepartments.BDD, DueDate = mainTask.DueDate, Status = TaskWorkflow.Pending, Progress = 0, Weight = 75 };
         context.TaskItems.AddRange(keptSubtask, removedSubtask);
         await context.SaveChangesAsync();
 
         var service = new TaskAssignmentService(context);
         service.RecalculateMainTaskFromSubtasks(mainTask);
         await context.SaveChangesAsync();
-        Assert.Equal(25, mainTask.Progress); // (100*1+0*3)/(1+3) baseline before removal
+        Assert.Equal(25, mainTask.Progress); // (100*25 + 0*75) / 100 baseline before removal
 
         // Load tracked with the empty collections PermanentlyDeleteTasksAsync expects.
         var toDelete = await context.TaskItems

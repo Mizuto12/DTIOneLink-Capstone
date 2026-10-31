@@ -511,6 +511,18 @@
     color: var(--mtd-on-surface);
 }
 .mtd-add-subtask input[type="number"]:focus { outline: 2px solid var(--mtd-primary); outline-offset: 1px; }
+.mtd-weight-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 120px;
+}
+.mtd-weight-input-group input[type="number"] { width: 100%; }
+.mtd-weight-input-group span {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--mtd-secondary);
+}
 .mtd-add-subtask-hint {
     display: block;
     font-size: 12px;

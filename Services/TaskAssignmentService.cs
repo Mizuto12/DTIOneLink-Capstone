@@ -345,29 +345,27 @@ namespace DTIOneLink.Services
             }
         }
 
-        // Effort-based weighted average across subtasks: Sum(Progress *
-        // Weight) / Sum(Weight), rounded with the same convention used
-        // everywhere else in this file (Math.Round's default — banker's
-        // rounding to the nearest even integer on an exact .5). Each
-        // subtask's Progress is already its own fully-resolved authoritative
-        // value by the time it reaches here — RecalculateOverallStatus has
-        // already combined that subtask's own assignees (including the
-        // Whole Office averaging rule) into this single number, so a
-        // multi-assignee subtask is never double-counted or arbitrarily
-        // picked from. Math.Max(1, ...) on each weight is defense-in-depth
-        // against a zero/negative historical value ever dividing by zero or
-        // contributing a negative share — [Range(1, 20)] on TaskItem.Weight
+        // Percentage-contribution model (2026-10-31 redesign): each
+        // subtask's Weight is a literal percentage of the parent's overall
+        // progress, not a relative share normalized against siblings —
+        // Sum(Progress% * Weight / 100), not divided by Sum(Weight).
+        // TasksController enforces that one Main Task's subtask weights
+        // never sum past 100 (TaskWorkflow.MaxTotalSubtaskWeight), so this
+        // can only exceed 100 through corrupted/historical data — Math.Min
+        // guards that defensively rather than trusting the invariant blindly.
+        // Each subtask's Progress is already its own fully-resolved
+        // authoritative value by the time it reaches here —
+        // RecalculateOverallStatus has already combined that subtask's own
+        // assignees (including the Whole Office averaging rule) into this
+        // single number, so a multi-assignee subtask is never double-counted
+        // or arbitrarily picked from. Math.Max(0, ...) on each weight is
+        // defense-in-depth against a negative historical value ever
+        // contributing a negative share — [Range(1, 100)] on TaskItem.Weight
         // should make this unreachable in practice.
         private static int WeightedProgress(List<TaskItem> subtasks)
         {
-            var totalWeight = subtasks.Sum(s => (long)Math.Max(1, s.Weight));
-            if (totalWeight <= 0)
-            {
-                return 0; // unreachable given Math.Max(1, ...) above, but an explicit guard beats a silent crash
-            }
-
-            var weightedSum = subtasks.Sum(s => (long)s.Progress * Math.Max(1, s.Weight));
-            return (int)Math.Round((double)weightedSum / totalWeight);
+            var contribution = subtasks.Sum(s => s.Progress / 100.0 * Math.Max(0, s.Weight));
+            return (int)Math.Min(100, Math.Round(contribution));
         }
 
         // Called after any subtask's own RecalculateOverallStatus, so a

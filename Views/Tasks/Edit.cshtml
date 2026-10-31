@@ -13,6 +13,8 @@
     var hasAssigneeError = ViewData.ModelState["AssigneeIds"]?.Errors.Count > 0;
     var isAssignmentOnly = ViewBag.IsAssignmentOnly as bool? ?? false;
     var isSubtask = ViewBag.IsSubtask as bool? ?? false;
+    var otherSubtaskWeightTotal = ViewBag.OtherSubtaskWeightTotal as int? ?? 0;
+    var remainingSubtaskWeight = Math.Max(0, 100 - otherSubtaskWeightTotal);
     var opdDueDate = ViewBag.OpdDueDate as DateTime?;
     var canPassOpdDueDate = ViewBag.CanPassOpdDueDate as bool? ?? false;
     var isDirectMainTaskAssignment = ViewBag.IsDirectMainTaskAssignment as bool? ?? false;
@@ -207,16 +209,20 @@
 
                     @if (isSubtask)
                     {
-                        <!-- Estimated Workload Weight — only meaningful for a subtask
-                             of a Main Task; see TaskAssignmentService.RecalculateMainTaskFromSubtasks. -->
+                        <!-- % of Main Task Progress — only meaningful for a subtask of a
+                             Main Task; see TaskAssignmentService.RecalculateMainTaskFromSubtasks. -->
                         <div class="et-field et-field-full">
-                            <label asp-for="Weight" class="et-label">Estimated Workload Weight</label>
-                            <input asp-for="Weight" type="number" min="1" max="20" step="1" class="et-input"
-                                   style="max-width:120px;" disabled="@(isAssignmentOnly ? "disabled" : null)" />
+                            <label asp-for="Weight" class="et-label">% of Main Task Progress</label>
+                            <div class="et-weight-input-group">
+                                <input asp-for="Weight" type="number" min="1" max="100" step="1" class="et-input"
+                                       disabled="@(isAssignmentOnly ? "disabled" : null)" />
+                                <span class="et-weight-percent">%</span>
+                            </div>
                             <p class="et-field-hint">
-                                A higher weight means a larger estimated workload and a greater share of this
-                                directive's overall progress — a weight of 3 counts three times as much as a
-                                weight of 1 when the parent task's progress is calculated from its subtasks.
+                                This subtask's direct share of the directive's overall progress — e.g. 5% moves
+                                the whole directive 5 points once this subtask is done. This directive's other
+                                subtasks already total @otherSubtaskWeightTotal%, so this one can be at most
+                                @remainingSubtaskWeight%.
                             </p>
                             <span asp-validation-for="Weight" class="et-error-text"></span>
                         </div>

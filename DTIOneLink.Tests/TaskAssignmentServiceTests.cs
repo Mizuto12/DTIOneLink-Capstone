@@ -360,71 +360,57 @@ public class TaskAssignmentServiceTests
     }
 
     [Fact]
-    public void RecalculateMainTaskFromSubtasks_SubtasksWithNoChecklistItems_SameResultAsBefore()
+    public void RecalculateMainTaskFromSubtasks_EqualPercentageSplit_SameShapeAsBefore()
     {
         // Regression check: this rollup reads only subtasks' Status/Progress
-        // — the checklist feature must not change its result for the
-        // overwhelming common case of a task with zero checklist items.
-        // Weight defaults to 1 on both, so this is also the weighted
-        // formula's own backward-compatibility case (same assertion as
-        // before effort-based weighting existed at all).
+        // (plus now Weight) — the checklist feature must not change its
+        // result for the common case of a task with zero checklist items.
         var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 40 });
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0 });
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 40, Weight = 50 });
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 50 });
 
         new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask);
 
         Assert.Equal(TaskWorkflow.InProgress, mainTask.Status);
+        // (40 * 50 + 0 * 50) / 100 = 20.
         Assert.Equal(20, mainTask.Progress);
     }
 
-    // Effort-based subtask weighting (2026-10-31): a trivial subtask (e.g.
-    // "get a signature," weight 1) alongside substantial ones (weight 3 and
-    // 6) must now count proportionally to its weight, not equally. This
-    // replaces the old "subtasks count equally" test — that was the
-    // correct description of the old plain-average behavior, which this
-    // feature deliberately changes.
+    // Percentage-contribution subtask weighting (2026-10-31 redesign): a
+    // subtask's Weight is now a literal percentage of the parent's overall
+    // progress, not a relative share normalized against siblings — a
+    // trivial subtask (e.g. "get a signature," worth 10%) alongside
+    // substantial ones (30% and 60%) contributes exactly its own share,
+    // with no normalization against the others.
     [Fact]
-    public void RecalculateMainTaskFromSubtasks_SubtasksNowCountByTheirWeight_NotEqually()
+    public void RecalculateMainTaskFromSubtasks_SubtasksContributeTheirLiteralPercentage()
     {
         var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Completed, Progress = 100, Weight = 1 }); // "Get a signature"
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 3 });     // "Prepare documentation"
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 6 });     // "Complete technical work"
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Completed, Progress = 100, Weight = 10 }); // "Get a signature"
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 30 });     // "Prepare documentation"
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 60 });     // "Complete technical work"
 
         new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask);
 
-        // (100*1 + 0*3 + 0*6) / (1+3+6) = 10%, not 33% (the old equal-weight
-        // average) — the trivial-but-done subtask no longer outweighs the
-        // two substantial, unstarted ones.
+        // 100% of a 10%-weighted subtask contributes exactly 10 points —
+        // not 33% (an equal-weight average) and not normalized against the
+        // other two subtasks' weights.
         Assert.Equal(10, mainTask.Progress);
     }
 
     [Fact]
-    public void RecalculateMainTaskFromSubtasks_EqualWeights_BehavesLikeThePlainAverage()
+    public void RecalculateMainTaskFromSubtasks_UnequalPercentagesWithPartialProgress_BothPullProportionally()
     {
         var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 40, Weight = 2 });
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 2 });
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Completed, Progress = 100, Weight = 25 });
+        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 50, Weight = 75 });
 
         new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask);
 
-        Assert.Equal(20, mainTask.Progress);
-    }
-
-    [Fact]
-    public void RecalculateMainTaskFromSubtasks_UnequalWeightsWithPartialProgress_WeightsBothPulls()
-    {
-        var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Completed, Progress = 100, Weight = 1 });
-        mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 50, Weight = 3 });
-
-        new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask);
-
-        // (100*1 + 50*3) / (1+3) = 250/4 = 62.5%, which Math.Round's default
-        // banker's rounding (round-half-to-even, the same convention
-        // already used everywhere else progress is rounded in this file)
-        // takes to 62, not 63.
+        // (100*25 + 50*75) / 100 = (2500 + 3750) / 100 = 62.5%, which
+        // Math.Round's default banker's rounding (round-half-to-even, the
+        // same convention used everywhere else progress is rounded in this
+        // file) takes to 62, not 63.
         Assert.Equal(62, mainTask.Progress);
     }
 
@@ -457,24 +443,28 @@ public class TaskAssignmentServiceTests
     [Fact]
     public void RecalculateMainTaskFromSubtasks_PartialProgressSubtask_ContributesProportionallyToItsWeight()
     {
-        // Isolates one subtask's own partial contribution: a weight-4
-        // subtask at 25% contributes the same 100-point share as a
-        // weight-1 subtask fully done would — (25*4)/(1+4) = 20,
-        // vs. (100*1)/(1+4) = 20 for the other subtask fully done instead.
+        // Isolates a larger-weighted subtask's own partial contribution: a
+        // weight-80 subtask at 25% progress contributes 20 points on its
+        // own (25% of 80), regardless of what the smaller weight-20
+        // subtask (still Pending) is doing.
         var mainTaskA = new TaskItem { TaskLevel = TaskLevels.Main };
-        mainTaskA.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 1 });
-        mainTaskA.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 25, Weight = 4 });
+        mainTaskA.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = 20 });
+        mainTaskA.Subtasks.Add(new TaskItem { Status = TaskWorkflow.InProgress, Progress = 25, Weight = 80 });
         new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTaskA);
 
+        // (0*20 + 25*80) / 100 = 20.
         Assert.Equal(20, mainTaskA.Progress);
     }
 
     [Fact]
-    public void RecalculateMainTaskFromSubtasks_InvalidHistoricalWeight_IsTreatedAsOne()
+    public void RecalculateMainTaskFromSubtasks_InvalidHistoricalWeight_ContributesNothingRatherThanCrashing()
     {
-        // Defense-in-depth: a zero/negative Weight should never divide by
-        // zero or swing the average negative, even though [Range(1, 20)]
-        // on TaskItem.Weight should make this unreachable through the app.
+        // Defense-in-depth: a zero/negative Weight should never contribute
+        // a negative or otherwise unaccountable share, even though
+        // [Range(1, 100)] on TaskItem.Weight should make this unreachable
+        // through the app. Floored to 0 (not 1) — in the percentage model,
+        // "contributes nothing" is the safe fallback, since there's no
+        // division by the weight that a flooring-to-1 would be protecting.
         var mainTask = new TaskItem { TaskLevel = TaskLevels.Main };
         mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Completed, Progress = 100, Weight = 0 });
         mainTask.Subtasks.Add(new TaskItem { Status = TaskWorkflow.Pending, Progress = 0, Weight = -5 });
@@ -483,7 +473,7 @@ public class TaskAssignmentServiceTests
             new TaskAssignmentService(InMemoryDbContextFactory.Create()).RecalculateMainTaskFromSubtasks(mainTask));
 
         Assert.Null(exception);
-        Assert.Equal(50, mainTask.Progress); // both weights floored to 1: (100*1+0*1)/2 = 50
+        Assert.Equal(0, mainTask.Progress); // both weights floored to 0: (100*0 + 0*0) / 100 = 0
     }
 
     [Fact]

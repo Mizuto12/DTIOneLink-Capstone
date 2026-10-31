@@ -55,18 +55,22 @@
             // Decision 9: max checklist items on a single assignment.
             public const int MaxChecklistItemsPerAssignment = 10;
 
-            // Subtask workload weight (effort-based progress weighting, Main
-            // Task <- subtasks only — see TaskAssignmentService.
-            // RecalculateMainTaskFromSubtasks). Default 1 for every existing
-            // and newly created subtask means an unweighted average until an
-            // authorized user (the OPD) actually sets a different workload —
-            // mathematically identical to the plain average this replaces, so
-            // nothing changes for any task until someone opts in. The upper
-            // bound is a sanity cap, not a meaningful unit — just large enough
-            // to express "this is clearly bigger," small enough that a typo
-            // can't silently swamp the whole calculation.
+            // Subtask workload weight (Main Task <- subtasks only — see
+            // TaskAssignmentService.RecalculateMainTaskFromSubtasks). This is
+            // a literal percentage: a subtask with Weight 5 is worth 5% of
+            // its parent's overall progress — reaching 100% on that one
+            // subtask contributes exactly 5 points to the parent, regardless
+            // of what any other subtask is doing. TasksController enforces
+            // that one Main Task's subtasks never sum past 100 total (2026-
+            // 10-31 redesign, replacing an earlier relative-weight scheme
+            // that normalized siblings against each other — that version
+            // shipped once and was changed before most tasks ever used it,
+            // per an explicit product-owner decision that percentages are
+            // more intuitive for this app's non-technical users).
             public const int MinSubtaskWeight = 1;
-            public const int MaxSubtaskWeight = 20;
+            public const int MaxSubtaskWeight = 100;
+            // The ceiling one Main Task's subtask weights may sum to.
+            public const int MaxTotalSubtaskWeight = 100;
             public const int DefaultSubtaskWeight = 1;
 
             // A due date with no time-of-day (every task created before

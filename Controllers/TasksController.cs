@@ -420,13 +420,33 @@ namespace DTIOneLink.Controllers
                 ModelState.AddModelError(nameof(model.SubtaskNames), "Each subtask name must be at most 200 characters.");
             }
 
-            // Each row's weight <input> has min/max=1/20, but that's a client
-            // hint only — a direct POST could still send anything.
-            if ((model.SubtaskWeights ?? new List<int>()).Any(w =>
-                w < TaskWorkflow.MinSubtaskWeight || w > TaskWorkflow.MaxSubtaskWeight))
+            // Each row's weight <input> has min/max/sum limits client-side,
+            // but that's a hint only — a direct POST could still send
+            // anything. Paired with its subtask name by position first
+            // (same as OpdTaskService.CreateAsync's own zip) so a blank-name
+            // row's leftover weight value never counts toward the total —
+            // only subtasks that will actually be created do.
+            var createSubtaskWeights = model.SubtaskWeights ?? new List<int>();
+            var namedSubtaskWeights = (model.SubtaskNames ?? new List<string>())
+                .Select((n, i) => (
+                    Name: n?.Trim(),
+                    Weight: i < createSubtaskWeights.Count ? createSubtaskWeights[i] : TaskWorkflow.DefaultSubtaskWeight))
+                .Where(e => !string.IsNullOrWhiteSpace(e.Name))
+                .ToList();
+
+            if (namedSubtaskWeights.Any(e => e.Weight < TaskWorkflow.MinSubtaskWeight || e.Weight > TaskWorkflow.MaxSubtaskWeight))
             {
                 ModelState.AddModelError(nameof(model.SubtaskWeights),
-                    $"Each subtask's weight must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.");
+                    $"Each subtask's percentage must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.");
+            }
+            else
+            {
+                var totalSubtaskWeight = namedSubtaskWeights.Sum(e => e.Weight);
+                if (totalSubtaskWeight > TaskWorkflow.MaxTotalSubtaskWeight)
+                {
+                    ModelState.AddModelError(nameof(model.SubtaskWeights),
+                        $"Subtask percentages can't add up to more than {TaskWorkflow.MaxTotalSubtaskWeight}% total (currently {totalSubtaskWeight}%).");
+                }
             }
 
             // Nothing previously checked this at all — a task could be
@@ -720,6 +740,13 @@ namespace DTIOneLink.Controllers
     // Weight only ever means anything for an actual subtask — a standalone
     // task or a Main Task itself never has the field rendered at all.
     ViewBag.IsSubtask = task.ParentTaskId.HasValue;
+    // Every OTHER subtask under the same parent (excluding this one) — so
+    // the view can show how much percentage is still available for it.
+    ViewBag.OtherSubtaskWeightTotal = task.ParentTaskId.HasValue
+        ? await _context.TaskItems
+            .Where(t => t.ParentTaskId == task.ParentTaskId && t.Id != task.Id && t.TaskLevel == TaskLevels.Subtask)
+            .SumAsync(t => t.Weight)
+        : 0;
     // Narrower still than the local isDirectMainTaskAssignment above: this
     // specifically drives the "no subtasks yet" note, which only makes
     // sense on a zero-subtask Department Directive — not a Direct Admin /
@@ -943,7 +970,22 @@ public async Task<IActionResult> Edit(TaskEditViewModel model)
     if (canEditWeight && (model.Weight < TaskWorkflow.MinSubtaskWeight || model.Weight > TaskWorkflow.MaxSubtaskWeight))
     {
         ModelState.AddModelError(nameof(model.Weight),
-            $"Weight must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.");
+            $"Percentage must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.");
+    }
+    else if (canEditWeight)
+    {
+        // Every OTHER subtask under the same parent, excluding this one —
+        // its own current value is about to be replaced by model.Weight,
+        // not added on top of it.
+        var otherSiblingWeight = await _context.TaskItems
+            .Where(t => t.ParentTaskId == task.ParentTaskId && t.Id != task.Id && t.TaskLevel == TaskLevels.Subtask)
+            .SumAsync(t => t.Weight);
+        if (otherSiblingWeight + model.Weight > TaskWorkflow.MaxTotalSubtaskWeight)
+        {
+            var remaining = Math.Max(0, TaskWorkflow.MaxTotalSubtaskWeight - otherSiblingWeight);
+            ModelState.AddModelError(nameof(model.Weight),
+                $"This directive's other subtasks already total {otherSiblingWeight}%. This one can be at most {remaining}%.");
+        }
     }
 
     if (!ModelState.IsValid)
@@ -1457,6 +1499,11 @@ private async Task RepopulateEditContextAsync(TaskItem task)
     ViewBag.IsDirectMainTaskAssignment = isMainLevelDirectAssignment && TaskTypes.DepartmentDirective == task.TaskType;
     ViewBag.IsAssignmentOnly = (task.ParentTaskId.HasValue || task.TaskLevel == TaskLevels.Main) && !IsOfficeWideTaskManager();
     ViewBag.IsSubtask = task.ParentTaskId.HasValue;
+    ViewBag.OtherSubtaskWeightTotal = task.ParentTaskId.HasValue
+        ? await _context.TaskItems
+            .Where(t => t.ParentTaskId == task.ParentTaskId && t.Id != task.Id && t.TaskLevel == TaskLevels.Subtask)
+            .SumAsync(t => t.Weight)
+        : 0;
     ViewBag.OpdDueDate = ViewBag.IsAssignmentOnly ? task.ParentTask?.DueDate : null;
     // Due soon or overdue: the OPD deadline is shown but no longer a limit.
     ViewBag.CanPassOpdDueDate = TaskWorkflow.IsDueSoonOrOverdue(task.Status, task.DueDate);
@@ -1733,7 +1780,17 @@ public async Task<IActionResult> AddSubtask(int id, string subtaskName, bool req
     }
     if (weight < TaskWorkflow.MinSubtaskWeight || weight > TaskWorkflow.MaxSubtaskWeight)
     {
-        TempData["ErrorMessage"] = $"Weight must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.";
+        TempData["ErrorMessage"] = $"Percentage must be between {TaskWorkflow.MinSubtaskWeight} and {TaskWorkflow.MaxSubtaskWeight}.";
+        return RedirectToAction(nameof(MainTaskDetails), new { id });
+    }
+
+    var existingSiblingWeight = await _context.TaskItems
+        .Where(t => t.ParentTaskId == mainTask.Id && t.TaskLevel == TaskLevels.Subtask)
+        .SumAsync(t => t.Weight);
+    if (existingSiblingWeight + weight > TaskWorkflow.MaxTotalSubtaskWeight)
+    {
+        var remaining = Math.Max(0, TaskWorkflow.MaxTotalSubtaskWeight - existingSiblingWeight);
+        TempData["ErrorMessage"] = $"This directive's subtasks already total {existingSiblingWeight}%. This one can be at most {remaining}%.";
         return RedirectToAction(nameof(MainTaskDetails), new { id });
     }
 

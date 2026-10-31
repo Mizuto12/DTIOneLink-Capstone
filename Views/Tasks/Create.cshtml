@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="~/css/tasks-create.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/help-hint.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/chip-recipient-input.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notice-dialog.css" asp-append-version="true" />
 }
 
 <!-- ── The real Task Management list, behind the form ───── -->
@@ -152,13 +153,14 @@
                                            role="combobox" aria-expanded="false" aria-autocomplete="list" aria-haspopup="listbox" />
                                     <div class="chip-input-suggestions" data-chip-suggestions role="listbox" hidden></div>
                                 </div>
+                                <p class="modal-sub" style="margin-top:4px;">Start typing a name or email address to find and add Admins.</p>
                                 <span asp-validation-for="DirectAdminUserIds" class="field-error"></span>
                                 <script type="application/json" id="directAdminOptionsData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                                     ((IEnumerable<DTIOneLink.Models.User>)ViewBag.ResponsibleAdmins)
                                         .Select(a => new { id = a.Id, name = a.FullName, email = a.Email, department = a.Department })))</script>
                             </div>
 
-                            <p class="modal-sub" id="wholeOfficeNote" hidden>
+                            <p class="modal-sub" id="wholeOfficeNote" data-count="@ViewBag.WholeOfficeCount" hidden>
                                 Every active Division Chief and employee (@ViewBag.WholeOfficeCount people) gets this task and submits their own. You review each submission.
                             </p>
                         </div>
@@ -255,11 +257,21 @@
                          Kept visually secondary to the Subject/Body above it. -->
                     <div class="compose-subtasks" id="subtasksFieldGroup">
                         <p class="compose-subtasks__label">SUBTASKS (OPTIONAL)</p>
+                        <div class="subtask-list-header">
+                            <span>Subtask name</span>
+                            <span>% of progress</span>
+                        </div>
                         <div id="subtaskList" class="subtask-list"></div>
                         <button type="button" id="addSubtaskBtn" class="subtask-add-btn">
                             <span class="material-symbols-outlined">edit_note</span>
                             Add subtask
                         </button>
+                        <p class="modal-sub" style="margin-top:8px;">
+                            Each subtask's percentage is its direct share of this directive's overall progress —
+                            e.g. a subtask worth 5% moves the whole directive 5 points once it's done.
+                            All subtasks together can't add up to more than 100%.
+                        </p>
+                        <p id="subtaskWeightTotal" class="subtask-weight-total"></p>
                         <p class="modal-sub" style="margin-top:8px;">Optional — break this down now, or add subtasks later.</p>
                     </div>
                 }
@@ -279,10 +291,62 @@
     </div>
 </dialog>
 
+<partial name="_NoticeDialog" />
+
 @section Scripts {
     <script src="~/js/help-hint.js" asp-append-version="true"></script>
     <script src="~/js/subtask-list.js" asp-append-version="true"></script>
     <script src="~/js/chip-recipient-input.js" asp-append-version="true"></script>
+    <script src="~/js/notice-dialog.js" asp-append-version="true"></script>
+    <!-- UX-001: confirm before a Whole Office task actually sends — this
+         listener must register (and so run) BEFORE tasks-create.js's own
+         submit listener below, since that one immediately disables the
+         Create button and shows a spinner; intercepting afterwards would
+         leave the button stuck mid-"Creating..." while this dialog is still
+         open. Listeners on the same element fire in registration order
+         regardless of capture/bubble, so script order here is load-bearing. -->
+    <script>
+        (function () {
+            var taskForm = document.getElementById('taskForm');
+            if (!taskForm) return;
+
+            function selectedTaskType() {
+                var checked = document.querySelector('input[name="TaskType"]:checked');
+                return checked ? checked.value : '';
+            }
+
+            taskForm.addEventListener('submit', function (event) {
+                if (selectedTaskType() !== 'whole-office' || taskForm.dataset.wholeOfficeConfirmed === 'true') {
+                    return;
+                }
+                event.preventDefault();
+
+                var taskNameField = document.getElementById('taskName');
+                var taskName = (taskNameField && taskNameField.value.trim()) || 'this task';
+                var note = document.getElementById('wholeOfficeNote');
+                var count = note ? note.getAttribute('data-count') : null;
+                var recipients = count
+                    ? (count + ' active staff member' + (count === '1' ? '' : 's'))
+                    : 'every active staff member';
+
+                window.showNotice({
+                    tone: 'warning',
+                    icon: 'groups',
+                    title: 'Send "' + taskName + '" to the whole office?',
+                    message: 'This sends it to ' + recipients + ' right away — every active Division Chief ' +
+                        'and employee. Each one is notified and expected to submit their own copy. This can’t ' +
+                        'be undone once sent.',
+                    okText: 'Confirm and Create Task',
+                    cancelText: 'Cancel'
+                }).then(function (confirmed) {
+                    if (confirmed) {
+                        taskForm.dataset.wholeOfficeConfirmed = 'true';
+                        taskForm.requestSubmit ? taskForm.requestSubmit() : taskForm.submit();
+                    }
+                });
+            });
+        })();
+    </script>
     <script src="~/js/tasks-create.js" asp-append-version="true"></script>
     <script>
         (function () {

@@ -123,15 +123,17 @@ namespace DTIOneLink.Models
         public DateTime? ReviewDueDate { get; set; }
 
         // Only meaningful for a subtask (ParentTaskId != null) under a Main
-        // Task — its estimated relative workload, used to weight this
-        // subtask's contribution to the parent's calculated progress
-        // (TaskAssignmentService.RecalculateMainTaskFromSubtasks). A
+        // Task — the literal percentage of the parent's overall progress
+        // this one subtask is worth (not a relative share normalized
+        // against siblings). TasksController enforces that one Main Task's
+        // subtasks never sum past 100 total. See
+        // TaskAssignmentService.RecalculateMainTaskFromSubtasks. A
         // standalone task or a Main Task itself never reads this. Same
         // authorization boundary as TaskName/Priority/Description on a
         // subtask: only the OPD (SuperAdmin) sets it, at creation or edit
         // time — see TasksController.Edit's isAssignmentOnly gate.
         [Range(TaskWorkflow.MinSubtaskWeight, TaskWorkflow.MaxSubtaskWeight,
-            ErrorMessage = "Weight must be between 1 and 20.")]
+            ErrorMessage = "Weight must be between 1 and 100.")]
         public int Weight { get; set; } = TaskWorkflow.DefaultSubtaskWeight;
 
         public List<TaskAssignment> Assignments { get; set; } = new();

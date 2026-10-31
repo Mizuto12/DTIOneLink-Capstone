@@ -634,6 +634,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .checklist-page__back { display: inline-block; margin-top: 12px; }
 
 /* ── Subtasks (SuperAdmin's inline Main Task breakdown) ─────────────── */
+/* Column labels above the list — purely visual, lines up with each row's
+   name input and weight group below. */
+.subtask-list-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+.subtask-list-header span {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+}
+.subtask-list-header span:first-child { flex: 1; }
+.subtask-list-header span:last-child { flex-shrink: 0; width: 100px; text-align: center; }
+
 .subtask-list {
     display: flex;
     flex-direction: column;
@@ -650,11 +668,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     flex: 1;
 }
 
-/* Estimated workload weight — fixed-width, sits between the name and the
-   remove button; see subtask-list.js. */
-.subtask-weight-input {
+/* Percent-of-progress weight — the input plus its own "%" suffix, sitting
+   between the name and the remove button; see subtask-list.js. */
+.subtask-weight-group {
     flex-shrink: 0;
-    width: 56px;
+    width: 100px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.subtask-weight-input {
+    flex: 1;
+    min-width: 0;
     padding: 9px 8px;
     border-radius: var(--radius-full, 9999px);
     border: 1px solid var(--outline-variant);
@@ -669,6 +695,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     border-color: var(--primary);
     box-shadow: 0 0 0 2px var(--primary);
 }
+
+.subtask-weight-percent {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--on-surface-variant);
+}
+
+/* Running total, updated live by subtask-list.js as rows/values change. */
+.subtask-weight-total {
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--on-surface-variant);
+}
+.subtask-weight-total.is-over { color: var(--error, #b3261e); }
 
 .subtask-remove-btn {
     display: flex;

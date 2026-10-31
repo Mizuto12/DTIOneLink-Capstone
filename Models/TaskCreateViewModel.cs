@@ -59,12 +59,12 @@ namespace DTIOneLink.Models
         public List<string>? SubtaskNames { get; set; } = new();
 
         // Parallel to SubtaskNames by position (same row in the form, each
-        // row submits one of each) — the estimated workload weight for that
-        // subtask (TaskItem.Weight). Shorter than SubtaskNames, or missing
-        // entirely, just means the trailing subtasks get the default weight;
-        // see OpdTaskService.CreateAsync's zip. Actual range validation
-        // happens in TasksController.Create — this list is never trusted
-        // as-is.
+        // row submits one of each) — each subtask's literal percentage
+        // share of this directive's overall progress (TaskItem.Weight).
+        // Shorter than SubtaskNames, or missing entirely, just means the
+        // trailing subtasks get the default weight; see OpdTaskService.
+        // CreateAsync's zip. Actual range AND sum-to-100 validation happens
+        // in TasksController.Create — this list is never trusted as-is.
         [Display(Name = "Subtask Weights")]
         public List<int>? SubtaskWeights { get; set; } = new();
 

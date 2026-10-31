@@ -53,7 +53,10 @@ namespace DTIOneLink.Models
         // Only meaningful (and only ever rendered/written) when this task is
         // actually a subtask of a Main Task — see the view's IsSubtask flag
         // and the controller's isAssignmentOnly gate, same as Priority above.
-        [Display(Name = "Estimated Workload Weight")]
+        // A literal percentage of the parent's progress (not a relative
+        // weight) — the controller also enforces that this subtask's
+        // siblings' percentages, plus this one, never sum past 100.
+        [Display(Name = "% of Main Task Progress")]
         public int Weight { get; set; } = DTIOneLink.Services.TaskWorkflow.DefaultSubtaskWeight;
     }
 }
